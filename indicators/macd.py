@@ -193,13 +193,13 @@ class MACDIndicator:
             min_len = min(len(prices), len(macd_values))
             prices = prices[-min_len:]
             macd_values = macd_values[-min_len:]
-        
-        # Son 20 mumda fiyat ve MACD zirvelerini bul
-        price_highs = []
-        macd_highs = []
-        price_lows = []
-        macd_lows = []
-        
+            
+            # Son 20 mumda fiyat ve MACD zirvelerini bul
+            price_highs = []
+            macd_highs = []
+            price_lows = []
+            macd_lows = []
+            
             for i in range(1, len(prices) - 1):
                 try:
                     # Fiyat zirveleri
