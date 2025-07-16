@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  gold-analyzer:
+    build: .
+    container_name: gold_price_analyzer
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./signals:/app/signals
+      - ./data:/app/data
+      - ./gold_prices.db:/app/gold_prices.db
+    environment:
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

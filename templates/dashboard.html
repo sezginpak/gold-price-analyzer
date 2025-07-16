@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold Price Analyzer Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .signal-buy { color: #10b981; }
+        .signal-sell { color: #ef4444; }
+        .log-line { font-family: monospace; font-size: 12px; }
+        .error-log { color: #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-4">
+        <!-- Header -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h1 class="text-3xl font-bold mb-2">🏆 Gold Price Analyzer Dashboard</h1>
+            <div id="connection-status" class="text-sm">
+                <span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                <span id="status-text">Bağlanıyor...</span>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="text-sm text-gray-400 mb-1">Sistem Uptime</h3>
+                <p class="text-2xl font-bold" id="uptime">-</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="text-sm text-gray-400 mb-1">Toplam Kayıt</h3>
+                <p class="text-2xl font-bold" id="total-records">-</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="text-sm text-gray-400 mb-1">Bugünkü Sinyal</h3>
+                <p class="text-2xl font-bold" id="today-signals">-</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="text-sm text-gray-400 mb-1">Son Güncelleme</h3>
+                <p class="text-2xl font-bold" id="last-update">-</p>
+            </div>
+        </div>
+
+        <!-- Current Price -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">💰 Anlık Fiyatlar</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <span class="text-gray-400">ONS/USD:</span>
+                    <span class="text-2xl font-bold ml-2" id="ons-usd">-</span>
+                </div>
+                <div>
+                    <span class="text-gray-400">USD/TRY:</span>
+                    <span class="text-2xl font-bold ml-2" id="usd-try">-</span>
+                </div>
+                <div>
+                    <span class="text-gray-400">ONS/TRY:</span>
+                    <span class="text-2xl font-bold ml-2" id="ons-try">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Price Chart -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">📊 Fiyat Grafiği (1 Saat)</h2>
+                <canvas id="priceChart"></canvas>
+            </div>
+            
+            <!-- Candle Chart -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">🕯️ OHLC (15 Dakika)</h2>
+                <canvas id="candleChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Signals -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">🚨 Bugünkü Sinyaller</h2>
+            <div id="signals-container" class="space-y-2">
+                <p class="text-gray-400">Yükleniyor...</p>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">📋 Son Loglar</h2>
+                <div id="main-logs" class="space-y-1 max-h-96 overflow-y-auto">
+                    <p class="text-gray-400">Yükleniyor...</p>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">❌ Hata Logları</h2>
+                <div id="error-logs" class="space-y-1 max-h-96 overflow-y-auto">
+                    <p class="text-gray-400">Yükleniyor...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket bağlantısı
+        let ws = null;
+        let priceChart = null;
+        let candleChart = null;
+        let priceData = [];
+
+        // WebSocket bağlan
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://${window.location.host}/ws`);
+            
+            ws.onopen = () => {
+                document.getElementById('status-text').textContent = 'Bağlı';
+                document.querySelector('#connection-status span:first-child').classList.add('bg-green-500');
+                document.querySelector('#connection-status span:first-child').classList.remove('bg-red-500');
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('status-text').textContent = 'Bağlantı koptu, yeniden bağlanıyor...';
+                document.querySelector('#connection-status span:first-child').classList.remove('bg-green-500');
+                document.querySelector('#connection-status span:first-child').classList.add('bg-red-500');
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'price_update') {
+                    updateCurrentPrice(data.data);
+                    addPriceToChart(data.data);
+                }
+            };
+        }
+
+        // Fiyat güncelle
+        function updateCurrentPrice(price) {
+            document.getElementById('ons-usd').textContent = `$${price.ons_usd.toFixed(2)}`;
+            document.getElementById('usd-try').textContent = price.usd_try.toFixed(4);
+            document.getElementById('ons-try').textContent = `₺${price.ons_try.toFixed(2)}`;
+        }
+
+        // İstatistikleri yükle
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                document.getElementById('uptime').textContent = data.system.uptime;
+                document.getElementById('total-records').textContent = data.database.total_records.toLocaleString();
+                document.getElementById('today-signals').textContent = data.signals.today;
+                
+                if (data.system.last_update) {
+                    const date = new Date(data.system.last_update);
+                    document.getElementById('last-update').textContent = date.toLocaleTimeString('tr-TR');
+                }
+            } catch (error) {
+                console.error('Stats yüklenemedi:', error);
+            }
+        }
+
+        // Fiyat grafiği oluştur
+        function initPriceChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'ONS/TRY',
+                        data: [],
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { color: 'rgb(156, 163, 175)' }
+                        },
+                        x: {
+                            ticks: { color: 'rgb(156, 163, 175)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Grafiğe fiyat ekle
+        function addPriceToChart(price) {
+            if (!priceChart) return;
+            
+            const time = new Date(price.timestamp).toLocaleTimeString('tr-TR');
+            
+            priceChart.data.labels.push(time);
+            priceChart.data.datasets[0].data.push(price.ons_try);
+            
+            // Max 50 veri
+            if (priceChart.data.labels.length > 50) {
+                priceChart.data.labels.shift();
+                priceChart.data.datasets[0].data.shift();
+            }
+            
+            priceChart.update();
+        }
+
+        // Sinyalleri yükle
+        async function loadSignals() {
+            try {
+                const response = await fetch('/api/signals/today');
+                const data = await response.json();
+                
+                const container = document.getElementById('signals-container');
+                
+                if (data.signals.length === 0) {
+                    container.innerHTML = '<p class="text-gray-400">Bugün henüz sinyal yok</p>';
+                    return;
+                }
+                
+                container.innerHTML = data.signals.map(signal => `
+                    <div class="bg-gray-700 p-3 rounded">
+                        <span class="${signal.type === 'BUY' ? 'signal-buy' : 'signal-sell'} font-bold">
+                            ${signal.type === 'BUY' ? '🟢 ALIŞ' : '🔴 SATIŞ'}
+                        </span>
+                        <span class="ml-4">Fiyat: ₺${signal.price}</span>
+                        <span class="ml-4">Güven: ${signal.confidence}</span>
+                        <span class="ml-4 text-sm text-gray-400">${signal.timestamp}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Sinyaller yüklenemedi:', error);
+            }
+        }
+
+        // Logları yükle
+        async function loadLogs() {
+            try {
+                const response = await fetch('/api/logs/recent');
+                const data = await response.json();
+                
+                // Ana loglar
+                const mainLogs = document.getElementById('main-logs');
+                mainLogs.innerHTML = data.main.map(log => 
+                    `<div class="log-line">${log}</div>`
+                ).join('');
+                
+                // Hata logları
+                const errorLogs = document.getElementById('error-logs');
+                if (data.errors.length === 0) {
+                    errorLogs.innerHTML = '<p class="text-gray-400">Hata yok 🎉</p>';
+                } else {
+                    errorLogs.innerHTML = data.errors.map(log => 
+                        `<div class="log-line error-log">${log}</div>`
+                    ).join('');
+                }
+            } catch (error) {
+                console.error('Loglar yüklenemedi:', error);
+            }
+        }
+
+        // İlk fiyatları yükle
+        async function loadInitialPrices() {
+            try {
+                const response = await fetch('/api/prices/latest');
+                const data = await response.json();
+                
+                if (data.prices.length > 0) {
+                    // Son fiyatı göster
+                    const latest = data.prices[data.prices.length - 1];
+                    updateCurrentPrice(latest);
+                    
+                    // Grafiğe ekle
+                    data.prices.forEach(price => addPriceToChart(price));
+                }
+            } catch (error) {
+                console.error('Fiyatlar yüklenemedi:', error);
+            }
+        }
+
+        // Sayfa yüklendiğinde
+        window.onload = () => {
+            connectWebSocket();
+            initPriceChart();
+            loadStats();
+            loadInitialPrices();
+            loadSignals();
+            loadLogs();
+            
+            // Periyodik güncellemeler
+            setInterval(loadStats, 30000);     // 30 saniye
+            setInterval(loadSignals, 60000);   // 1 dakika
+            setInterval(loadLogs, 60000);      // 1 dakika
+        };
+    </script>
+</body>
+</html>
