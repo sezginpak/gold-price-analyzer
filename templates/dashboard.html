@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gold Price Analyzer Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .signal-buy { color: #10b981; }
@@ -75,7 +75,12 @@
             <!-- Candle Chart -->
             <div class="bg-gray-800 rounded-lg p-6">
                 <h2 class="text-xl font-bold mb-4">🕯️ OHLC (15 Dakika)</h2>
-                <canvas id="candleChart"></canvas>
+                <div class="mb-2">
+                    <button onclick="loadCandles('15m')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">15D</button>
+                    <button onclick="loadCandles('1h')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">1S</button>
+                    <button onclick="loadCandles('4h')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">4S</button>
+                </div>
+                <div id="candleChart" style="min-height: 300px;"></div>
             </div>
         </div>
 
@@ -151,9 +156,9 @@
                 const response = await fetch('/api/stats');
                 const data = await response.json();
                 
-                document.getElementById('uptime').textContent = data.system.uptime;
-                document.getElementById('total-records').textContent = data.database.total_records.toLocaleString();
-                document.getElementById('today-signals').textContent = data.signals.today;
+                document.getElementById('uptime').textContent = data.system.uptime || '-';
+                document.getElementById('total-records').textContent = data.database.total_records?.toLocaleString() || '0';
+                document.getElementById('today-signals').textContent = data.signals.today || '0';
                 
                 if (data.system.last_update) {
                     const date = new Date(data.system.last_update);
@@ -161,6 +166,11 @@
                 }
             } catch (error) {
                 console.error('Stats yüklenemedi:', error);
+                // Hata durumunda varsayılan değerler
+                document.getElementById('uptime').textContent = 'Bağlantı yok';
+                document.getElementById('total-records').textContent = '-';
+                document.getElementById('today-signals').textContent = '-';
+                document.getElementById('last-update').textContent = '-';
             }
         }
 
@@ -196,36 +206,55 @@
             });
         }
         
-        // Mum grafiği oluştur (basit versiyon)
+        // Mum grafiği oluştur - ApexCharts
         function initCandleChart() {
-            const ctx = document.getElementById('candleChart').getContext('2d');
-            candleChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'OHLC',
-                        data: [],
-                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                        borderColor: 'rgb(59, 130, 246)',
-                        borderWidth: 1
-                    }]
+            const options = {
+                chart: {
+                    type: 'candlestick',
+                    height: 300,
+                    background: 'transparent',
+                    toolbar: {
+                        show: false
+                    }
                 },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            ticks: { color: 'rgb(156, 163, 175)' }
-                        },
-                        x: {
-                            ticks: { color: 'rgb(156, 163, 175)' }
+                series: [{
+                    name: 'OHLC',
+                    data: []
+                }],
+                xaxis: {
+                    type: 'datetime',
+                    labels: {
+                        style: {
+                            colors: '#9CA3AF'
                         }
                     }
+                },
+                yaxis: {
+                    labels: {
+                        style: {
+                            colors: '#9CA3AF'
+                        },
+                        formatter: (val) => '₺' + val.toFixed(2)
+                    }
+                },
+                theme: {
+                    mode: 'dark'
+                },
+                plotOptions: {
+                    candlestick: {
+                        colors: {
+                            upward: '#10b981',
+                            downward: '#ef4444'
+                        }
+                    }
+                },
+                grid: {
+                    borderColor: '#374151'
                 }
-            });
+            };
+            
+            candleChart = new ApexCharts(document.querySelector("#candleChart"), options);
+            candleChart.render();
             
             // İlk yükleme
             loadCandles('15m');
@@ -239,18 +268,53 @@
                 
                 if (data.candles.length === 0) {
                     console.log('Henüz mum verisi yok');
+                    // Boş veri göster
+                    candleChart.updateSeries([{
+                        name: 'OHLC',
+                        data: []
+                    }]);
                     return;
                 }
                 
-                // Bar chart için basit veri
-                candleChart.data.labels = data.candles.map(c => 
-                    new Date(c.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-                );
-                candleChart.data.datasets[0].data = data.candles.map(c => c.close);
+                // ApexCharts formatına dönüştür
+                const candleData = data.candles.map(c => ({
+                    x: new Date(c.timestamp),
+                    y: [c.open, c.high, c.low, c.close]
+                }));
                 
-                candleChart.update();
+                // Grafiği güncelle
+                candleChart.updateSeries([{
+                    name: 'OHLC',
+                    data: candleData
+                }]);
+                
+                // Butonları güncelle
+                document.querySelectorAll('button').forEach(btn => {
+                    if (btn.textContent.includes('D') || btn.textContent.includes('S')) {
+                        btn.classList.remove('bg-blue-800');
+                        btn.classList.add('bg-blue-600');
+                    }
+                });
+                
+                // Aktif butonu vurgula
+                const btnText = interval === '15m' ? '15D' : 
+                               interval === '1h' ? '1S' : 
+                               interval === '4h' ? '4S' : '1G';
+                               
+                document.querySelectorAll('button').forEach(btn => {
+                    if (btn.textContent === btnText) {
+                        btn.classList.remove('bg-blue-600');
+                        btn.classList.add('bg-blue-800');
+                    }
+                });
+                
             } catch (error) {
                 console.error('Mum verileri yüklenemedi:', error);
+                // Hata durumunda boş grafik göster
+                candleChart.updateSeries([{
+                    name: 'OHLC',
+                    data: []
+                }]);
             }
         }
 
@@ -323,6 +387,11 @@
                 }
             } catch (error) {
                 console.error('Loglar yüklenemedi:', error);
+                // Hata durumunda bile göster
+                document.getElementById('main-logs').innerHTML = 
+                    '<p class="text-red-400">API bağlantısı kurulamadı</p>';
+                document.getElementById('error-logs').innerHTML = 
+                    '<p class="text-red-400">API bağlantısı kurulamadı</p>';
             }
         }
 
