@@ -126,26 +126,37 @@ class SignalGenerator:
         
         # Multi-confirmation kullan
         if self.use_multi_confirmation and (signal or trend):
-            # Multi-confirmation analizi
-            multi_signal = self.multi_analyzer.analyze(
-                current_price=current_price,
-                candles=candles,
-                sr_signal=signal,
-                trend=trend or TrendType.NEUTRAL,
-                trend_strength=trend_strength or TrendStrength.WEAK,
-                rsi_value=rsi_value
-            )
-            
-            if multi_signal:
-                # Performans takibi
-                signal_id = self.performance_tracker.track_signal(multi_signal)
-                multi_signal.metadata["signal_id"] = signal_id
-                logger.info(f"Multi-confirmation signal generated: {multi_signal.signal_type} at {multi_signal.price_level} with {len(multi_signal.metadata.get('indicators_used', []))} confirmations")
-                return multi_signal
-            elif signal:
-                # Multi-confirmation başarısız, sadece S/R sinyali varsa düşük güvenle ver
-                signal.overall_confidence *= 0.7
-                signal.reasons.append("(Tek gösterge)")
+            try:
+                # Multi-confirmation analizi
+                multi_signal = self.multi_analyzer.analyze(
+                    current_price=current_price,
+                    candles=candles,
+                    sr_signal=signal,
+                    trend=trend or TrendType.NEUTRAL,
+                    trend_strength=trend_strength or TrendStrength.WEAK,
+                    rsi_value=rsi_value
+                )
+                
+                if multi_signal:
+                    # Performans takibi
+                    try:
+                        signal_id = self.performance_tracker.track_signal(multi_signal)
+                        if signal_id:
+                            multi_signal.metadata["signal_id"] = signal_id
+                    except Exception as e:
+                        logger.error(f"Failed to track signal performance: {e}")
+                        # Performans takibi başarısız olsa bile sinyal ver
+                    
+                    logger.info(f"Multi-confirmation signal generated: {multi_signal.signal_type} at {multi_signal.price_level} with {len(multi_signal.metadata.get('indicators_used', []))} confirmations")
+                    return multi_signal
+                elif signal:
+                    # Multi-confirmation başarısız, sadece S/R sinyali varsa düşük güvenle ver
+                    signal.overall_confidence *= 0.7
+                    signal.reasons.append("(Tek gösterge)")
+                    
+            except Exception as e:
+                logger.error(f"Multi-confirmation analysis failed: {e}")
+                # Multi-confirmation başarısız olsa bile basit sinyali dene
         
         if signal:
             logger.info(f"Generated {signal.signal_type} signal at {signal.price_level} with confidence {signal.overall_confidence}")

@@ -44,58 +44,75 @@ class PerformanceTracker:
     
     def track_signal(self, signal: TradingSignal) -> str:
         """Yeni sinyali takibe al"""
-        signal_id = f"{signal.timestamp.isoformat()}_{signal.signal_type.value}"
-        
-        result = SignalResult(
-            signal_id=signal_id,
-            timestamp=signal.timestamp,
-            signal_type=signal.signal_type,
-            entry_price=signal.price_level,
-            stop_loss=signal.stop_loss,
-            take_profit=signal.target_price,
-            confidence=signal.overall_confidence
-        )
-        
-        self.active_signals[signal_id] = result
-        logger.info(f"Tracking new signal: {signal_id}")
-        
-        return signal_id
+        try:
+            if not signal:
+                logger.warning("Cannot track None signal")
+                return ""
+            
+            signal_id = f"{signal.timestamp.isoformat()}_{signal.signal_type.value}"
+            
+            result = SignalResult(
+                signal_id=signal_id,
+                timestamp=signal.timestamp,
+                signal_type=signal.signal_type,
+                entry_price=signal.price_level,
+                stop_loss=signal.stop_loss,
+                take_profit=signal.target_price,
+                confidence=signal.overall_confidence
+            )
+            
+            self.active_signals[signal_id] = result
+            logger.info(f"Tracking new signal: {signal_id}")
+            
+            return signal_id
+            
+        except Exception as e:
+            logger.error(f"Failed to track signal: {e}", exc_info=True)
+            return ""
     
     def update_signal(self, signal_id: str, current_price: Decimal):
         """Aktif sinyali güncelle"""
-        if signal_id not in self.active_signals:
-            return
+        try:
+            if not signal_id or signal_id not in self.active_signals:
+                return
+            
+            if not current_price or current_price <= 0:
+                logger.warning(f"Invalid price for signal update: {current_price}")
+                return
+            
+            signal = self.active_signals[signal_id]
         
-        signal = self.active_signals[signal_id]
-        
-        # Max profit/loss güncelle
-        if signal.signal_type == SignalType.BUY:
-            profit_pct = float((current_price - signal.entry_price) / signal.entry_price * 100)
+            # Max profit/loss güncelle
+            if signal.signal_type == SignalType.BUY:
+                profit_pct = float((current_price - signal.entry_price) / signal.entry_price * 100)
+                
+                if signal.max_profit is None or profit_pct > signal.max_profit:
+                    signal.max_profit = profit_pct
+                if signal.max_loss is None or profit_pct < signal.max_loss:
+                    signal.max_loss = profit_pct
+                
+                # TP/SL kontrolü
+                if current_price >= signal.take_profit:
+                    self.close_signal(signal_id, current_price, "TP")
+                elif current_price <= signal.stop_loss:
+                    self.close_signal(signal_id, current_price, "SL")
             
-            if signal.max_profit is None or profit_pct > signal.max_profit:
-                signal.max_profit = profit_pct
-            if signal.max_loss is None or profit_pct < signal.max_loss:
-                signal.max_loss = profit_pct
-            
-            # TP/SL kontrolü
-            if current_price >= signal.take_profit:
-                self.close_signal(signal_id, current_price, "TP")
-            elif current_price <= signal.stop_loss:
-                self.close_signal(signal_id, current_price, "SL")
-        
-        else:  # SELL signal
-            profit_pct = float((signal.entry_price - current_price) / signal.entry_price * 100)
-            
-            if signal.max_profit is None or profit_pct > signal.max_profit:
-                signal.max_profit = profit_pct
-            if signal.max_loss is None or profit_pct < signal.max_loss:
-                signal.max_loss = profit_pct
-            
-            # TP/SL kontrolü
-            if current_price <= signal.take_profit:
-                self.close_signal(signal_id, current_price, "TP")
-            elif current_price >= signal.stop_loss:
-                self.close_signal(signal_id, current_price, "SL")
+            else:  # SELL signal
+                profit_pct = float((signal.entry_price - current_price) / signal.entry_price * 100)
+                
+                if signal.max_profit is None or profit_pct > signal.max_profit:
+                    signal.max_profit = profit_pct
+                if signal.max_loss is None or profit_pct < signal.max_loss:
+                    signal.max_loss = profit_pct
+                
+                # TP/SL kontrolü
+                if current_price <= signal.take_profit:
+                    self.close_signal(signal_id, current_price, "TP")
+                elif current_price >= signal.stop_loss:
+                    self.close_signal(signal_id, current_price, "SL")
+                    
+        except Exception as e:
+            logger.error(f"Failed to update signal {signal_id}: {e}")
     
     def close_signal(self, signal_id: str, exit_price: Decimal, exit_reason: str):
         """Sinyali kapat"""

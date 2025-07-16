@@ -87,8 +87,16 @@ class MultiConfirmationAnalyzer:
         Returns:
             Güçlü sinyal veya None
         """
-        
-        indicators = []
+        try:
+            if not current_price or not candles:
+                logger.warning("Missing required data for multi-confirmation analysis")
+                return None
+            
+            if len(candles) < 50:
+                logger.warning(f"Not enough candles for multi-confirmation: {len(candles)}")
+                return None
+            
+            indicators = []
         
         # 1. Destek/Direnç sinyali
         if sr_signal:
@@ -100,53 +108,65 @@ class MultiConfirmationAnalyzer:
                 details={"levels": sr_signal.confidence_scores}
             ))
         
-        # 2. MACD analizi
-        macd_result = self.macd.calculate(candles)
-        macd_signal, macd_confidence = self.macd.get_signal_weight(macd_result)
-        if macd_signal:
-            indicators.append(IndicatorSignal(
-                indicator_name="macd",
-                signal_type=macd_signal,
-                confidence=macd_confidence,
-                reason=self._get_macd_reason(macd_result),
-                details=macd_result
-            ))
+            # 2. MACD analizi
+            try:
+                macd_result = self.macd.calculate(candles)
+                macd_signal, macd_confidence = self.macd.get_signal_weight(macd_result)
+                if macd_signal:
+                    indicators.append(IndicatorSignal(
+                        indicator_name="macd",
+                        signal_type=macd_signal,
+                        confidence=macd_confidence,
+                        reason=self._get_macd_reason(macd_result),
+                        details=macd_result
+                    ))
+            except Exception as e:
+                logger.error(f"MACD analysis failed: {e}")
         
-        # 3. Bollinger Bands analizi
-        bb_result = self.bollinger.calculate(candles)
-        bb_signal, bb_confidence = self.bollinger.get_signal_weight(bb_result)
-        if bb_signal:
-            indicators.append(IndicatorSignal(
-                indicator_name="bollinger",
-                signal_type=bb_signal,
-                confidence=bb_confidence,
-                reason=bb_result["signal"]["reason"] if bb_result.get("signal") else "Bollinger signal",
-                details=bb_result
-            ))
-        
-        # 4. Stochastic analizi
-        stoch_result = self.stochastic.calculate(candles)
-        stoch_signal, stoch_confidence = self.stochastic.get_signal_weight(stoch_result)
-        if stoch_signal:
-            indicators.append(IndicatorSignal(
-                indicator_name="stochastic",
-                signal_type=stoch_signal,
-                confidence=stoch_confidence,
-                reason=self._get_stochastic_reason(stoch_result),
-                details=stoch_result
-            ))
-        
-        # 5. Pattern Recognition
-        pattern_result = self.patterns.detect_patterns(candles)
-        pattern_signal, pattern_confidence = self.patterns.get_signal_weight(pattern_result)
-        if pattern_signal:
-            indicators.append(IndicatorSignal(
-                indicator_name="patterns",
-                signal_type=pattern_signal,
-                confidence=pattern_confidence,
-                reason=pattern_result["signal"]["reason"] if pattern_result.get("signal") else "Pattern detected",
-                details=pattern_result
-            ))
+            # 3. Bollinger Bands analizi
+            try:
+                bb_result = self.bollinger.calculate(candles)
+                bb_signal, bb_confidence = self.bollinger.get_signal_weight(bb_result)
+                if bb_signal:
+                    indicators.append(IndicatorSignal(
+                        indicator_name="bollinger",
+                        signal_type=bb_signal,
+                        confidence=bb_confidence,
+                        reason=bb_result["signal"]["reason"] if bb_result.get("signal") else "Bollinger signal",
+                        details=bb_result
+                    ))
+            except Exception as e:
+                logger.error(f"Bollinger Bands analysis failed: {e}")
+            
+            # 4. Stochastic analizi
+            try:
+                stoch_result = self.stochastic.calculate(candles)
+                stoch_signal, stoch_confidence = self.stochastic.get_signal_weight(stoch_result)
+                if stoch_signal:
+                    indicators.append(IndicatorSignal(
+                        indicator_name="stochastic",
+                        signal_type=stoch_signal,
+                        confidence=stoch_confidence,
+                        reason=self._get_stochastic_reason(stoch_result),
+                        details=stoch_result
+                    ))
+            except Exception as e:
+                logger.error(f"Stochastic analysis failed: {e}")
+            
+            # 5. Pattern Recognition
+            try:
+                pattern_result = self.patterns.detect_patterns(candles)
+                pattern_signal, pattern_confidence = self.patterns.get_signal_weight(pattern_result)
+                if pattern_signal:
+                    indicators.append(IndicatorSignal(
+                        indicator_name="patterns",
+                        signal_type=pattern_signal,
+                        confidence=pattern_confidence,
+                        reason=pattern_result["signal"]["reason"] if pattern_result.get("signal") else "Pattern detected",
+                        details=pattern_result
+                    ))
+            except Exception as e:
+                logger.error(f"Pattern recognition failed: {e}")
         
         # 6. Trend doğrulaması
         trend_signal = self._get_trend_signal(trend, trend_strength)
@@ -159,16 +179,25 @@ class MultiConfirmationAnalyzer:
             if rsi_signal:
                 indicators.append(rsi_signal)
         
-        # ATR filtresi (volatilite kontrolü)
-        atr_result = self.atr.calculate(candles)
-        volatility_multiplier = 1.0
-        if self.use_atr_filter and atr_result["atr"]:
-            _, volatility_multiplier = self.atr.get_signal_weight(atr_result)
-        
-        # Sinyalleri değerlendir
-        final_signal = self._evaluate_signals(indicators, current_price, atr_result, volatility_multiplier)
-        
-        return final_signal
+            # ATR filtresi (volatilite kontrolü)
+            atr_result = {}
+            volatility_multiplier = 1.0
+            try:
+                atr_result = self.atr.calculate(candles)
+                if self.use_atr_filter and atr_result.get("atr"):
+                    _, volatility_multiplier = self.atr.get_signal_weight(atr_result)
+            except Exception as e:
+                logger.error(f"ATR calculation failed: {e}")
+                # ATR başarısız olsa bile devam et
+            
+            # Sinyalleri değerlendir
+            final_signal = self._evaluate_signals(indicators, current_price, atr_result, volatility_multiplier)
+            
+            return final_signal
+            
+        except Exception as e:
+            logger.error(f"Multi-confirmation analysis failed: {e}", exc_info=True)
+            return None
     
     def _evaluate_signals(self, 
                          indicators: List[IndicatorSignal], 

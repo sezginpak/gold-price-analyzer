@@ -22,59 +22,92 @@ class BollingerBandsIndicator:
         self.period = period
         self.std_dev_multiplier = std_dev_multiplier
     
+    def _empty_result(self) -> Dict[str, any]:
+        """Boş sonuç döndür"""
+        return {
+            "upper_band": None,
+            "middle_band": None,
+            "lower_band": None,
+            "band_width": None,
+            "percent_b": None,
+            "squeeze": None,
+            "signal": None,
+            "volatility": None,
+            "trend": None
+        }
+    
     def calculate(self, candles: List[PriceCandle]) -> Dict[str, any]:
         """Bollinger Bands hesapla"""
-        if len(candles) < self.period:
-            logger.warning(f"Not enough data for Bollinger Bands. Need {self.period}, got {len(candles)}")
+        try:
+            if not candles:
+                logger.warning("No candles provided for Bollinger Bands calculation")
+                return self._empty_result()
+            
+            if len(candles) < self.period:
+                logger.warning(f"Not enough data for Bollinger Bands. Need {self.period}, got {len(candles)}")
+                return self._empty_result()
+        
+            # Son period kadar kapanış fiyatı
+            closes = []
+            try:
+                for candle in candles[-self.period:]:
+                    closes.append(float(candle.close))
+                current_price = float(candles[-1].close)
+            except (AttributeError, ValueError) as e:
+                logger.error(f"Error extracting close prices: {e}")
+                return self._empty_result()
+            
+            if len(closes) < 2:
+                logger.warning("Not enough close prices for standard deviation")
+                return self._empty_result()
+            
+            # Orta bant (SMA)
+            middle_band = sum(closes) / self.period
+            
+            # Standart sapma
+            try:
+                std_dev = statistics.stdev(closes)
+            except statistics.StatisticsError as e:
+                logger.error(f"Error calculating standard deviation: {e}")
+                return self._empty_result()
+            
+            # Üst ve alt bantlar
+            upper_band = middle_band + (std_dev * self.std_dev_multiplier)
+            lower_band = middle_band - (std_dev * self.std_dev_multiplier)
+            
+            # Band genişliği
+            band_width = upper_band - lower_band
+            
+            # %B hesaplama (fiyatın bantlar içindeki pozisyonu)
+            # %B = (Fiyat - Alt Bant) / (Üst Bant - Alt Bant)
+            if band_width > 0:
+                percent_b = (current_price - lower_band) / band_width
+            else:
+                logger.warning("Band width is zero, using default percent_b")
+                percent_b = 0.5
+            
+            # Bollinger Squeeze tespiti (düşük volatilite)
+            historical_widths = self._calculate_historical_widths(candles)
+            squeeze = self._detect_squeeze(band_width, historical_widths)
+            
+            # Sinyal üretimi
+            signal = self._generate_signal(current_price, upper_band, lower_band, middle_band, percent_b, candles)
+            
             return {
-                "upper_band": None,
-                "middle_band": None,
-                "lower_band": None,
-                "band_width": None,
-                "percent_b": None,
-                "squeeze": None,
-                "signal": None
+                "upper_band": upper_band,
+                "middle_band": middle_band,
+                "lower_band": lower_band,
+                "band_width": band_width,
+                "percent_b": percent_b,
+                "squeeze": squeeze,
+                "signal": signal,
+                "volatility": self._calculate_volatility_level(band_width, middle_band),
+                "trend": self._determine_trend(candles, middle_band)
             }
-        
-        # Son period kadar kapanış fiyatı
-        closes = [float(candle.close) for candle in candles[-self.period:]]
-        current_price = float(candles[-1].close)
-        
-        # Orta bant (SMA)
-        middle_band = sum(closes) / self.period
-        
-        # Standart sapma
-        std_dev = statistics.stdev(closes)
-        
-        # Üst ve alt bantlar
-        upper_band = middle_band + (std_dev * self.std_dev_multiplier)
-        lower_band = middle_band - (std_dev * self.std_dev_multiplier)
-        
-        # Band genişliği
-        band_width = upper_band - lower_band
-        
-        # %B hesaplama (fiyatın bantlar içindeki pozisyonu)
-        # %B = (Fiyat - Alt Bant) / (Üst Bant - Alt Bant)
-        percent_b = (current_price - lower_band) / band_width if band_width > 0 else 0.5
-        
-        # Bollinger Squeeze tespiti (düşük volatilite)
-        historical_widths = self._calculate_historical_widths(candles)
-        squeeze = self._detect_squeeze(band_width, historical_widths)
-        
-        # Sinyal üretimi
-        signal = self._generate_signal(current_price, upper_band, lower_band, middle_band, percent_b, candles)
-        
-        return {
-            "upper_band": upper_band,
-            "middle_band": middle_band,
-            "lower_band": lower_band,
-            "band_width": band_width,
-            "percent_b": percent_b,
-            "squeeze": squeeze,
-            "signal": signal,
-            "volatility": self._calculate_volatility_level(band_width, middle_band),
-            "trend": self._determine_trend(candles, middle_band)
-        }
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in Bollinger Bands calculation: {e}", exc_info=True)
+            return self._empty_result()
     
     def _calculate_historical_widths(self, candles: List[PriceCandle]) -> List[float]:
         """Geçmiş band genişliklerini hesapla"""

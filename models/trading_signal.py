@@ -55,6 +55,9 @@ class TradingSignal(BaseModel):
     result: Optional[SignalResult] = SignalResult.PENDING
     profit_loss: Optional[Decimal] = None
     
+    # Metadata - ek bilgiler için
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    
     class Config:
         json_encoders = {
             Decimal: str,

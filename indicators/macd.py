@@ -23,94 +23,162 @@ class MACDIndicator:
         self.slow_period = slow_period
         self.signal_period = signal_period
     
+    def _empty_result(self) -> Dict[str, any]:
+        """Boş sonuç döndür"""
+        return {
+            "macd_line": None,
+            "signal_line": None,
+            "histogram": None,
+            "histogram_prev": None,
+            "crossover": None,
+            "divergence": None,
+            "trend": "NEUTRAL",
+            "strength": 0.0
+        }
+    
     def calculate_ema(self, values: List[Decimal], period: int) -> List[Decimal]:
         """Exponential Moving Average hesapla"""
-        if len(values) < period:
+        try:
+            if not values:
+                logger.warning("Empty values list for EMA calculation")
+                return []
+            
+            if len(values) < period:
+                logger.debug(f"Insufficient data for EMA: need {period}, got {len(values)}")
+                return []
+            
+            if period <= 0:
+                logger.error(f"Invalid EMA period: {period}")
+                return []
+            
+            ema_values = []
+            multiplier = Decimal(2) / (period + 1)
+            
+            # İlk EMA değeri SMA olarak başlar
+            sma = sum(values[:period]) / period
+            ema_values.append(sma)
+            
+            # Sonraki EMA değerleri
+            for i in range(period, len(values)):
+                try:
+                    ema = (values[i] - ema_values[-1]) * multiplier + ema_values[-1]
+                    ema_values.append(ema)
+                except (IndexError, TypeError) as e:
+                    logger.error(f"Error calculating EMA at index {i}: {e}")
+                    break
+            
+            return ema_values
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in EMA calculation: {e}")
             return []
-        
-        ema_values = []
-        multiplier = Decimal(2) / (period + 1)
-        
-        # İlk EMA değeri SMA olarak başlar
-        sma = sum(values[:period]) / period
-        ema_values.append(sma)
-        
-        # Sonraki EMA değerleri
-        for i in range(period, len(values)):
-            ema = (values[i] - ema_values[-1]) * multiplier + ema_values[-1]
-            ema_values.append(ema)
-        
-        return ema_values
     
     def calculate(self, candles: List[PriceCandle]) -> Dict[str, any]:
         """MACD hesapla"""
-        if len(candles) < self.slow_period + self.signal_period:
-            logger.warning(f"Not enough data for MACD. Need {self.slow_period + self.signal_period}, got {len(candles)}")
+        try:
+            if not candles:
+                logger.warning("No candles provided for MACD calculation")
+                return self._empty_result()
+            
+            if len(candles) < self.slow_period + self.signal_period:
+                logger.warning(f"Not enough data for MACD. Need {self.slow_period + self.signal_period}, got {len(candles)}")
+                return self._empty_result()
+        
+            # Kapanış fiyatlarını al
+            closes = []
+            for candle in candles:
+                try:
+                    closes.append(candle.close)
+                except AttributeError as e:
+                    logger.error(f"Invalid candle data: {e}")
+                    return self._empty_result()
+            
+            # EMA'ları hesapla
+            ema_fast = self.calculate_ema(closes, self.fast_period)
+            ema_slow = self.calculate_ema(closes, self.slow_period)
+            
+            if not ema_fast or not ema_slow:
+                logger.warning("Failed to calculate EMAs")
+                return self._empty_result()
+            
+            # MACD hattını hesapla (fast EMA - slow EMA)
+            # EMA'lar farklı uzunlukta olacak, eşitle
+            start_idx = self.slow_period - self.fast_period
+            macd_line = []
+            
+            try:
+                for i in range(len(ema_slow)):
+                    if start_idx + i < len(ema_fast):
+                        macd_line.append(ema_fast[start_idx + i] - ema_slow[i])
+            except IndexError as e:
+                logger.error(f"Index error calculating MACD line: {e}")
+                return self._empty_result()
+            
+            if not macd_line:
+                logger.warning("Failed to calculate MACD line")
+                return self._empty_result()
+            
+            # Signal hattını hesapla (MACD'nin 9 günlük EMA'sı)
+            signal_line = self.calculate_ema(macd_line, self.signal_period)
+            
+            if not signal_line:
+                logger.warning("Failed to calculate signal line")
+                return self._empty_result()
+            
+            # Histogram hesapla (MACD - Signal)
+            histogram = []
+            try:
+                for i in range(len(signal_line)):
+                    hist_idx = len(macd_line) - len(signal_line) + i
+                    if 0 <= hist_idx < len(macd_line):
+                        histogram.append(macd_line[hist_idx] - signal_line[i])
+            except IndexError as e:
+                logger.error(f"Index error calculating histogram: {e}")
+                return self._empty_result()
+            
+            # Crossover tespiti
+            crossover = self._detect_crossover(histogram)
+            
+            # Divergence tespiti
+            divergence = self._detect_divergence(closes[-50:], macd_line[-50:]) if len(macd_line) >= 50 else None
+            
             return {
-                "macd_line": None,
-                "signal_line": None,
-                "histogram": None,
-                "crossover": None,
-                "divergence": None
+                "macd_line": float(macd_line[-1]) if macd_line else None,
+                "signal_line": float(signal_line[-1]) if signal_line else None,
+                "histogram": float(histogram[-1]) if histogram else None,
+                "histogram_prev": float(histogram[-2]) if len(histogram) > 1 else None,
+                "crossover": crossover,
+                "divergence": divergence,
+                "trend": self._determine_trend(histogram),
+                "strength": self._calculate_strength(histogram)
             }
-        
-        # Kapanış fiyatlarını al
-        closes = [candle.close for candle in candles]
-        
-        # EMA'ları hesapla
-        ema_fast = self.calculate_ema(closes, self.fast_period)
-        ema_slow = self.calculate_ema(closes, self.slow_period)
-        
-        # MACD hattını hesapla (fast EMA - slow EMA)
-        # EMA'lar farklı uzunlukta olacak, eşitle
-        start_idx = self.slow_period - self.fast_period
-        macd_line = []
-        for i in range(len(ema_slow)):
-            macd_line.append(ema_fast[start_idx + i] - ema_slow[i])
-        
-        # Signal hattını hesapla (MACD'nin 9 günlük EMA'sı)
-        signal_line = self.calculate_ema(macd_line, self.signal_period)
-        
-        # Histogram hesapla (MACD - Signal)
-        histogram = []
-        for i in range(len(signal_line)):
-            hist_idx = len(macd_line) - len(signal_line) + i
-            histogram.append(macd_line[hist_idx] - signal_line[i])
-        
-        # Crossover tespiti
-        crossover = self._detect_crossover(histogram)
-        
-        # Divergence tespiti
-        divergence = self._detect_divergence(closes[-50:], macd_line[-50:]) if len(macd_line) >= 50 else None
-        
-        return {
-            "macd_line": float(macd_line[-1]) if macd_line else None,
-            "signal_line": float(signal_line[-1]) if signal_line else None,
-            "histogram": float(histogram[-1]) if histogram else None,
-            "histogram_prev": float(histogram[-2]) if len(histogram) > 1 else None,
-            "crossover": crossover,
-            "divergence": divergence,
-            "trend": self._determine_trend(histogram),
-            "strength": self._calculate_strength(histogram)
-        }
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in MACD calculation: {e}", exc_info=True)
+            return self._empty_result()
     
     def _detect_crossover(self, histogram: List[Decimal]) -> Optional[str]:
         """Crossover tespiti"""
-        if len(histogram) < 2:
+        try:
+            if not histogram or len(histogram) < 2:
+                return None
+            
+            current = histogram[-1]
+            previous = histogram[-2]
+            
+            # Bullish crossover: histogram negatiften pozitife geçiyor
+            if current > 0 and previous <= 0:
+                return "BULLISH_CROSSOVER"
+            
+            # Bearish crossover: histogram pozitiften negatife geçiyor
+            elif current < 0 and previous >= 0:
+                return "BEARISH_CROSSOVER"
+            
             return None
-        
-        current = histogram[-1]
-        previous = histogram[-2]
-        
-        # Bullish crossover: histogram negatiften pozitife geçiyor
-        if current > 0 and previous <= 0:
-            return "BULLISH_CROSSOVER"
-        
-        # Bearish crossover: histogram pozitiften negatife geçiyor
-        elif current < 0 and previous >= 0:
-            return "BEARISH_CROSSOVER"
-        
-        return None
+            
+        except (IndexError, TypeError) as e:
+            logger.error(f"Error detecting crossover: {e}")
+            return None
     
     def _detect_divergence(self, prices: List[Decimal], macd_values: List[Decimal]) -> Optional[str]:
         """Divergence (uyumsuzluk) tespiti"""
