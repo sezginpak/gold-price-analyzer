@@ -89,13 +89,13 @@ class RobustGoldPriceAnalyzer:
             if self.stats["total_price_updates"] % 12 != 0:
                 return
             
-            self.logger.debug(f"Analyzing price: {price_data.ons_try}")
+            self.logger.info(f"Starting analysis - Update count: {self.stats['total_price_updates']}, Price: {price_data.ons_try}")
             
             # OHLC mumları al
             candles_15m = self.storage.generate_candles(15, 100)
             
             if len(candles_15m) < 50:
-                self.logger.debug(f"Not enough candles: {len(candles_15m)}")
+                self.logger.warning(f"Not enough candles for analysis: {len(candles_15m)} (need 50)")
                 return
             
             # Detaylı analiz yap ve kaydet
@@ -259,6 +259,7 @@ class RobustGoldPriceAnalyzer:
         
         # Callback ekle
         self.collector.add_analysis_callback(self.analyze_price_safe)
+        self.logger.info(f"Analysis callback added. Total callbacks: {len(self.collector.analysis_callbacks)}")
         
         # Collector'ı başlat
         await self.collector.start()

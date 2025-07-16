@@ -62,6 +62,7 @@ class HaremPriceCollector:
             self.storage.save_price(price_data)
             
             # Analiz callback'lerini çağır
+            logger.debug(f"Calling {len(self.analysis_callbacks)} analysis callbacks")
             for callback in self.analysis_callbacks:
                 try:
                     if asyncio.iscoroutinefunction(callback):
@@ -69,7 +70,7 @@ class HaremPriceCollector:
                     else:
                         callback(price_data)
                 except Exception as e:
-                    logger.error(f"Analysis callback error: {e}")
+                    logger.error(f"Analysis callback error: {e}", exc_info=True)
                     
             logger.debug(f"Price saved: ONS/USD={ons_usd}, USD/TRY={usd_try}, ONS/TRY={ons_try}")
             
