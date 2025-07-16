@@ -264,9 +264,9 @@ class RobustGoldPriceAnalyzer:
         self.logger.info("Stopping system...")
         
         try:
-            if self.collector:
+            if hasattr(self, 'collector') and self.collector:
                 await self.collector.stop()
-            if self.harem_service:
+            if hasattr(self, 'harem_service') and self.harem_service:
                 await self.harem_service.stop()
         except Exception as e:
             self.logger.error(f"Error during shutdown: {e}")
