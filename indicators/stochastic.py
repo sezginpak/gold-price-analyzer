@@ -313,31 +313,31 @@ class StochasticIndicator:
         try:
             if not result or not result.get("k"):
                 return None, 0.0
-        
-        signal = result.get("signal")
-        if not signal:
-            # Sinyal yoksa ama ekstrem bölgedeyse düşük güvenle sinyal ver
-            if result["zone"] == "OVERSOLD" and result["k"] < 10:
-                return "BUY", 0.3
-            elif result["zone"] == "OVERBOUGHT" and result["k"] > 90:
-                return "SELL", 0.3
-            return None, 0.0
-        
-        confidence = signal["confidence"]
-        
-        # Divergence varsa güveni artır
-        if result["divergence"] == "BULLISH_DIVERGENCE" and signal["type"] == "BUY":
-            confidence = min(confidence * 1.3, 1.0)
-        elif result["divergence"] == "BEARISH_DIVERGENCE" and signal["type"] == "SELL":
-            confidence = min(confidence * 1.3, 1.0)
-        
-        # Momentum doğrulaması
-        momentum = result["momentum"]
-        if signal["type"] == "BUY" and momentum in ["UP", "STRONG_UP"]:
-            confidence = min(confidence * 1.1, 1.0)
-        elif signal["type"] == "SELL" and momentum in ["DOWN", "STRONG_DOWN"]:
-            confidence = min(confidence * 1.1, 1.0)
-        
+            
+            signal = result.get("signal")
+            if not signal:
+                # Sinyal yoksa ama ekstrem bölgedeyse düşük güvenle sinyal ver
+                if result["zone"] == "OVERSOLD" and result["k"] < 10:
+                    return "BUY", 0.3
+                elif result["zone"] == "OVERBOUGHT" and result["k"] > 90:
+                    return "SELL", 0.3
+                return None, 0.0
+            
+            confidence = signal["confidence"]
+            
+            # Divergence varsa güveni artır
+            if result["divergence"] == "BULLISH_DIVERGENCE" and signal["type"] == "BUY":
+                confidence = min(confidence * 1.3, 1.0)
+            elif result["divergence"] == "BEARISH_DIVERGENCE" and signal["type"] == "SELL":
+                confidence = min(confidence * 1.3, 1.0)
+            
+            # Momentum doğrulaması
+            momentum = result["momentum"]
+            if signal["type"] == "BUY" and momentum in ["UP", "STRONG_UP"]:
+                confidence = min(confidence * 1.1, 1.0)
+            elif signal["type"] == "SELL" and momentum in ["DOWN", "STRONG_DOWN"]:
+                confidence = min(confidence * 1.1, 1.0)
+            
             return signal["type"], min(confidence, 1.0)
             
         except Exception as e:
