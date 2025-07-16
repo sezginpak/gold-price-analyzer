@@ -380,48 +380,48 @@ class MACDIndicator:
         try:
             if not result or not result.get("macd_line"):
                 return None, 0.0
-        
-        signal = None
-        confidence = 0.0
-        
-        # Crossover varsa yüksek güven
-        if result["crossover"] == "BULLISH_CROSSOVER":
-            signal = "BUY"
-            confidence = 0.8
-        elif result["crossover"] == "BEARISH_CROSSOVER":
-            signal = "SELL"
-            confidence = 0.8
-        
-        # Divergence varsa ekstra güven
-        if result["divergence"] == "BULLISH_DIVERGENCE":
-            if signal == "BUY":
-                confidence = min(confidence + 0.2, 1.0)
-            else:
+            
+            signal = None
+            confidence = 0.0
+            
+            # Crossover varsa yüksek güven
+            if result["crossover"] == "BULLISH_CROSSOVER":
                 signal = "BUY"
-                confidence = 0.6
-        elif result["divergence"] == "BEARISH_DIVERGENCE":
-            if signal == "SELL":
-                confidence = min(confidence + 0.2, 1.0)
-            else:
+                confidence = 0.8
+            elif result["crossover"] == "BEARISH_CROSSOVER":
                 signal = "SELL"
-                confidence = 0.6
-        
-        # Trend doğrulaması
-        if not signal:
-            if result["trend"] == "STRONG_BULLISH":
-                signal = "BUY"
-                confidence = 0.4
-            elif result["trend"] == "STRONG_BEARISH":
-                signal = "SELL"
-                confidence = 0.4
-        
-        # Güç ile confidence'ı ayarla
-        if signal:
-            confidence *= result.get("strength", 1.0)
-            confidence = min(confidence, 1.0)  # Max 1.0
-        
-        return signal, confidence
-        
+                confidence = 0.8
+            
+            # Divergence varsa ekstra güven
+            if result["divergence"] == "BULLISH_DIVERGENCE":
+                if signal == "BUY":
+                    confidence = min(confidence + 0.2, 1.0)
+                else:
+                    signal = "BUY"
+                    confidence = 0.6
+            elif result["divergence"] == "BEARISH_DIVERGENCE":
+                if signal == "SELL":
+                    confidence = min(confidence + 0.2, 1.0)
+                else:
+                    signal = "SELL"
+                    confidence = 0.6
+            
+            # Trend doğrulaması
+            if not signal:
+                if result["trend"] == "STRONG_BULLISH":
+                    signal = "BUY"
+                    confidence = 0.4
+                elif result["trend"] == "STRONG_BEARISH":
+                    signal = "SELL"
+                    confidence = 0.4
+            
+            # Güç ile confidence'ı ayarla
+            if signal:
+                confidence *= result.get("strength", 1.0)
+                confidence = min(confidence, 1.0)  # Max 1.0
+            
+            return signal, confidence
+            
         except Exception as e:
             logger.error(f"Error calculating MACD signal weight: {e}")
             return None, 0.0
