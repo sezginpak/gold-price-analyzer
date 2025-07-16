@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analiz Detayları - Gold Price Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #111827; color: #f3f4f6; }
+        .analysis-card { background-color: #1f2937; }
+    </style>
+</head>
+<body>
+    <!-- Menu -->
+    <div id="menu-container"></div>
+
+    <div class="container mx-auto px-4">
+        <h2 class="text-2xl font-bold mb-6">🔍 Analiz Detayları</h2>
+        
+        <!-- Analiz Özeti -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="analysis-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Son Analiz</p>
+                <p class="text-xl font-bold" id="last-analysis-time">-</p>
+            </div>
+            <div class="analysis-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Analiz Sıklığı</p>
+                <p class="text-xl font-bold" id="analysis-interval">Her 5 dakika</p>
+            </div>
+            <div class="analysis-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Güven Eşiği</p>
+                <p class="text-xl font-bold" id="confidence-threshold">%70</p>
+            </div>
+        </div>
+
+        <!-- Mevcut Analiz -->
+        <div class="analysis-card rounded-lg p-6 mb-6">
+            <h3 class="text-xl font-bold mb-4">📈 Mevcut Durum Analizi</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-green-400 font-semibold mb-2">Destek Seviyeleri</h4>
+                    <div id="current-support-levels" class="space-y-1">
+                        <p class="text-gray-400">Yükleniyor...</p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-red-400 font-semibold mb-2">Direnç Seviyeleri</h4>
+                    <div id="current-resistance-levels" class="space-y-1">
+                        <p class="text-gray-400">Yükleniyor...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analiz Parametreleri -->
+        <div class="analysis-card rounded-lg p-6 mb-6">
+            <h3 class="text-xl font-bold mb-4">⚙️ Analiz Parametreleri</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <p class="text-gray-400 text-sm">Lookback Period</p>
+                    <p class="font-bold" id="lookback-period">100 mum</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">RSI Periyodu</p>
+                    <p class="font-bold" id="rsi-period">14</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">Kısa MA</p>
+                    <p class="font-bold" id="ma-short">20</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">Uzun MA</p>
+                    <p class="font-bold" id="ma-long">50</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Son Analizler Tablosu -->
+        <div class="analysis-card rounded-lg p-6">
+            <h3 class="text-xl font-bold mb-4">📋 Son Analiz Sonuçları</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-700">
+                            <th class="text-left py-2">Zaman</th>
+                            <th class="text-left py-2">Fiyat</th>
+                            <th class="text-left py-2">Trend</th>
+                            <th class="text-left py-2">Güç</th>
+                            <th class="text-left py-2">Sinyal</th>
+                            <th class="text-left py-2">Güven</th>
+                        </tr>
+                    </thead>
+                    <tbody id="analysis-history">
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-gray-400">
+                                Yükleniyor...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Menu yükle
+        fetch('/menu')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('menu-container').innerHTML = html;
+            });
+
+        // Analiz config'ini yükle
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/analysis/config');
+                const config = await response.json();
+                
+                document.getElementById('analysis-interval').textContent = `Her ${config.collection_interval} dakika`;
+                document.getElementById('confidence-threshold').textContent = `%${Math.round(config.min_confidence_score * 100)}`;
+                document.getElementById('lookback-period').textContent = `${config.support_resistance_lookback} mum`;
+                document.getElementById('rsi-period').textContent = config.rsi_period;
+                document.getElementById('ma-short').textContent = config.ma_short_period;
+                document.getElementById('ma-long').textContent = config.ma_long_period;
+            } catch (error) {
+                console.error('Config yüklenemedi:', error);
+            }
+        }
+
+        // Analiz verilerini yükle
+        async function loadAnalysisData() {
+            try {
+                // Mevcut analiz
+                const levelsResponse = await fetch('/api/analysis/levels');
+                const levels = await levelsResponse.json();
+                
+                // Destek seviyeleri
+                const supportHtml = levels.support.map(s => 
+                    `<div class="flex justify-between">
+                        <span>₺${s.level.toFixed(2)}</span>
+                        <span class="text-sm ${s.strength === 'Güçlü' ? 'text-green-400' : 
+                                               s.strength === 'Orta' ? 'text-yellow-400' : 
+                                               'text-gray-400'}">${s.strength}</span>
+                    </div>`
+                ).join('');
+                document.getElementById('current-support-levels').innerHTML = supportHtml || '<p class="text-gray-400">Veri yok</p>';
+                
+                // Direnç seviyeleri
+                const resistanceHtml = levels.resistance.map(r => 
+                    `<div class="flex justify-between">
+                        <span>₺${r.level.toFixed(2)}</span>
+                        <span class="text-sm ${r.strength === 'Güçlü' ? 'text-red-400' : 
+                                               r.strength === 'Orta' ? 'text-yellow-400' : 
+                                               'text-gray-400'}">${r.strength}</span>
+                    </div>`
+                ).join('');
+                document.getElementById('current-resistance-levels').innerHTML = resistanceHtml || '<p class="text-gray-400">Veri yok</p>';
+                
+                // Analiz geçmişi
+                const historyResponse = await fetch('/api/analysis/history');
+                const history = await historyResponse.json();
+                
+                if (history.analyses && history.analyses.length > 0) {
+                    const historyHtml = history.analyses.map(a => `
+                        <tr class="border-b border-gray-700">
+                            <td class="py-2">${new Date(a.timestamp).toLocaleTimeString('tr-TR')}</td>
+                            <td class="py-2">₺${a.price.toFixed(2)}</td>
+                            <td class="py-2">
+                                <span class="${a.trend === 'BULLISH' ? 'text-green-400' : 
+                                              a.trend === 'BEARISH' ? 'text-red-400' : 
+                                              'text-yellow-400'}">
+                                    ${a.trend === 'BULLISH' ? '↗️ Yükseliş' : 
+                                      a.trend === 'BEARISH' ? '↘️ Düşüş' : 
+                                      '→ Yatay'}
+                                </span>
+                            </td>
+                            <td class="py-2">${a.strength || '-'}</td>
+                            <td class="py-2">
+                                ${a.signal ? `<span class="${a.signal === 'BUY' ? 'text-green-400' : 'text-red-400'}">
+                                    ${a.signal === 'BUY' ? '🟢 AL' : '🔴 SAT'}
+                                </span>` : '-'}
+                            </td>
+                            <td class="py-2">${a.confidence ? `%${(a.confidence * 100).toFixed(0)}` : '-'}</td>
+                        </tr>
+                    `).join('');
+                    document.getElementById('analysis-history').innerHTML = historyHtml;
+                }
+                
+                // Son analiz zamanı
+                document.getElementById('last-analysis-time').textContent = 
+                    new Date().toLocaleTimeString('tr-TR');
+                    
+            } catch (error) {
+                console.error('Analiz verileri yüklenemedi:', error);
+            }
+        }
+
+        // Sayfa yüklendiğinde
+        loadConfig();
+        loadAnalysisData();
+        
+        // Her 30 saniyede bir güncelle
+        setInterval(loadAnalysisData, 30000);
+    </script>
+</body>
+</html>

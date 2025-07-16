@@ -14,6 +14,7 @@ from pathlib import Path
 
 from storage.sqlite_storage import SQLiteStorage
 from services.harem_altin_service import HaremAltinPriceService
+from config import settings
 
 app = FastAPI(title="Gold Price Analyzer Dashboard")
 
@@ -184,6 +185,71 @@ async def get_recent_logs():
             logs["errors"] = [line.strip() for line in lines[-20:]]  # Son 20 hata
     
     return logs
+
+
+@app.get("/menu")
+async def get_menu(request: Request):
+    """Menu component'i döndür"""
+    return templates.TemplateResponse("menu.html", {"request": request})
+
+
+@app.get("/analysis")
+async def analysis_page(request: Request):
+    """Analiz sayfası"""
+    return templates.TemplateResponse("analysis.html", {"request": request})
+
+
+@app.get("/api/analysis/config")
+async def get_analysis_config():
+    """Analiz konfigürasyonunu döndür"""
+    return {
+        "collection_interval": settings.collection_interval,
+        "support_resistance_lookback": settings.support_resistance_lookback,
+        "rsi_period": settings.rsi_period,
+        "ma_short_period": settings.ma_short_period,
+        "ma_long_period": settings.ma_long_period,
+        "min_confidence_score": settings.min_confidence_score,
+        "risk_tolerance": settings.risk_tolerance
+    }
+
+
+@app.get("/api/analysis/history")
+async def get_analysis_history():
+    """Son analiz sonuçlarını döndür"""
+    # TODO: Gerçek analiz verilerini saklamak için bir sistem eklenecek
+    # Şimdilik mock data
+    mock_analyses = []
+    
+    # Son 10 analiz için mock data oluştur
+    current_price = storage.get_latest_price()
+    if current_price:
+        base_price = float(current_price.ons_try)
+        
+        for i in range(10):
+            timestamp = datetime.now() - timedelta(minutes=5*i)
+            price_variation = base_price * (1 + (i * 0.001))
+            
+            # Trend belirleme
+            if i < 3:
+                trend = "BULLISH"
+                signal = "BUY" if i == 0 else None
+            elif i < 7:
+                trend = "NEUTRAL"
+                signal = None
+            else:
+                trend = "BEARISH"
+                signal = "SELL" if i == 9 else None
+            
+            mock_analyses.append({
+                "timestamp": timestamp.isoformat(),
+                "price": price_variation,
+                "trend": trend,
+                "strength": "Güçlü" if signal else "Orta",
+                "signal": signal,
+                "confidence": 0.85 if signal else 0.65
+            })
+    
+    return {"analyses": mock_analyses}
 
 
 @app.get("/api/debug/candles")
