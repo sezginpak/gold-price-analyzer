@@ -72,37 +72,37 @@ class ATRIndicator:
             if len(true_ranges) < self.period:
                 logger.warning(f"Not enough true ranges calculated: {len(true_ranges)}")
                 return self._empty_result()
-        
-        # ATR hesaplama (Wilder's smoothing)
-        atr_values = []
-        
-        # İlk ATR
-        first_atr = sum(true_ranges[:self.period]) / self.period
-        atr_values.append(first_atr)
-        
-        # Sonraki ATR değerleri
-        for i in range(self.period, len(true_ranges)):
-            atr = (atr_values[-1] * (self.period - 1) + true_ranges[i]) / self.period
-            atr_values.append(atr)
-        
-        current_atr = atr_values[-1]
-        current_price = float(candles[-1].close)
-        
-        # ATR'nin fiyata oranı (yüzde olarak)
-        atr_percent = (current_atr / current_price) * 100 if current_price > 0 else 0
-        
-        # Volatilite seviyesi
-        volatility_level = self._determine_volatility_level(atr_percent)
-        
-        # Volatilite trendi
-        volatility_trend = self._analyze_volatility_trend(atr_values)
-        
-        # Risk seviyesi
-        risk_level = self._calculate_risk_level(atr_percent, volatility_trend)
-        
-        # Historical ATR analizi
-        historical_analysis = self._analyze_historical_atr(atr_values)
-        
+            
+            # ATR hesaplama (Wilder's smoothing)
+            atr_values = []
+            
+            # İlk ATR
+            first_atr = sum(true_ranges[:self.period]) / self.period
+            atr_values.append(first_atr)
+            
+            # Sonraki ATR değerleri
+            for i in range(self.period, len(true_ranges)):
+                atr = (atr_values[-1] * (self.period - 1) + true_ranges[i]) / self.period
+                atr_values.append(atr)
+            
+            current_atr = atr_values[-1]
+            current_price = float(candles[-1].close)
+            
+            # ATR'nin fiyata oranı (yüzde olarak)
+            atr_percent = (current_atr / current_price) * 100 if current_price > 0 else 0
+            
+            # Volatilite seviyesi
+            volatility_level = self._determine_volatility_level(atr_percent)
+            
+            # Volatilite trendi
+            volatility_trend = self._analyze_volatility_trend(atr_values)
+            
+            # Risk seviyesi
+            risk_level = self._calculate_risk_level(atr_percent, volatility_trend)
+            
+            # Historical ATR analizi
+            historical_analysis = self._analyze_historical_atr(atr_values)
+            
             return {
                 "atr": current_atr,
                 "atr_percent": atr_percent,
@@ -201,18 +201,18 @@ class ATRIndicator:
                     "expanding": False,
                     "contracting": False
                 }
-        
-        current = atr_values[-1]
-        historical = sorted(atr_values[-100:] if len(atr_values) >= 100 else atr_values)
-        
-        # Percentile hesapla
-        position = 0
-        for val in historical:
-            if val < current:
-                position += 1
-        
-        percentile = (position / len(historical)) * 100
-        
+            
+            current = atr_values[-1]
+            historical = sorted(atr_values[-100:] if len(atr_values) >= 100 else atr_values)
+            
+            # Percentile hesapla
+            position = 0
+            for val in historical:
+                if val < current:
+                    position += 1
+            
+            percentile = (position / len(historical)) * 100
+            
             # Genişleme/daralma tespiti
             recent_5 = atr_values[-5:]
             
@@ -307,17 +307,17 @@ class ATRIndicator:
         try:
             if not result or not result.get("atr"):
                 return None, 1.0  # ATR yoksa değiştirme
-        
-        # Ekstrem volatilitede güveni azalt
-        if result["volatility_level"] == "EXTREME":
-            return None, 0.5
-        elif result["volatility_level"] == "HIGH":
-            return None, 0.8
-        
-        # Hızla genişleyen volatilitede dikkatli ol
-        if result["volatility_trend"] == "EXPANDING_FAST":
-            return None, 0.7
-        
+            
+            # Ekstrem volatilitede güveni azalt
+            if result["volatility_level"] == "EXTREME":
+                return None, 0.5
+            elif result["volatility_level"] == "HIGH":
+                return None, 0.8
+            
+            # Hızla genişleyen volatilitede dikkatli ol
+            if result["volatility_trend"] == "EXPANDING_FAST":
+                return None, 0.7
+            
             # Düşük volatilite breakout potansiyeli
             if (result.get("volatility_level") == "VERY_LOW" and 
                 result.get("contracting_volatility", False)):

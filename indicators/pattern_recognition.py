@@ -125,36 +125,36 @@ class PatternRecognition:
             
             if total_range == 0 or body == 0:
                 return None
-        
-        # Hammer kriterleri
-        # 1. Alt gölge gövdenin en az 2 katı
-        # 2. Üst gölge çok küçük veya yok
-        # 3. Düşüş trendinde
-        if (lower_shadow >= body * 2 and 
-            upper_shadow < body * 0.3 and
-            current.close < previous.close):
             
-            return {
-                "name": "HAMMER",
-                "type": "BULLISH",
-                "confidence": 0.7,
-                "position": len([current]),
-                "description": "Hammer - Potansiyel dip formasyonu"
-            }
-        
-        # Inverted Hammer
-        if (upper_shadow >= body * 2 and 
-            lower_shadow < body * 0.3 and
-            current.close < previous.close):
+            # Hammer kriterleri
+            # 1. Alt gölge gövdenin en az 2 katı
+            # 2. Üst gölge çok küçük veya yok
+            # 3. Düşüş trendinde
+            if (lower_shadow >= body * 2 and 
+                upper_shadow < body * 0.3 and
+                current.close < previous.close):
+                
+                return {
+                    "name": "HAMMER",
+                    "type": "BULLISH",
+                    "confidence": 0.7,
+                    "position": len([current]),
+                    "description": "Hammer - Potansiyel dip formasyonu"
+                }
             
-            return {
-                "name": "INVERTED_HAMMER",
-                "type": "BULLISH",
-                "confidence": 0.6,
-                "position": len([current]),
-                "description": "Inverted Hammer - Potansiyel dönüş sinyali"
-            }
-        
+            # Inverted Hammer
+            if (upper_shadow >= body * 2 and 
+                lower_shadow < body * 0.3 and
+                current.close < previous.close):
+                
+                return {
+                    "name": "INVERTED_HAMMER",
+                    "type": "BULLISH",
+                    "confidence": 0.6,
+                    "position": len([current]),
+                    "description": "Inverted Hammer - Potansiyel dönüş sinyali"
+                }
+            
             return None
             
         except Exception as e:
@@ -416,37 +416,37 @@ class PatternRecognition:
             period_length = max(len(highs), 1)  # Sıfıra bölme kontrolü
             high_slope = (highs[-1] - highs[0]) / period_length
             low_slope = (lows[-1] - lows[0]) / period_length
-        
-        # Ascending Triangle (Yükselen üçgen)
-        if abs(high_slope) < 0.001 and low_slope > 0:
-            return {
-                "name": "ASCENDING_TRIANGLE",
-                "type": "BULLISH",
-                "confidence": 0.65,
-                "position": len(candles),
-                "description": "Ascending Triangle - Yükseliş formasyonu"
-            }
-        
-        # Descending Triangle (Düşen üçgen)
-        if high_slope < 0 and abs(low_slope) < 0.001:
-            return {
-                "name": "DESCENDING_TRIANGLE",
-                "type": "BEARISH",
-                "confidence": 0.65,
-                "position": len(candles),
-                "description": "Descending Triangle - Düşüş formasyonu"
-            }
-        
-        # Symmetrical Triangle (Simetrik üçgen)
-        if high_slope < -0.001 and low_slope > 0.001:
-            return {
-                "name": "SYMMETRICAL_TRIANGLE",
-                "type": "NEUTRAL",
-                "confidence": 0.6,
-                "position": len(candles),
-                "description": "Symmetrical Triangle - Kırılım bekleniyor"
-            }
             
+            # Ascending Triangle (Yükselen üçgen)
+            if abs(high_slope) < 0.001 and low_slope > 0:
+                return {
+                    "name": "ASCENDING_TRIANGLE",
+                    "type": "BULLISH",
+                    "confidence": 0.65,
+                    "position": len(candles),
+                    "description": "Ascending Triangle - Yükseliş formasyonu"
+                }
+            
+            # Descending Triangle (Düşen üçgen)
+            if high_slope < 0 and abs(low_slope) < 0.001:
+                return {
+                    "name": "DESCENDING_TRIANGLE",
+                    "type": "BEARISH",
+                    "confidence": 0.65,
+                    "position": len(candles),
+                    "description": "Descending Triangle - Düşüş formasyonu"
+                }
+            
+            # Symmetrical Triangle (Simetrik üçgen)
+            if high_slope < -0.001 and low_slope > 0.001:
+                return {
+                    "name": "SYMMETRICAL_TRIANGLE",
+                    "type": "NEUTRAL",
+                    "confidence": 0.6,
+                    "position": len(candles),
+                    "description": "Symmetrical Triangle - Kırılım bekleniyor"
+                }
+                
             return None
             
         except Exception as e:
