@@ -101,22 +101,22 @@ class StochasticIndicator:
                 except (IndexError, ValueError) as e:
                     logger.debug(f"Error calculating D values at index {i}: {e}")
                     continue
-        
-        # Mevcut ve önceki değerler
-        current_k = k_values[-1] if k_values else None
-        current_d = d_values[-1] if d_values else None
-        prev_k = k_values[-2] if len(k_values) > 1 else None
-        prev_d = d_values[-2] if len(d_values) > 1 else None
-        
-        # Bölge tespiti
-        zone = self._determine_zone(current_k)
-        
-        # Sinyal üretimi
-        signal = self._generate_signal(current_k, current_d, prev_k, prev_d)
-        
-        # Divergence tespiti
-        divergence = self._detect_divergence(candles, k_values)
-        
+            
+            # Mevcut ve önceki değerler
+            current_k = k_values[-1] if k_values else None
+            current_d = d_values[-1] if d_values else None
+            prev_k = k_values[-2] if len(k_values) > 1 else None
+            prev_d = d_values[-2] if len(d_values) > 1 else None
+            
+            # Bölge tespiti
+            zone = self._determine_zone(current_k)
+            
+            # Sinyal üretimi
+            signal = self._generate_signal(current_k, current_d, prev_k, prev_d)
+            
+            # Divergence tespiti
+            divergence = self._detect_divergence(candles, k_values)
+            
             return {
                 "k": current_k,
                 "d": current_d,
