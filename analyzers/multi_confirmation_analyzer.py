@@ -97,16 +97,16 @@ class MultiConfirmationAnalyzer:
                 return None
             
             indicators = []
-        
-        # 1. Destek/Direnç sinyali
-        if sr_signal:
-            indicators.append(IndicatorSignal(
-                indicator_name="support_resistance",
-                signal_type=sr_signal.signal_type.value,
-                confidence=sr_signal.overall_confidence,
-                reason=", ".join(sr_signal.reasons),
-                details={"levels": sr_signal.confidence_scores}
-            ))
+            
+            # 1. Destek/Direnç sinyali
+            if sr_signal:
+                indicators.append(IndicatorSignal(
+                    indicator_name="support_resistance",
+                    signal_type=sr_signal.signal_type.value,
+                    confidence=sr_signal.overall_confidence,
+                    reason=", ".join(sr_signal.reasons),
+                    details={"levels": sr_signal.confidence_scores}
+                ))
         
             # 2. MACD analizi
             try:
@@ -167,18 +167,18 @@ class MultiConfirmationAnalyzer:
                     ))
             except Exception as e:
                 logger.error(f"Pattern recognition failed: {e}")
-        
-        # 6. Trend doğrulaması
-        trend_signal = self._get_trend_signal(trend, trend_strength)
-        if trend_signal:
-            indicators.append(trend_signal)
-        
-        # 7. RSI doğrulaması
-        if rsi_value:
-            rsi_signal = self._get_rsi_signal(rsi_value)
-            if rsi_signal:
-                indicators.append(rsi_signal)
-        
+            
+            # 6. Trend doğrulaması
+            trend_signal = self._get_trend_signal(trend, trend_strength)
+            if trend_signal:
+                indicators.append(trend_signal)
+            
+            # 7. RSI doğrulaması
+            if rsi_value:
+                rsi_signal = self._get_rsi_signal(rsi_value)
+                if rsi_signal:
+                    indicators.append(rsi_signal)
+            
             # ATR filtresi (volatilite kontrolü)
             atr_result = {}
             volatility_multiplier = 1.0
