@@ -194,6 +194,70 @@
                 }
             });
         }
+        
+        // Mum grafiği oluştur
+        function initCandleChart() {
+            const ctx = document.getElementById('candleChart').getContext('2d');
+            candleChart = new Chart(ctx, {
+                type: 'candlestick',
+                data: {
+                    datasets: [{
+                        label: 'OHLC',
+                        data: []
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { color: 'rgb(156, 163, 175)' }
+                        },
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                }
+                            },
+                            ticks: { color: 'rgb(156, 163, 175)' }
+                        }
+                    }
+                }
+            });
+            
+            // İlk yükleme
+            loadCandles('15m');
+        }
+        
+        // Mum verilerini yükle
+        async function loadCandles(interval) {
+            try {
+                const response = await fetch(`/api/candles/${interval}`);
+                const data = await response.json();
+                
+                if (data.candles.length === 0) {
+                    console.log('Henüz mum verisi yok');
+                    return;
+                }
+                
+                const candleData = data.candles.map(c => ({
+                    x: new Date(c.timestamp).getTime(),
+                    o: c.open,
+                    h: c.high,
+                    l: c.low,
+                    c: c.close
+                }));
+                
+                candleChart.data.datasets[0].data = candleData;
+                candleChart.update();
+            } catch (error) {
+                console.error('Mum verileri yüklenemedi:', error);
+            }
+        }
 
         // Grafiğe fiyat ekle
         function addPriceToChart(price) {
@@ -290,6 +354,7 @@
         window.onload = () => {
             connectWebSocket();
             initPriceChart();
+            initCandleChart(); // Mum grafiği başlat
             loadStats();
             loadInitialPrices();
             loadSignals();
@@ -297,6 +362,7 @@
             
             // Periyodik güncellemeler
             setInterval(loadStats, 30000);     // 30 saniye
+            setInterval(() => loadCandles('15m'), 60000); // 1 dakikada bir mum güncelle
             setInterval(loadSignals, 60000);   // 1 dakika
             setInterval(loadLogs, 60000);      // 1 dakika
         };

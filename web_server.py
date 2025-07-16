@@ -186,6 +186,59 @@ async def get_recent_logs():
     return logs
 
 
+@app.get("/api/debug/candles")
+async def debug_candles():
+    """Mum verisi debug"""
+    prices = storage.get_latest_prices(100)
+    candles_15m = storage.generate_candles(15, 10)
+    
+    return {
+        "total_prices": len(prices),
+        "oldest_price": prices[0].timestamp.isoformat() if prices else None,
+        "newest_price": prices[-1].timestamp.isoformat() if prices else None,
+        "candles_15m_count": len(candles_15m),
+        "first_candle": candles_15m[0].timestamp.isoformat() if candles_15m else None,
+        "last_candle": candles_15m[-1].timestamp.isoformat() if candles_15m else None
+    }
+
+
+@app.get("/api/analysis/levels")
+async def get_support_resistance():
+    """Destek/Direnç seviyeleri"""
+    try:
+        # Son 100 veriyi al
+        prices = storage.get_latest_prices(100)
+        if len(prices) < 10:
+            return {"support": [], "resistance": []}
+        
+        # Basit destek/direnç hesaplama
+        price_values = [float(p.ons_try) for p in prices]
+        avg_price = sum(price_values) / len(price_values)
+        min_price = min(price_values)
+        max_price = max(price_values)
+        
+        # Basit seviyeler
+        support_levels = [
+            {"level": min_price, "strength": "Güçlü"},
+            {"level": min_price + (avg_price - min_price) * 0.382, "strength": "Orta"},
+            {"level": avg_price * 0.98, "strength": "Zayıf"}
+        ]
+        
+        resistance_levels = [
+            {"level": max_price, "strength": "Güçlü"},
+            {"level": avg_price + (max_price - avg_price) * 0.618, "strength": "Orta"},
+            {"level": avg_price * 1.02, "strength": "Zayıf"}
+        ]
+        
+        return {
+            "support": sorted(support_levels, key=lambda x: x["level"], reverse=True),
+            "resistance": sorted(resistance_levels, key=lambda x: x["level"])
+        }
+    except Exception as e:
+        logger.error(f"Analysis error: {e}")
+        return {"support": [], "resistance": []}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket bağlantısı - canlı güncellemeler"""
