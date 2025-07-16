@@ -12,7 +12,9 @@ from models.analysis_result import (
     SupportResistanceLevel, TechnicalIndicators
 )
 from analyzers.support_resistance import SupportResistanceAnalyzer
+from analyzers.multi_confirmation_analyzer import MultiConfirmationAnalyzer
 from storage.sqlite_storage import SQLiteStorage
+from performance_tracker import PerformanceTracker
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +22,25 @@ logger = logging.getLogger(__name__)
 class SignalGenerator:
     """Basit sinyal üretici"""
     
-    def __init__(self, min_confidence: float = 0.7, storage: Optional[SQLiteStorage] = None):
+    def __init__(self, min_confidence: float = 0.7, storage: Optional[SQLiteStorage] = None, 
+                 use_multi_confirmation: bool = True):
         self.min_confidence = min_confidence
         self.sr_analyzer = SupportResistanceAnalyzer()
         self.storage = storage or SQLiteStorage()
+        self.use_multi_confirmation = use_multi_confirmation
+        
+        if use_multi_confirmation:
+            self.multi_analyzer = MultiConfirmationAnalyzer()
+            self.performance_tracker = PerformanceTracker()
         
     def generate_signal(
         self, 
         current_price: PriceData,
         candles: List[PriceCandle],
-        risk_tolerance: str = "medium"
+        risk_tolerance: str = "medium",
+        trend: Optional[TrendType] = None,
+        trend_strength: Optional[TrendStrength] = None,
+        rsi_value: Optional[float] = None
     ) -> Optional[TradingSignal]:
         """Alım/Satım sinyali üret"""
         
@@ -113,6 +124,29 @@ class SignalGenerator:
                         stop_loss=stop_loss
                     )
         
+        # Multi-confirmation kullan
+        if self.use_multi_confirmation and (signal or trend):
+            # Multi-confirmation analizi
+            multi_signal = self.multi_analyzer.analyze(
+                current_price=current_price,
+                candles=candles,
+                sr_signal=signal,
+                trend=trend or TrendType.NEUTRAL,
+                trend_strength=trend_strength or TrendStrength.WEAK,
+                rsi_value=rsi_value
+            )
+            
+            if multi_signal:
+                # Performans takibi
+                signal_id = self.performance_tracker.track_signal(multi_signal)
+                multi_signal.metadata["signal_id"] = signal_id
+                logger.info(f"Multi-confirmation signal generated: {multi_signal.signal_type} at {multi_signal.price_level} with {len(multi_signal.metadata.get('indicators_used', []))} confirmations")
+                return multi_signal
+            elif signal:
+                # Multi-confirmation başarısız, sadece S/R sinyali varsa düşük güvenle ver
+                signal.overall_confidence *= 0.7
+                signal.reasons.append("(Tek gösterge)")
+        
         if signal:
             logger.info(f"Generated {signal.signal_type} signal at {signal.price_level} with confidence {signal.overall_confidence}")
         
@@ -150,15 +184,25 @@ class SignalGenerator:
     ) -> AnalysisResult:
         """Detaylı analiz yap ve kaydet"""
         
-        # Önce sinyal üret
-        signal = self.generate_signal(current_price, candles, risk_tolerance)
-        
-        # Destek/Direnç analizi
-        sr_levels = self.sr_analyzer.analyze(candles)
-        nearest_levels = self.sr_analyzer.get_nearest_levels(current_price.ons_try, sr_levels)
-        
         # Trend analizi
         trend, trend_strength = self._analyze_trend(candles)
+        
+        # Teknik göstergeler
+        rsi = self._calculate_simple_rsi(candles)
+        
+        # Sinyal üret (multi-confirmation ile)
+        signal = self.generate_signal(
+            current_price, 
+            candles, 
+            risk_tolerance,
+            trend=trend,
+            trend_strength=trend_strength,
+            rsi_value=rsi
+        )
+        
+        # Destek/Direnç analizi (zaten generate_signal'da yapıldı ama analiz için tekrar lazım)
+        sr_levels = self.sr_analyzer.analyze(candles)
+        nearest_levels = self.sr_analyzer.get_nearest_levels(current_price.ons_try, sr_levels)
         
         # Fiyat değişimi hesapla
         price_change = Decimal('0')
@@ -168,8 +212,7 @@ class SignalGenerator:
             price_change = current_price.ons_try - prev_close
             price_change_pct = float((price_change / prev_close) * 100)
         
-        # Teknik göstergeler (basit RSI hesaplaması)
-        rsi = self._calculate_simple_rsi(candles)
+        # RSI sinyali
         rsi_signal = "Overbought" if rsi > 70 else "Oversold" if rsi < 30 else "Neutral"
         
         # MA hesaplamaları
