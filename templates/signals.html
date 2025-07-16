@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sinyaller - Gold Price Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #111827; color: #f3f4f6; }
+        .signal-card { background-color: #1f2937; }
+    </style>
+</head>
+<body>
+    <!-- Menu -->
+    <div id="menu-container"></div>
+
+    <div class="container mx-auto px-4">
+        <h2 class="text-2xl font-bold mb-6">📊 Trading Sinyalleri</h2>
+        
+        <!-- Filtreler -->
+        <div class="signal-card rounded-lg p-4 mb-6">
+            <div class="flex flex-wrap gap-4">
+                <div>
+                    <label class="text-sm text-gray-400">Sinyal Tipi</label>
+                    <select id="signal-filter" class="bg-gray-800 rounded px-3 py-1 ml-2">
+                        <option value="all">Tümü</option>
+                        <option value="BUY">Alış</option>
+                        <option value="SELL">Satış</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Tarih</label>
+                    <select id="date-filter" class="bg-gray-800 rounded px-3 py-1 ml-2">
+                        <option value="today">Bugün</option>
+                        <option value="yesterday">Dün</option>
+                        <option value="week">Bu Hafta</option>
+                        <option value="month">Bu Ay</option>
+                    </select>
+                </div>
+                <button onclick="loadSignals()" class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded">
+                    Filtrele
+                </button>
+            </div>
+        </div>
+
+        <!-- İstatistikler -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="signal-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Bugünkü Sinyaller</p>
+                <p class="text-2xl font-bold" id="today-signals">0</p>
+            </div>
+            <div class="signal-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Başarılı Sinyaller</p>
+                <p class="text-2xl font-bold text-green-400" id="successful-signals">0</p>
+            </div>
+            <div class="signal-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Bekleyen Sinyaller</p>
+                <p class="text-2xl font-bold text-yellow-400" id="pending-signals">0</p>
+            </div>
+            <div class="signal-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Ortalama Güven</p>
+                <p class="text-2xl font-bold" id="avg-confidence">-%</p>
+            </div>
+        </div>
+
+        <!-- Sinyal Listesi -->
+        <div class="signal-card rounded-lg p-6">
+            <h3 class="text-xl font-bold mb-4">📋 Sinyal Geçmişi</h3>
+            <div id="signals-list" class="space-y-4">
+                <p class="text-gray-400 text-center py-8">Yükleniyor...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Menu yükle
+        fetch('/menu')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('menu-container').innerHTML = html;
+            });
+
+        // Sinyalleri yükle
+        async function loadSignals() {
+            try {
+                const signalFilter = document.getElementById('signal-filter').value;
+                const dateFilter = document.getElementById('date-filter').value;
+                
+                // Bugünkü sinyalleri al
+                const response = await fetch('/api/signals/today');
+                const data = await response.json();
+                
+                let signals = data.signals || [];
+                
+                // Filtreleme
+                if (signalFilter !== 'all') {
+                    signals = signals.filter(s => s.type === signalFilter);
+                }
+                
+                // İstatistikleri güncelle
+                document.getElementById('today-signals').textContent = signals.length;
+                
+                // Ortalama güven hesapla
+                if (signals.length > 0) {
+                    const avgConfidence = signals.reduce((sum, s) => {
+                        const conf = parseFloat(s.confidence) || 0;
+                        return sum + conf;
+                    }, 0) / signals.length;
+                    document.getElementById('avg-confidence').textContent = `%${(avgConfidence * 100).toFixed(0)}`;
+                }
+                
+                // Sinyal listesini göster
+                if (signals.length === 0) {
+                    document.getElementById('signals-list').innerHTML = 
+                        '<p class="text-gray-400 text-center py-8">Henüz sinyal yok</p>';
+                    return;
+                }
+                
+                const signalsHtml = signals.map(signal => {
+                    const signalTime = signal.timestamp ? new Date(signal.timestamp).toLocaleString('tr-TR') : 'Bilinmiyor';
+                    const isAlim = signal.type === 'BUY';
+                    
+                    return `
+                        <div class="border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <span class="${isAlim ? 'text-green-400' : 'text-red-400'} font-bold text-lg">
+                                        ${isAlim ? '🟢 ALIŞ' : '🔴 SATIŞ'} SİNYALİ
+                                    </span>
+                                    <p class="text-sm text-gray-400 mt-1">${signalTime}</p>
+                                </div>
+                                <span class="text-lg font-bold">₺${parseFloat(signal.price).toFixed(2)}</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                <div>
+                                    <span class="text-gray-400">Güven:</span>
+                                    <span class="font-bold ml-1">${signal.confidence || '-'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400">Hedef:</span>
+                                    <span class="font-bold ml-1">${signal.target || '-'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400">Stop:</span>
+                                    <span class="font-bold ml-1">${signal.stop_loss || '-'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400">Durum:</span>
+                                    <span class="font-bold ml-1 text-yellow-400">Aktif</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('signals-list').innerHTML = signalsHtml;
+                
+            } catch (error) {
+                console.error('Sinyaller yüklenemedi:', error);
+                document.getElementById('signals-list').innerHTML = 
+                    '<p class="text-red-400 text-center py-8">Sinyaller yüklenirken hata oluştu</p>';
+            }
+        }
+
+        // Sayfa yüklendiğinde
+        loadSignals();
+        
+        // Her 30 saniyede bir güncelle
+        setInterval(loadSignals, 30000);
+    </script>
+</body>
+</html>

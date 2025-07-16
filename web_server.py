@@ -202,6 +202,12 @@ async def analysis_page(request: Request):
     return templates.TemplateResponse("analysis.html", {"request": request})
 
 
+@app.get("/signals")
+async def signals_page(request: Request):
+    """Sinyaller sayfası"""
+    return templates.TemplateResponse("signals.html", {"request": request})
+
+
 @app.get("/api/analysis/config")
 async def get_analysis_config():
     """Analiz konfigürasyonunu döndür"""
