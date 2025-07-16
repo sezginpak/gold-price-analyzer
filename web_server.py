@@ -11,10 +11,13 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 import os
 from pathlib import Path
+import logging
 
 from storage.sqlite_storage import SQLiteStorage
 from services.harem_altin_service import HaremAltinPriceService
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Gold Price Analyzer Dashboard")
 

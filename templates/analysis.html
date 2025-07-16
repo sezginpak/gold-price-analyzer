@@ -93,7 +93,7 @@
                     </thead>
                     <tbody id="analysis-history">
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-gray-400">
+                            <td colspan="7" class="text-center py-4 text-gray-400">
                                 Yükleniyor...
                             </td>
                         </tr>
@@ -131,84 +131,111 @@
         // Analiz verilerini yükle
         async function loadAnalysisData() {
             try {
-                // Mevcut analiz
-                const levelsResponse = await fetch('/api/analysis/levels');
-                const levels = await levelsResponse.json();
-                
-                // Destek seviyeleri
-                const supportHtml = levels.support.map(s => 
-                    `<div class="flex justify-between">
-                        <span>₺${s.level.toFixed(2)}</span>
-                        <span class="text-sm ${s.strength === 'Güçlü' ? 'text-green-400' : 
-                                               s.strength === 'Orta' ? 'text-yellow-400' : 
-                                               'text-gray-400'}">${s.strength}</span>
-                    </div>`
-                ).join('');
-                document.getElementById('current-support-levels').innerHTML = supportHtml || '<p class="text-gray-400">Veri yok</p>';
-                
-                // Direnç seviyeleri
-                const resistanceHtml = levels.resistance.map(r => 
-                    `<div class="flex justify-between">
-                        <span>₺${r.level.toFixed(2)}</span>
-                        <span class="text-sm ${r.strength === 'Güçlü' ? 'text-red-400' : 
-                                               r.strength === 'Orta' ? 'text-yellow-400' : 
-                                               'text-gray-400'}">${r.strength}</span>
-                    </div>`
-                ).join('');
-                document.getElementById('current-resistance-levels').innerHTML = resistanceHtml || '<p class="text-gray-400">Veri yok</p>';
+                // Mevcut analiz - Destek/Direnç seviyeleri
+                try {
+                    const levelsResponse = await fetch('/api/analysis/levels');
+                    if (levelsResponse.ok) {
+                        const levels = await levelsResponse.json();
+                        
+                        // Destek seviyeleri
+                        if (levels.support && levels.support.length > 0) {
+                            const supportHtml = levels.support.map(s => 
+                                `<div class="flex justify-between">
+                                    <span>₺${s.level.toFixed(2)}</span>
+                                    <span class="text-sm ${s.strength === 'Güçlü' ? 'text-green-400' : 
+                                                           s.strength === 'Orta' ? 'text-yellow-400' : 
+                                                           'text-gray-400'}">${s.strength}</span>
+                                </div>`
+                            ).join('');
+                            document.getElementById('current-support-levels').innerHTML = supportHtml;
+                        } else {
+                            document.getElementById('current-support-levels').innerHTML = '<p class="text-gray-400">Veri yok</p>';
+                        }
+                        
+                        // Direnç seviyeleri
+                        if (levels.resistance && levels.resistance.length > 0) {
+                            const resistanceHtml = levels.resistance.map(r => 
+                                `<div class="flex justify-between">
+                                    <span>₺${r.level.toFixed(2)}</span>
+                                    <span class="text-sm ${r.strength === 'Güçlü' ? 'text-red-400' : 
+                                                           r.strength === 'Orta' ? 'text-yellow-400' : 
+                                                           'text-gray-400'}">${r.strength}</span>
+                                </div>`
+                            ).join('');
+                            document.getElementById('current-resistance-levels').innerHTML = resistanceHtml;
+                        } else {
+                            document.getElementById('current-resistance-levels').innerHTML = '<p class="text-gray-400">Veri yok</p>';
+                        }
+                    }
+                } catch (e) {
+                    console.error('Destek/Direnç yüklenemedi:', e);
+                    document.getElementById('current-support-levels').innerHTML = '<p class="text-gray-400">Yüklenemedi</p>';
+                    document.getElementById('current-resistance-levels').innerHTML = '<p class="text-gray-400">Yüklenemedi</p>';
+                }
                 
                 // Analiz geçmişi
-                const historyResponse = await fetch('/api/analysis/history');
-                const history = await historyResponse.json();
-                
-                if (history.analyses && history.analyses.length > 0) {
-                    const historyHtml = history.analyses.map(a => `
-                        <tr class="border-b border-gray-700">
-                            <td class="py-2 text-sm">${new Date(a.timestamp).toLocaleTimeString('tr-TR')}</td>
-                            <td class="py-2">
-                                ₺${a.price.toFixed(2)}
-                                <span class="text-xs ${a.price_change_pct > 0 ? 'text-green-400' : 'text-red-400'}">
-                                    (${a.price_change_pct > 0 ? '+' : ''}${a.price_change_pct.toFixed(2)}%)
-                                </span>
-                            </td>
-                            <td class="py-2">
-                                <span class="${a.trend === 'BULLISH' ? 'text-green-400' : 
-                                              a.trend === 'BEARISH' ? 'text-red-400' : 
-                                              'text-yellow-400'} text-sm">
-                                    ${a.trend === 'BULLISH' ? '↗️' : 
-                                      a.trend === 'BEARISH' ? '↘️' : 
-                                      '→'} ${a.strength}
-                                </span>
-                            </td>
-                            <td class="py-2">
-                                <span class="${a.rsi > 70 ? 'text-red-400' : 
-                                              a.rsi < 30 ? 'text-green-400' : 
-                                              'text-gray-400'}">
-                                    ${a.rsi ? a.rsi.toFixed(0) : '-'}
-                                </span>
-                            </td>
-                            <td class="py-2">
-                                ${a.signal ? `<span class="${a.signal === 'BUY' ? 'text-green-400' : 'text-red-400'} font-bold">
-                                    ${a.signal === 'BUY' ? 'AL' : 'SAT'}
-                                </span>` : '-'}
-                            </td>
-                            <td class="py-2">${a.confidence ? `%${(a.confidence * 100).toFixed(0)}` : '-'}</td>
-                            <td class="py-2">
-                                <span class="text-xs ${a.risk_level === 'LOW' ? 'text-green-400' : 
-                                                      a.risk_level === 'MEDIUM' ? 'text-yellow-400' : 
-                                                      a.risk_level === 'HIGH' ? 'text-red-400' : 
-                                                      'text-gray-400'}">
-                                    ${a.risk_level || '-'}
-                                </span>
-                            </td>
-                        </tr>
-                    `).join('');
-                    document.getElementById('analysis-history').innerHTML = historyHtml;
-                }
+                try {
+                    const historyResponse = await fetch('/api/analysis/history');
+                    if (!historyResponse.ok) {
+                        throw new Error('API hatası');
+                    }
+                    const history = await historyResponse.json();
+                    
+                    if (history.analyses && history.analyses.length > 0) {
+                        const historyHtml = history.analyses.map(a => `
+                            <tr class="border-b border-gray-700">
+                                <td class="py-2 text-sm">${new Date(a.timestamp).toLocaleTimeString('tr-TR')}</td>
+                                <td class="py-2">
+                                    ₺${a.price.toFixed(2)}
+                                    <span class="text-xs ${a.price_change_pct > 0 ? 'text-green-400' : 'text-red-400'}">
+                                        (${a.price_change_pct > 0 ? '+' : ''}${a.price_change_pct.toFixed(2)}%)
+                                    </span>
+                                </td>
+                                <td class="py-2">
+                                    <span class="${a.trend === 'BULLISH' ? 'text-green-400' : 
+                                                  a.trend === 'BEARISH' ? 'text-red-400' : 
+                                                  'text-yellow-400'} text-sm">
+                                        ${a.trend === 'BULLISH' ? '↗️' : 
+                                          a.trend === 'BEARISH' ? '↘️' : 
+                                          '→'} ${a.strength}
+                                    </span>
+                                </td>
+                                <td class="py-2">
+                                    <span class="${a.rsi > 70 ? 'text-red-400' : 
+                                                  a.rsi < 30 ? 'text-green-400' : 
+                                                  'text-gray-400'}">
+                                        ${a.rsi ? a.rsi.toFixed(0) : '-'}
+                                    </span>
+                                </td>
+                                <td class="py-2">
+                                    ${a.signal ? `<span class="${a.signal === 'BUY' ? 'text-green-400' : 'text-red-400'} font-bold">
+                                        ${a.signal === 'BUY' ? 'AL' : 'SAT'}
+                                    </span>` : '-'}
+                                </td>
+                                <td class="py-2">${a.confidence ? `%${(a.confidence * 100).toFixed(0)}` : '-'}</td>
+                                <td class="py-2">
+                                    <span class="text-xs ${a.risk_level === 'LOW' ? 'text-green-400' : 
+                                                          a.risk_level === 'MEDIUM' ? 'text-yellow-400' : 
+                                                          a.risk_level === 'HIGH' ? 'text-red-400' : 
+                                                          'text-gray-400'}">
+                                        ${a.risk_level || '-'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('');
+                        document.getElementById('analysis-history').innerHTML = historyHtml;
+                    } else {
+                        document.getElementById('analysis-history').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-400">Henüz veri yok</td></tr>';
+                    }
                 
                 // Son analiz zamanı
                 document.getElementById('last-analysis-time').textContent = 
                     new Date().toLocaleTimeString('tr-TR');
+                    
+                } catch (error) {
+                    console.error('Analiz geçmişi yüklenemedi:', error);
+                    document.getElementById('analysis-history').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-400">Yüklenemedi</td></tr>';
+                }
                     
             } catch (error) {
                 console.error('Analiz verileri yüklenemedi:', error);
