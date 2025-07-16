@@ -19,41 +19,65 @@ class PatternRecognition:
         """
         self.min_pattern_size = min_pattern_size
     
+    def _empty_result(self) -> Dict[str, any]:
+        """Boş sonuç döndür"""
+        return {
+            "patterns": [],
+            "strongest_pattern": None,
+            "signal": None,
+            "pattern_count": 0
+        }
+    
     def detect_patterns(self, candles: List[PriceCandle]) -> Dict[str, any]:
         """Tüm formasyonları tespit et"""
-        if len(candles) < 20:
+        try:
+            if not candles:
+                logger.warning("No candles provided for pattern detection")
+                return self._empty_result()
+            
+            if len(candles) < 20:
+                logger.debug(f"Not enough candles for pattern detection: {len(candles)}")
+                return self._empty_result()
+        
+            patterns = []
+            
+            # Candlestick patterns (mum formasyonları)
+            try:
+                candlestick_patterns = self._detect_candlestick_patterns(candles)
+                patterns.extend(candlestick_patterns)
+            except Exception as e:
+                logger.error(f"Error detecting candlestick patterns: {e}")
+            
+            # Chart patterns (grafik formasyonları)
+            try:
+                chart_patterns = self._detect_chart_patterns(candles)
+                patterns.extend(chart_patterns)
+            except Exception as e:
+                logger.error(f"Error detecting chart patterns: {e}")
+            
+            # Support/Resistance patterns
+            try:
+                sr_patterns = self._detect_sr_patterns(candles)
+                patterns.extend(sr_patterns)
+            except Exception as e:
+                logger.error(f"Error detecting S/R patterns: {e}")
+            
+            # En güçlü formasyonu bul
+            strongest = max(patterns, key=lambda x: x.get("confidence", 0)) if patterns else None
+            
+            # Sinyal üret
+            signal = self._generate_signal_from_patterns(patterns)
+            
             return {
-                "patterns": [],
-                "strongest_pattern": None,
-                "signal": None
+                "patterns": patterns,
+                "strongest_pattern": strongest,
+                "signal": signal,
+                "pattern_count": len(patterns)
             }
-        
-        patterns = []
-        
-        # Candlestick patterns (mum formasyonları)
-        candlestick_patterns = self._detect_candlestick_patterns(candles)
-        patterns.extend(candlestick_patterns)
-        
-        # Chart patterns (grafik formasyonları)
-        chart_patterns = self._detect_chart_patterns(candles)
-        patterns.extend(chart_patterns)
-        
-        # Support/Resistance patterns
-        sr_patterns = self._detect_sr_patterns(candles)
-        patterns.extend(sr_patterns)
-        
-        # En güçlü formasyonu bul
-        strongest = max(patterns, key=lambda x: x["confidence"]) if patterns else None
-        
-        # Sinyal üret
-        signal = self._generate_signal_from_patterns(patterns)
-        
-        return {
-            "patterns": patterns,
-            "strongest_pattern": strongest,
-            "signal": signal,
-            "pattern_count": len(patterns)
-        }
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in pattern detection: {e}", exc_info=True)
+            return self._empty_result()
     
     def _detect_candlestick_patterns(self, candles: List[PriceCandle]) -> List[Dict[str, any]]:
         """Mum formasyonlarını tespit et"""
@@ -93,13 +117,14 @@ class PatternRecognition:
     
     def _detect_hammer(self, current: PriceCandle, previous: PriceCandle) -> Optional[Dict[str, any]]:
         """Hammer formasyonu tespiti"""
-        body = abs(float(current.close - current.open))
-        upper_shadow = float(current.high - max(current.open, current.close))
-        lower_shadow = float(min(current.open, current.close) - current.low)
-        total_range = float(current.high - current.low)
-        
-        if total_range == 0:
-            return None
+        try:
+            body = abs(float(current.close - current.open))
+            upper_shadow = float(current.high - max(current.open, current.close))
+            lower_shadow = float(min(current.open, current.close) - current.low)
+            total_range = float(current.high - current.low)
+            
+            if total_range == 0 or body == 0:
+                return None
         
         # Hammer kriterleri
         # 1. Alt gölge gövdenin en az 2 katı
@@ -130,7 +155,11 @@ class PatternRecognition:
                 "description": "Inverted Hammer - Potansiyel dönüş sinyali"
             }
         
-        return None
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting hammer pattern: {e}")
+            return None
     
     def _detect_doji(self, candle: PriceCandle) -> Optional[Dict[str, any]]:
         """Doji formasyonu tespiti"""
@@ -299,66 +328,94 @@ class PatternRecognition:
     
     def _detect_double_pattern(self, candles: List[PriceCandle]) -> Optional[Dict[str, any]]:
         """Double Top/Bottom tespiti"""
-        if len(candles) < 20:
+        try:
+            if len(candles) < 20:
+                return None
+            
+            # Son 20 mumda local high/low bul
+            highs = []
+            lows = []
+            
+            for i in range(1, len(candles) - 1):
+                try:
+                    # Local high
+                    if candles[i].high > candles[i-1].high and candles[i].high > candles[i+1].high:
+                        highs.append((i, float(candles[i].high)))
+                    
+                    # Local low
+                    if candles[i].low < candles[i-1].low and candles[i].low < candles[i+1].low:
+                        lows.append((i, float(candles[i].low)))
+                except (IndexError, AttributeError) as e:
+                    logger.debug(f"Error finding local extremes at index {i}: {e}")
+                    continue
+        
+            # Double Top kontrolü
+            if len(highs) >= 2:
+                last_two_highs = highs[-2:]
+                if last_two_highs[0][1] > 0:  # Sıfıra bölme kontrolü
+                    diff_percent = abs(last_two_highs[0][1] - last_two_highs[1][1]) / last_two_highs[0][1]
+                    
+                    if diff_percent < 0.02:  # %2'den az fark
+                        # Target hesaplama için slice kontrolü
+                        start_idx = max(0, last_two_highs[0][0])
+                        end_idx = min(len(candles), last_two_highs[1][0])
+                        if start_idx < end_idx:
+                            target_candles = candles[start_idx:end_idx]
+                            if target_candles:
+                                return {
+                                    "name": "DOUBLE_TOP",
+                                    "type": "BEARISH",
+                                    "confidence": 0.7,
+                                    "position": last_two_highs[1][0],
+                                    "description": "Double Top - Potansiyel düşüş",
+                                    "target": min(target_candles, key=lambda x: x.low).low
+                                }
+        
+            # Double Bottom kontrolü
+            if len(lows) >= 2:
+                last_two_lows = lows[-2:]
+                if last_two_lows[0][1] > 0:  # Sıfıra bölme kontrolü
+                    diff_percent = abs(last_two_lows[0][1] - last_two_lows[1][1]) / last_two_lows[0][1]
+                    
+                    if diff_percent < 0.02:  # %2'den az fark
+                        # Target hesaplama için slice kontrolü
+                        start_idx = max(0, last_two_lows[0][0])
+                        end_idx = min(len(candles), last_two_lows[1][0])
+                        if start_idx < end_idx:
+                            target_candles = candles[start_idx:end_idx]
+                            if target_candles:
+                                return {
+                                    "name": "DOUBLE_BOTTOM",
+                                    "type": "BULLISH",
+                                    "confidence": 0.7,
+                                    "position": last_two_lows[1][0],
+                                    "description": "Double Bottom - Potansiyel yükseliş",
+                                    "target": max(target_candles, key=lambda x: x.high).high
+                                }
+            
             return None
-        
-        # Son 20 mumda local high/low bul
-        highs = []
-        lows = []
-        
-        for i in range(1, len(candles) - 1):
-            # Local high
-            if candles[i].high > candles[i-1].high and candles[i].high > candles[i+1].high:
-                highs.append((i, float(candles[i].high)))
             
-            # Local low
-            if candles[i].low < candles[i-1].low and candles[i].low < candles[i+1].low:
-                lows.append((i, float(candles[i].low)))
-        
-        # Double Top kontrolü
-        if len(highs) >= 2:
-            last_two_highs = highs[-2:]
-            diff_percent = abs(last_two_highs[0][1] - last_two_highs[1][1]) / last_two_highs[0][1]
-            
-            if diff_percent < 0.02:  # %2'den az fark
-                return {
-                    "name": "DOUBLE_TOP",
-                    "type": "BEARISH",
-                    "confidence": 0.7,
-                    "position": last_two_highs[1][0],
-                    "description": "Double Top - Potansiyel düşüş",
-                    "target": min(candles[last_two_highs[0][0]:last_two_highs[1][0]], key=lambda x: x.low).low
-                }
-        
-        # Double Bottom kontrolü
-        if len(lows) >= 2:
-            last_two_lows = lows[-2:]
-            diff_percent = abs(last_two_lows[0][1] - last_two_lows[1][1]) / last_two_lows[0][1]
-            
-            if diff_percent < 0.02:  # %2'den az fark
-                return {
-                    "name": "DOUBLE_BOTTOM",
-                    "type": "BULLISH",
-                    "confidence": 0.7,
-                    "position": last_two_lows[1][0],
-                    "description": "Double Bottom - Potansiyel yükseliş",
-                    "target": max(candles[last_two_lows[0][0]:last_two_lows[1][0]], key=lambda x: x.high).high
-                }
-        
-        return None
+        except Exception as e:
+            logger.error(f"Error detecting double pattern: {e}")
+            return None
     
     def _detect_triangle_pattern(self, candles: List[PriceCandle]) -> Optional[Dict[str, any]]:
         """Üçgen formasyonu tespiti"""
-        if len(candles) < 10:
-            return None
-        
-        # Son 10 mumun high ve low'larını al
-        highs = [float(c.high) for c in candles[-10:]]
-        lows = [float(c.low) for c in candles[-10:]]
-        
-        # Trend çizgilerinin eğimini hesapla
-        high_slope = (highs[-1] - highs[0]) / len(highs)
-        low_slope = (lows[-1] - lows[0]) / len(lows)
+        try:
+            if len(candles) < 10:
+                return None
+            
+            # Son 10 mumun high ve low'larını al
+            highs = [float(c.high) for c in candles[-10:]]
+            lows = [float(c.low) for c in candles[-10:]]
+            
+            if not highs or not lows or len(highs) == 0:
+                return None
+            
+            # Trend çizgilerinin eğimini hesapla
+            period_length = max(len(highs), 1)  # Sıfıra bölme kontrolü
+            high_slope = (highs[-1] - highs[0]) / period_length
+            low_slope = (lows[-1] - lows[0]) / period_length
         
         # Ascending Triangle (Yükselen üçgen)
         if abs(high_slope) < 0.001 and low_slope > 0:
@@ -389,8 +446,12 @@ class PatternRecognition:
                 "position": len(candles),
                 "description": "Symmetrical Triangle - Kırılım bekleniyor"
             }
-        
-        return None
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting triangle pattern: {e}")
+            return None
     
     def _detect_flag_pattern(self, candles: List[PriceCandle]) -> Optional[Dict[str, any]]:
         """Flag/Pennant formasyonu tespiti"""
@@ -486,43 +547,62 @@ class PatternRecognition:
     
     def _detect_false_breakout(self, candles: List[PriceCandle]) -> Optional[Dict[str, any]]:
         """False breakout (bull/bear trap) tespiti"""
-        if len(candles) < 5:
+        try:
+            if len(candles) < 20:
+                return None
+            
+            # Son 3 mumda breakout olup geri dönüş var mı?
+            recent = candles[-5:]
+            
+            # Recent high/low
+            historical_candles = candles[-20:-5]
+            if not historical_candles:
+                return None
+            
+            prev_high = max(c.high for c in historical_candles)
+            prev_low = min(c.low for c in historical_candles)
+        
+            # Bull trap: Direnç kırılıp geri dönüş
+            for i in range(len(recent) - 1):
+                try:
+                    if (recent[i].high > prev_high and  # Breakout
+                        i + 1 < len(recent) and
+                        recent[i+1].close < prev_high):  # Geri dönüş
+                        
+                        return {
+                            "name": "BULL_TRAP",
+                            "type": "BEARISH",
+                            "confidence": 0.8,
+                            "position": len(candles),
+                            "description": "Bull Trap - Yanlış kırılım"
+                        }
+                except (IndexError, AttributeError) as e:
+                    logger.debug(f"Error checking bull trap at index {i}: {e}")
+                    continue
+            
+            # Bear trap: Destek kırılıp geri dönüş
+            for i in range(len(recent) - 1):
+                try:
+                    if (recent[i].low < prev_low and  # Breakdown
+                        i + 1 < len(recent) and
+                        recent[i+1].close > prev_low):  # Geri dönüş
+                        
+                        return {
+                            "name": "BEAR_TRAP",
+                            "type": "BULLISH",
+                            "confidence": 0.8,
+                            "position": len(candles),
+                            "description": "Bear Trap - Yanlış kırılım"
+                        }
+                except (IndexError, AttributeError) as e:
+                    logger.debug(f"Error checking bear trap at index {i}: {e}")
+                    continue
+            
             return None
-        
-        # Son 3 mumda breakout olup geri dönüş var mı?
-        recent = candles[-5:]
-        
-        # Recent high/low
-        prev_high = max(c.high for c in candles[-20:-5])
-        prev_low = min(c.low for c in candles[-20:-5])
-        
-        # Bull trap: Direnç kırılıp geri dönüş
-        for i in range(len(recent) - 2):
-            if (recent[i].high > prev_high and  # Breakout
-                recent[i+1].close < prev_high):  # Geri dönüş
-                
-                return {
-                    "name": "BULL_TRAP",
-                    "type": "BEARISH",
-                    "confidence": 0.8,
-                    "position": len(candles),
-                    "description": "Bull Trap - Yanlış kırılım"
-                }
-        
-        # Bear trap: Destek kırılıp geri dönüş
-        for i in range(len(recent) - 2):
-            if (recent[i].low < prev_low and  # Breakdown
-                recent[i+1].close > prev_low):  # Geri dönüş
-                
-                return {
-                    "name": "BEAR_TRAP",
-                    "type": "BULLISH",
-                    "confidence": 0.8,
-                    "position": len(candles),
-                    "description": "Bear Trap - Yanlış kırılım"
-                }
-        
-        return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting false breakout: {e}")
+            return None
     
     def _generate_signal_from_patterns(self, patterns: List[Dict[str, any]]) -> Optional[Dict[str, any]]:
         """Formasyonlardan sinyal üret"""
@@ -579,14 +659,79 @@ class PatternRecognition:
         Returns:
             (signal_type, confidence): ("BUY"/"SELL"/None, 0.0-1.0)
         """
-        signal = result.get("signal")
-        if not signal:
+        try:
+            if not result:
+                return None, 0.0
+            
+            signal = result.get("signal")
+            if not signal:
+                return None, 0.0
+            
+            # Pattern sayısına göre güveni artır
+            pattern_count = result.get("pattern_count", 0)
+            confidence_boost = min(pattern_count * 0.1, 0.3)  # Max %30 boost
+            
+            base_confidence = signal.get("confidence", 0.0)
+            final_confidence = min(base_confidence + confidence_boost, 1.0)
+            
+            signal_type = signal.get("type")
+            if signal_type not in ["BUY", "SELL"]:
+                return None, 0.0
+            
+            return signal_type, final_confidence
+            
+        except Exception as e:
+            logger.error(f"Error calculating pattern signal weight: {e}")
             return None, 0.0
-        
-        # Pattern sayısına göre güveni artır
-        pattern_count = result.get("pattern_count", 0)
-        confidence_boost = min(pattern_count * 0.1, 0.3)  # Max %30 boost
-        
-        final_confidence = min(signal["confidence"] + confidence_boost, 1.0)
-        
-        return signal["type"], final_confidence
+    
+    def get_pattern_summary(self, result: Dict[str, any]) -> str:
+        """Pattern özetini döndür"""
+        try:
+            if not result or not result.get("patterns"):
+                return "No patterns detected"
+            
+            patterns = result["patterns"]
+            summary_parts = []
+            
+            # Pattern tiplerini grupla
+            bullish_patterns = [p for p in patterns if p.get("type") == "BULLISH"]
+            bearish_patterns = [p for p in patterns if p.get("type") == "BEARISH"]
+            neutral_patterns = [p for p in patterns if p.get("type") == "NEUTRAL"]
+            
+            if bullish_patterns:
+                names = [p.get("name", "Unknown") for p in bullish_patterns]
+                summary_parts.append(f"Bullish: {', '.join(names)}")
+            
+            if bearish_patterns:
+                names = [p.get("name", "Unknown") for p in bearish_patterns]
+                summary_parts.append(f"Bearish: {', '.join(names)}")
+            
+            if neutral_patterns:
+                names = [p.get("name", "Unknown") for p in neutral_patterns]
+                summary_parts.append(f"Neutral: {', '.join(names)}")
+            
+            return " | ".join(summary_parts) if summary_parts else "No significant patterns"
+            
+        except Exception as e:
+            logger.error(f"Error getting pattern summary: {e}")
+            return "Error in pattern summary"
+    
+    def is_reversal_pattern(self, pattern_name: str) -> bool:
+        """Pattern dönüş formasyonu mu?"""
+        reversal_patterns = [
+            "HAMMER", "INVERTED_HAMMER", "DOJI",
+            "BULLISH_ENGULFING", "BEARISH_ENGULFING",
+            "MORNING_STAR", "EVENING_STAR",
+            "DOUBLE_TOP", "DOUBLE_BOTTOM",
+            "BULL_TRAP", "BEAR_TRAP"
+        ]
+        return pattern_name in reversal_patterns
+    
+    def is_continuation_pattern(self, pattern_name: str) -> bool:
+        """Pattern devam formasyonu mu?"""
+        continuation_patterns = [
+            "THREE_WHITE_SOLDIERS", "THREE_BLACK_CROWS",
+            "BULL_FLAG", "BEAR_FLAG",
+            "ASCENDING_TRIANGLE", "DESCENDING_TRIANGLE"
+        ]
+        return pattern_name in continuation_patterns

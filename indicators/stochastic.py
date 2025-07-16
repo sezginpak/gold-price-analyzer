@@ -23,48 +23,84 @@ class StochasticIndicator:
         self.d_period = d_period
         self.smooth_k = smooth_k
     
+    def _empty_result(self) -> Dict[str, any]:
+        """Boş sonuç döndür"""
+        return {
+            "k": None,
+            "d": None,
+            "k_prev": None,
+            "d_prev": None,
+            "signal": None,
+            "zone": None,
+            "divergence": None,
+            "momentum": "NEUTRAL"
+        }
+    
     def calculate(self, candles: List[PriceCandle]) -> Dict[str, any]:
         """Stochastic hesapla"""
-        if len(candles) < self.k_period + self.smooth_k + self.d_period:
-            logger.warning(f"Not enough data for Stochastic. Need {self.k_period + self.smooth_k + self.d_period}, got {len(candles)}")
-            return {
-                "k": None,
-                "d": None,
-                "k_prev": None,
-                "d_prev": None,
-                "signal": None,
-                "zone": None
-            }
-        
-        # Raw %K değerlerini hesapla
-        raw_k_values = []
-        
-        for i in range(self.k_period - 1, len(candles)):
-            period_candles = candles[i - self.k_period + 1:i + 1]
+        try:
+            if not candles:
+                logger.warning("No candles provided for Stochastic calculation")
+                return self._empty_result()
             
-            # Period içindeki en yüksek ve en düşük
-            highest_high = max(c.high for c in period_candles)
-            lowest_low = min(c.low for c in period_candles)
-            
-            # Raw %K = (Current Close - Lowest Low) / (Highest High - Lowest Low) * 100
-            if highest_high != lowest_low:
-                raw_k = ((period_candles[-1].close - lowest_low) / (highest_high - lowest_low)) * 100
-            else:
-                raw_k = 50  # Eğer high ve low eşitse nötr değer
-            
-            raw_k_values.append(float(raw_k))
+            min_required = self.k_period + self.smooth_k + self.d_period
+            if len(candles) < min_required:
+                logger.warning(f"Not enough data for Stochastic. Need {min_required}, got {len(candles)}")
+                return self._empty_result()
         
-        # %K değerlerini yumuşat (SMA)
-        k_values = []
-        for i in range(self.smooth_k - 1, len(raw_k_values)):
-            k = sum(raw_k_values[i - self.smooth_k + 1:i + 1]) / self.smooth_k
-            k_values.append(k)
+            # Raw %K değerlerini hesapla
+            raw_k_values = []
+            
+            for i in range(self.k_period - 1, len(candles)):
+                try:
+                    period_candles = candles[i - self.k_period + 1:i + 1]
+                    
+                    if not period_candles:
+                        continue
+                    
+                    # Period içindeki en yüksek ve en düşük
+                    highest_high = max(c.high for c in period_candles)
+                    lowest_low = min(c.low for c in period_candles)
+                    
+                    # Raw %K = (Current Close - Lowest Low) / (Highest High - Lowest Low) * 100
+                    if highest_high != lowest_low:
+                        raw_k = ((period_candles[-1].close - lowest_low) / (highest_high - lowest_low)) * 100
+                    else:
+                        raw_k = 50  # Eğer high ve low eşitse nötr değer
+                    
+                    raw_k_values.append(float(raw_k))
+                    
+                except (AttributeError, ValueError, TypeError) as e:
+                    logger.error(f"Error calculating raw K at index {i}: {e}")
+                    continue
         
-        # %D değerlerini hesapla (%K'nın SMA'sı)
-        d_values = []
-        for i in range(self.d_period - 1, len(k_values)):
-            d = sum(k_values[i - self.d_period + 1:i + 1]) / self.d_period
-            d_values.append(d)
+            if not raw_k_values:
+                logger.warning("No raw K values calculated")
+                return self._empty_result()
+            
+            # %K değerlerini yumuşat (SMA)
+            k_values = []
+            for i in range(self.smooth_k - 1, len(raw_k_values)):
+                try:
+                    smooth_period = raw_k_values[i - self.smooth_k + 1:i + 1]
+                    if smooth_period:
+                        k = sum(smooth_period) / len(smooth_period)
+                        k_values.append(k)
+                except (IndexError, ValueError) as e:
+                    logger.debug(f"Error smoothing K values at index {i}: {e}")
+                    continue
+            
+            # %D değerlerini hesapla (%K'nın SMA'sı)
+            d_values = []
+            for i in range(self.d_period - 1, len(k_values)):
+                try:
+                    d_period = k_values[i - self.d_period + 1:i + 1]
+                    if d_period:
+                        d = sum(d_period) / len(d_period)
+                        d_values.append(d)
+                except (IndexError, ValueError) as e:
+                    logger.debug(f"Error calculating D values at index {i}: {e}")
+                    continue
         
         # Mevcut ve önceki değerler
         current_k = k_values[-1] if k_values else None
@@ -81,16 +117,20 @@ class StochasticIndicator:
         # Divergence tespiti
         divergence = self._detect_divergence(candles, k_values)
         
-        return {
-            "k": current_k,
-            "d": current_d,
-            "k_prev": prev_k,
-            "d_prev": prev_d,
-            "signal": signal,
-            "zone": zone,
-            "divergence": divergence,
-            "momentum": self._calculate_momentum(k_values)
-        }
+            return {
+                "k": current_k,
+                "d": current_d,
+                "k_prev": prev_k,
+                "d_prev": prev_d,
+                "signal": signal,
+                "zone": zone,
+                "divergence": divergence,
+                "momentum": self._calculate_momentum(k_values)
+            }
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in Stochastic calculation: {e}", exc_info=True)
+            return self._empty_result()
     
     def _determine_zone(self, k_value: Optional[float]) -> Optional[str]:
         """Stochastic bölgesini belirle"""
@@ -164,70 +204,103 @@ class StochasticIndicator:
     
     def _detect_divergence(self, candles: List[PriceCandle], k_values: List[float]) -> Optional[str]:
         """Stochastic divergence tespiti"""
-        if len(candles) < 20 or len(k_values) < 20:
+        try:
+            if not candles or not k_values:
+                return None
+            
+            if len(candles) < 20 or len(k_values) < 20:
+                return None
+            
+            # Listelerin uzunluklarını eşitle
+            min_len = min(len(candles), len(k_values), 20)
+            candles = candles[-min_len:]
+            k_values = k_values[-min_len:]
+        
+            # Fiyat ve Stochastic zirvelerini/diplerini bul
+            price_highs = []
+            price_lows = []
+            k_highs = []
+            k_lows = []
+        
+            for i in range(1, len(candles) - 1):
+                try:
+                    # Fiyat zirveleri
+                    if (candles[i].high > candles[i-1].high and 
+                        candles[i].high > candles[i+1].high):
+                        price_highs.append((i, float(candles[i].high)))
+                    
+                    # Fiyat dipleri
+                    if (candles[i].low < candles[i-1].low and 
+                        candles[i].low < candles[i+1].low):
+                        price_lows.append((i, float(candles[i].low)))
+                except (IndexError, AttributeError) as e:
+                    logger.debug(f"Error finding price peaks at index {i}: {e}")
+                    continue
+            
+            for i in range(1, len(k_values) - 1):
+                try:
+                    # Stochastic zirveleri
+                    if k_values[i] > k_values[i-1] and k_values[i] > k_values[i+1]:
+                        k_highs.append((i, k_values[i]))
+                    
+                    # Stochastic dipleri
+                    if k_values[i] < k_values[i-1] and k_values[i] < k_values[i+1]:
+                        k_lows.append((i, k_values[i]))
+                except IndexError as e:
+                    logger.debug(f"Error finding K peaks at index {i}: {e}")
+                    continue
+        
+            # Bullish divergence
+            if len(price_lows) >= 2 and len(k_lows) >= 2:
+                # Zaman yakınlığı kontrolü (maksimum 5 bar fark)
+                if abs(price_lows[-1][0] - k_lows[-1][0]) <= 5:
+                    if (price_lows[-1][1] < price_lows[-2][1] and  # Fiyat düşük dip
+                        k_lows[-1][1] > k_lows[-2][1]):            # Stochastic yüksek dip
+                        return "BULLISH_DIVERGENCE"
+            
+            # Bearish divergence
+            if len(price_highs) >= 2 and len(k_highs) >= 2:
+                # Zaman yakınlığı kontrolü
+                if abs(price_highs[-1][0] - k_highs[-1][0]) <= 5:
+                    if (price_highs[-1][1] > price_highs[-2][1] and  # Fiyat yüksek zirve
+                        k_highs[-1][1] < k_highs[-2][1]):            # Stochastic düşük zirve
+                        return "BEARISH_DIVERGENCE"
+            
             return None
-        
-        # Son 20 mum için analiz
-        recent_candles = candles[-20:]
-        recent_k = k_values[-20:]
-        
-        # Fiyat ve Stochastic zirvelerini/diplerini bul
-        price_highs = []
-        price_lows = []
-        k_highs = []
-        k_lows = []
-        
-        for i in range(1, len(recent_candles) - 1):
-            # Fiyat zirveleri
-            if (recent_candles[i].high > recent_candles[i-1].high and 
-                recent_candles[i].high > recent_candles[i+1].high):
-                price_highs.append((i, float(recent_candles[i].high)))
             
-            # Fiyat dipleri
-            if (recent_candles[i].low < recent_candles[i-1].low and 
-                recent_candles[i].low < recent_candles[i+1].low):
-                price_lows.append((i, float(recent_candles[i].low)))
-        
-        for i in range(1, len(recent_k) - 1):
-            # Stochastic zirveleri
-            if recent_k[i] > recent_k[i-1] and recent_k[i] > recent_k[i+1]:
-                k_highs.append((i, recent_k[i]))
-            
-            # Stochastic dipleri
-            if recent_k[i] < recent_k[i-1] and recent_k[i] < recent_k[i+1]:
-                k_lows.append((i, recent_k[i]))
-        
-        # Bullish divergence
-        if len(price_lows) >= 2 and len(k_lows) >= 2:
-            if (price_lows[-1][1] < price_lows[-2][1] and  # Fiyat düşük dip
-                k_lows[-1][1] > k_lows[-2][1]):            # Stochastic yüksek dip
-                return "BULLISH_DIVERGENCE"
-        
-        # Bearish divergence
-        if len(price_highs) >= 2 and len(k_highs) >= 2:
-            if (price_highs[-1][1] > price_highs[-2][1] and  # Fiyat yüksek zirve
-                k_highs[-1][1] < k_highs[-2][1]):            # Stochastic düşük zirve
-                return "BEARISH_DIVERGENCE"
-        
-        return None
+        except Exception as e:
+            logger.error(f"Error detecting Stochastic divergence: {e}")
+            return None
     
     def _calculate_momentum(self, k_values: List[float]) -> str:
         """Stochastic momentum'u hesapla"""
-        if len(k_values) < 5:
-            return "NEUTRAL"
-        
-        recent = k_values[-5:]
-        
-        # Trend yönü
-        if all(recent[i] > recent[i-1] for i in range(1, len(recent))):
-            return "STRONG_UP"
-        elif all(recent[i] < recent[i-1] for i in range(1, len(recent))):
-            return "STRONG_DOWN"
-        elif recent[-1] > recent[0]:
-            return "UP"
-        elif recent[-1] < recent[0]:
-            return "DOWN"
-        else:
+        try:
+            if not k_values or len(k_values) < 5:
+                return "NEUTRAL"
+            
+            recent = k_values[-5:]
+            
+            # Hız hesaplama
+            velocity = []
+            for i in range(1, len(recent)):
+                velocity.append(recent[i] - recent[i-1])
+            
+            avg_velocity = sum(velocity) / len(velocity) if velocity else 0
+            
+            # Trend yönü
+            if all(v > 0 for v in velocity) and avg_velocity > 2:
+                return "STRONG_UP"
+            elif all(v < 0 for v in velocity) and avg_velocity < -2:
+                return "STRONG_DOWN"
+            elif recent[-1] > recent[0] and avg_velocity > 0:
+                return "UP"
+            elif recent[-1] < recent[0] and avg_velocity < 0:
+                return "DOWN"
+            else:
+                return "NEUTRAL"
+                
+        except Exception as e:
+            logger.error(f"Error calculating momentum: {e}")
             return "NEUTRAL"
     
     def get_signal_weight(self, result: Dict[str, any]) -> Tuple[Optional[str], float]:
@@ -237,8 +310,9 @@ class StochasticIndicator:
         Returns:
             (signal_type, confidence): ("BUY"/"SELL"/None, 0.0-1.0)
         """
-        if not result["k"]:
-            return None, 0.0
+        try:
+            if not result or not result.get("k"):
+                return None, 0.0
         
         signal = result.get("signal")
         if not signal:
@@ -264,4 +338,63 @@ class StochasticIndicator:
         elif signal["type"] == "SELL" and momentum in ["DOWN", "STRONG_DOWN"]:
             confidence = min(confidence * 1.1, 1.0)
         
-        return signal["type"], confidence
+            return signal["type"], min(confidence, 1.0)
+            
+        except Exception as e:
+            logger.error(f"Error calculating Stochastic signal weight: {e}")
+            return None, 0.0
+    
+    def get_fast_slow_stochastic(self, candles: List[PriceCandle]) -> Dict[str, any]:
+        """Hem fast hem slow stochastic hesapla"""
+        try:
+            # Fast Stochastic (smooth_k=1)
+            fast_stoch = StochasticIndicator(
+                k_period=self.k_period, 
+                d_period=self.d_period, 
+                smooth_k=1
+            )
+            fast_result = fast_stoch.calculate(candles)
+            
+            # Slow Stochastic (mevcut ayarlar)
+            slow_result = self.calculate(candles)
+            
+            return {
+                "fast": fast_result,
+                "slow": slow_result,
+                "divergence": self._compare_fast_slow(fast_result, slow_result)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating fast/slow stochastic: {e}")
+            return {"fast": self._empty_result(), "slow": self._empty_result(), "divergence": None}
+    
+    def _compare_fast_slow(self, fast: Dict[str, any], slow: Dict[str, any]) -> Optional[str]:
+        """Fast ve slow stochastic karşılaştırması"""
+        try:
+            if not fast.get("k") or not slow.get("k"):
+                return None
+            
+            # Fast'in slow'u geçmesi güçlü sinyal
+            if fast["k"] > slow["k"] and fast.get("k_prev", 0) <= slow.get("k_prev", 0):
+                return "BULLISH_MOMENTUM"
+            elif fast["k"] < slow["k"] and fast.get("k_prev", 100) >= slow.get("k_prev", 100):
+                return "BEARISH_MOMENTUM"
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error comparing fast/slow stochastic: {e}")
+            return None
+    
+    def is_extreme_zone(self, result: Dict[str, any]) -> bool:
+        """Ekstrem bölgede mi?"""
+        try:
+            if not result or not result.get("k"):
+                return False
+            
+            k = result["k"]
+            return k <= 5 or k >= 95  # Çok ekstrem değerler
+            
+        except Exception as e:
+            logger.error(f"Error checking extreme zone: {e}")
+            return False

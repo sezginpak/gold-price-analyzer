@@ -182,8 +182,17 @@ class MACDIndicator:
     
     def _detect_divergence(self, prices: List[Decimal], macd_values: List[Decimal]) -> Optional[str]:
         """Divergence (uyumsuzluk) tespiti"""
-        if len(prices) < 20 or len(macd_values) < 20:
-            return None
+        try:
+            if not prices or not macd_values:
+                return None
+            
+            if len(prices) < 20 or len(macd_values) < 20:
+                return None
+            
+            # Listelerin uzunluklarını eşitle
+            min_len = min(len(prices), len(macd_values))
+            prices = prices[-min_len:]
+            macd_values = macd_values[-min_len:]
         
         # Son 20 mumda fiyat ve MACD zirvelerini bul
         price_highs = []
@@ -191,82 +200,175 @@ class MACDIndicator:
         price_lows = []
         macd_lows = []
         
-        for i in range(1, len(prices) - 1):
-            # Fiyat zirveleri
-            if prices[i] > prices[i-1] and prices[i] > prices[i+1]:
-                price_highs.append((i, prices[i]))
+            for i in range(1, len(prices) - 1):
+                try:
+                    # Fiyat zirveleri
+                    if prices[i] > prices[i-1] and prices[i] > prices[i+1]:
+                        price_highs.append((i, prices[i]))
+                    
+                    # Fiyat dipleri
+                    if prices[i] < prices[i-1] and prices[i] < prices[i+1]:
+                        price_lows.append((i, prices[i]))
+                except (IndexError, TypeError) as e:
+                    logger.debug(f"Error finding price peaks at index {i}: {e}")
+                    continue
             
-            # Fiyat dipleri
-            if prices[i] < prices[i-1] and prices[i] < prices[i+1]:
-                price_lows.append((i, prices[i]))
+            for i in range(1, len(macd_values) - 1):
+                try:
+                    # MACD zirveleri
+                    if macd_values[i] > macd_values[i-1] and macd_values[i] > macd_values[i+1]:
+                        macd_highs.append((i, macd_values[i]))
+                    
+                    # MACD dipleri
+                    if macd_values[i] < macd_values[i-1] and macd_values[i] < macd_values[i+1]:
+                        macd_lows.append((i, macd_values[i]))
+                except (IndexError, TypeError) as e:
+                    logger.debug(f"Error finding MACD peaks at index {i}: {e}")
+                    continue
         
-        for i in range(1, len(macd_values) - 1):
-            # MACD zirveleri
-            if macd_values[i] > macd_values[i-1] and macd_values[i] > macd_values[i+1]:
-                macd_highs.append((i, macd_values[i]))
+            # Bullish divergence: Fiyat düşük dip, MACD yüksek dip
+            if len(price_lows) >= 2 and len(macd_lows) >= 2:
+                # Zaman yakınlığı kontrolü (maksimum 5 bar fark)
+                if abs(price_lows[-1][0] - macd_lows[-1][0]) <= 5:
+                    if (price_lows[-1][1] < price_lows[-2][1] and  # Fiyat düşük dip yapıyor
+                        macd_lows[-1][1] > macd_lows[-2][1]):       # MACD yüksek dip yapıyor
+                        return "BULLISH_DIVERGENCE"
             
-            # MACD dipleri
-            if macd_values[i] < macd_values[i-1] and macd_values[i] < macd_values[i+1]:
-                macd_lows.append((i, macd_values[i]))
-        
-        # Bullish divergence: Fiyat düşük dip, MACD yüksek dip
-        if len(price_lows) >= 2 and len(macd_lows) >= 2:
-            if (price_lows[-1][1] < price_lows[-2][1] and  # Fiyat düşük dip yapıyor
-                macd_lows[-1][1] > macd_lows[-2][1]):       # MACD yüksek dip yapıyor
-                return "BULLISH_DIVERGENCE"
-        
-        # Bearish divergence: Fiyat yüksek zirve, MACD düşük zirve
-        if len(price_highs) >= 2 and len(macd_highs) >= 2:
-            if (price_highs[-1][1] > price_highs[-2][1] and  # Fiyat yüksek zirve yapıyor
-                macd_highs[-1][1] < macd_highs[-2][1]):      # MACD düşük zirve yapıyor
-                return "BEARISH_DIVERGENCE"
-        
-        return None
+            # Bearish divergence: Fiyat yüksek zirve, MACD düşük zirve
+            if len(price_highs) >= 2 and len(macd_highs) >= 2:
+                # Zaman yakınlığı kontrolü
+                if abs(price_highs[-1][0] - macd_highs[-1][0]) <= 5:
+                    if (price_highs[-1][1] > price_highs[-2][1] and  # Fiyat yüksek zirve yapıyor
+                        macd_highs[-1][1] < macd_highs[-2][1]):      # MACD düşük zirve yapıyor
+                        return "BEARISH_DIVERGENCE"
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting divergence: {e}")
+            return None
     
     def _determine_trend(self, histogram: List[Decimal]) -> str:
         """MACD trendi belirle"""
-        if len(histogram) < 5:
+        try:
+            if not histogram or len(histogram) < 5:
+                return "NEUTRAL"
+            
+            recent = histogram[-5:]
+            current = histogram[-1]
+            
+            # Histogram değişim hızını kontrol et
+            if len(histogram) >= 10:
+                older = histogram[-10:-5]
+                recent_avg = sum(recent) / len(recent)
+                older_avg = sum(older) / len(older)
+                momentum = recent_avg - older_avg
+            else:
+                momentum = 0
+            
+            # Tüm değerler pozitif ve güçlü momentum
+            if all(h > 0 for h in recent) and recent[-1] > recent[0] and momentum > 0:
+                return "STRONG_BULLISH"
+            
+            # Histogram pozitif
+            elif current > 0:
+                return "BULLISH"
+            
+            # Tüm değerler negatif ve güçlü momentum
+            elif all(h < 0 for h in recent) and recent[-1] < recent[0] and momentum < 0:
+                return "STRONG_BEARISH"
+            
+            # Histogram negatif
+            elif current < 0:
+                return "BEARISH"
+            
             return "NEUTRAL"
-        
-        recent = histogram[-5:]
-        
-        # Tüm değerler pozitif ve artıyorsa
-        if all(h > 0 for h in recent) and recent[-1] > recent[0]:
-            return "STRONG_BULLISH"
-        
-        # Histogram pozitif
-        elif histogram[-1] > 0:
-            return "BULLISH"
-        
-        # Tüm değerler negatif ve azalıyorsa
-        elif all(h < 0 for h in recent) and recent[-1] < recent[0]:
-            return "STRONG_BEARISH"
-        
-        # Histogram negatif
-        elif histogram[-1] < 0:
-            return "BEARISH"
-        
-        return "NEUTRAL"
+            
+        except Exception as e:
+            logger.error(f"Error determining MACD trend: {e}")
+            return "NEUTRAL"
     
     def _calculate_strength(self, histogram: List[Decimal]) -> float:
         """MACD sinyal gücü (0-1 arası)"""
-        if not histogram:
+        try:
+            if not histogram:
+                return 0.0
+            
+            # Histogram değerinin mutlak değeri ne kadar büyükse o kadar güçlü
+            current = abs(float(histogram[-1]))
+            
+            # Son 20 histogram değerinin ortalaması
+            recent = histogram[-20:] if len(histogram) >= 20 else histogram
+            abs_values = [abs(float(h)) for h in recent]
+            
+            if not abs_values:
+                return 0.0
+            
+            avg = sum(abs_values) / len(abs_values)
+            
+            if avg == 0:
+                return 0.0
+            
+            # Standart sapma hesapla
+            std_dev = (sum((x - avg) ** 2 for x in abs_values) / len(abs_values)) ** 0.5
+            
+            # Z-score bazlı güç hesaplama
+            if std_dev > 0:
+                z_score = (current - avg) / std_dev
+                # Z-score'u 0-1 aralığına normalize et
+                strength = min(max((z_score + 2) / 4, 0), 1.0)
+            else:
+                # Standart sapma 0 ise basit normalizasyon
+                strength = min(current / (avg * 2), 1.0)
+            
+            return strength
+            
+        except Exception as e:
+            logger.error(f"Error calculating MACD strength: {e}")
             return 0.0
-        
-        # Histogram değerinin mutlak değeri ne kadar büyükse o kadar güçlü
-        current = abs(float(histogram[-1]))
-        
-        # Son 20 histogram değerinin ortalaması
-        recent = histogram[-20:] if len(histogram) >= 20 else histogram
-        avg = sum(abs(float(h)) for h in recent) / len(recent)
-        
-        if avg == 0:
-            return 0.0
-        
-        # Normalize et (ortalamaya göre)
-        strength = min(current / (avg * 2), 1.0)
-        
-        return strength
+    
+    def get_histogram_trend(self, result: Dict[str, any]) -> str:
+        """Histogram trendini döndür"""
+        try:
+            if not result:
+                return "NEUTRAL"
+            
+            trend = result.get("trend", "NEUTRAL")
+            histogram = result.get("histogram")
+            histogram_prev = result.get("histogram_prev")
+            
+            if histogram is not None and histogram_prev is not None:
+                # Histogram artıyorsa
+                if histogram > histogram_prev:
+                    if histogram > 0:
+                        return "STRENGTHENING_BULLISH"
+                    else:
+                        return "WEAKENING_BEARISH"
+                # Histogram azalıyorsa
+                elif histogram < histogram_prev:
+                    if histogram > 0:
+                        return "WEAKENING_BULLISH"
+                    else:
+                        return "STRENGTHENING_BEARISH"
+            
+            return trend
+            
+        except Exception as e:
+            logger.error(f"Error getting histogram trend: {e}")
+            return "NEUTRAL"
+    
+    def is_histogram_extreme(self, result: Dict[str, any]) -> bool:
+        """Histogram ekstrem değerde mi?"""
+        try:
+            if not result or not result.get("histogram"):
+                return False
+            
+            strength = result.get("strength", 0)
+            return strength > 0.8  # %80'den yüksek güç ekstrem
+            
+        except Exception as e:
+            logger.error(f"Error checking histogram extreme: {e}")
+            return False
     
     def get_signal_weight(self, result: Dict[str, any]) -> Tuple[Optional[str], float]:
         """
@@ -275,8 +377,9 @@ class MACDIndicator:
         Returns:
             (signal_type, confidence): ("BUY"/"SELL"/None, 0.0-1.0)
         """
-        if not result["macd_line"]:
-            return None, 0.0
+        try:
+            if not result or not result.get("macd_line"):
+                return None, 0.0
         
         signal = None
         confidence = 0.0
@@ -314,6 +417,11 @@ class MACDIndicator:
         
         # Güç ile confidence'ı ayarla
         if signal:
-            confidence *= result["strength"]
+            confidence *= result.get("strength", 1.0)
+            confidence = min(confidence, 1.0)  # Max 1.0
         
         return signal, confidence
+        
+        except Exception as e:
+            logger.error(f"Error calculating MACD signal weight: {e}")
+            return None, 0.0
