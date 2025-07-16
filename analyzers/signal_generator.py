@@ -7,7 +7,12 @@ from datetime import datetime
 import logging
 from models.price_data import PriceData, PriceCandle
 from models.trading_signal import TradingSignal, SignalType, RiskLevel
+from models.analysis_result import (
+    AnalysisResult, TrendType, TrendStrength, 
+    SupportResistanceLevel, TechnicalIndicators
+)
 from analyzers.support_resistance import SupportResistanceAnalyzer
+from storage.sqlite_storage import SQLiteStorage
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +20,10 @@ logger = logging.getLogger(__name__)
 class SignalGenerator:
     """Basit sinyal üretici"""
     
-    def __init__(self, min_confidence: float = 0.7):
+    def __init__(self, min_confidence: float = 0.7, storage: Optional[SQLiteStorage] = None):
         self.min_confidence = min_confidence
         self.sr_analyzer = SupportResistanceAnalyzer()
+        self.storage = storage or SQLiteStorage()
         
     def generate_signal(
         self, 
@@ -135,3 +141,169 @@ class SignalGenerator:
                 return RiskLevel.MEDIUM
             else:
                 return RiskLevel.HIGH
+    
+    def analyze_and_save(
+        self, 
+        current_price: PriceData,
+        candles: List[PriceCandle],
+        risk_tolerance: str = "medium"
+    ) -> AnalysisResult:
+        """Detaylı analiz yap ve kaydet"""
+        
+        # Önce sinyal üret
+        signal = self.generate_signal(current_price, candles, risk_tolerance)
+        
+        # Destek/Direnç analizi
+        sr_levels = self.sr_analyzer.analyze(candles)
+        nearest_levels = self.sr_analyzer.get_nearest_levels(current_price.ons_try, sr_levels)
+        
+        # Trend analizi
+        trend, trend_strength = self._analyze_trend(candles)
+        
+        # Fiyat değişimi hesapla
+        price_change = Decimal('0')
+        price_change_pct = 0.0
+        if len(candles) > 0:
+            prev_close = candles[-1].close
+            price_change = current_price.ons_try - prev_close
+            price_change_pct = float((price_change / prev_close) * 100)
+        
+        # Teknik göstergeler (basit RSI hesaplaması)
+        rsi = self._calculate_simple_rsi(candles)
+        rsi_signal = "Overbought" if rsi > 70 else "Oversold" if rsi < 30 else "Neutral"
+        
+        # MA hesaplamaları
+        ma_20 = self._calculate_ma(candles, 20)
+        ma_50 = self._calculate_ma(candles, 50)
+        ma_cross = None
+        if ma_20 and ma_50:
+            if ma_20 > ma_50 and candles[-2] and self._calculate_ma(candles[:-1], 20) <= self._calculate_ma(candles[:-1], 50):
+                ma_cross = "Golden Cross"
+            elif ma_20 < ma_50 and candles[-2] and self._calculate_ma(candles[:-1], 20) >= self._calculate_ma(candles[:-1], 50):
+                ma_cross = "Death Cross"
+        
+        indicators = TechnicalIndicators(
+            rsi=rsi,
+            rsi_signal=rsi_signal,
+            ma_short=ma_20,
+            ma_long=ma_50,
+            ma_cross=ma_cross
+        )
+        
+        # Support/Resistance levels
+        support_levels = []
+        resistance_levels = []
+        
+        for level in sr_levels.get("support_levels", []):
+            support_levels.append(SupportResistanceLevel(
+                level=level.level,
+                strength="Güçlü" if level.strength > 0.8 else "Orta" if level.strength > 0.5 else "Zayıf",
+                touches=level.touches
+            ))
+        
+        for level in sr_levels.get("resistance_levels", []):
+            resistance_levels.append(SupportResistanceLevel(
+                level=level.level,
+                strength="Güçlü" if level.strength > 0.8 else "Orta" if level.strength > 0.5 else "Zayıf",
+                touches=level.touches
+            ))
+        
+        # AnalysisResult oluştur
+        analysis = AnalysisResult(
+            timestamp=datetime.now(),
+            price=current_price.ons_try,
+            price_change=price_change,
+            price_change_pct=price_change_pct,
+            trend=trend,
+            trend_strength=trend_strength,
+            support_levels=support_levels[:3],  # En önemli 3 seviye
+            resistance_levels=resistance_levels[:3],  # En önemli 3 seviye
+            nearest_support=nearest_levels.get("nearest_support", {}).get("level") if "nearest_support" in nearest_levels else None,
+            nearest_resistance=nearest_levels.get("nearest_resistance", {}).get("level") if "nearest_resistance" in nearest_levels else None,
+            signal=signal.signal_type.value if signal else None,
+            signal_strength=signal.confidence if signal else None,
+            confidence=signal.confidence if signal else 0.0,
+            indicators=indicators,
+            risk_level=signal.risk_level.value if signal else None,
+            stop_loss=signal.stop_loss if signal else None,
+            take_profit=signal.target_price if signal else None,
+            analysis_details={
+                "candle_count": len(candles),
+                "signal_reasons": signal.reasons if signal else [],
+                "support_count": len(support_levels),
+                "resistance_count": len(resistance_levels)
+            }
+        )
+        
+        # Veritabanına kaydet
+        try:
+            self.storage.save_analysis_result(analysis)
+            logger.info(f"Analysis saved: {trend.value} trend, Signal: {analysis.signal}")
+        except Exception as e:
+            logger.error(f"Failed to save analysis: {e}")
+        
+        return analysis
+    
+    def _analyze_trend(self, candles: List[PriceCandle]) -> tuple[TrendType, TrendStrength]:
+        """Trend analizi yap"""
+        if len(candles) < 10:
+            return TrendType.NEUTRAL, TrendStrength.WEAK
+        
+        # Son 10 mumun ortalaması ile önceki 10 mumun ortalamasını karşılaştır
+        recent_avg = sum([c.close for c in candles[-10:]]) / 10
+        older_avg = sum([c.close for c in candles[-20:-10]]) / 10 if len(candles) >= 20 else recent_avg
+        
+        change_pct = float((recent_avg - older_avg) / older_avg * 100)
+        
+        # Trend tipi
+        if change_pct > 1:
+            trend = TrendType.BULLISH
+        elif change_pct < -1:
+            trend = TrendType.BEARISH
+        else:
+            trend = TrendType.NEUTRAL
+        
+        # Trend gücü
+        if abs(change_pct) > 3:
+            strength = TrendStrength.STRONG
+        elif abs(change_pct) > 1.5:
+            strength = TrendStrength.MODERATE
+        else:
+            strength = TrendStrength.WEAK
+        
+        return trend, strength
+    
+    def _calculate_simple_rsi(self, candles: List[PriceCandle], period: int = 14) -> float:
+        """Basit RSI hesaplaması"""
+        if len(candles) < period + 1:
+            return 50.0  # Nötr değer
+        
+        gains = []
+        losses = []
+        
+        for i in range(1, period + 1):
+            change = float(candles[-i].close - candles[-i-1].close)
+            if change > 0:
+                gains.append(change)
+                losses.append(0)
+            else:
+                gains.append(0)
+                losses.append(abs(change))
+        
+        avg_gain = sum(gains) / period
+        avg_loss = sum(losses) / period
+        
+        if avg_loss == 0:
+            return 100.0
+        
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        
+        return rsi
+    
+    def _calculate_ma(self, candles: List[PriceCandle], period: int) -> Optional[Decimal]:
+        """Moving Average hesapla"""
+        if len(candles) < period:
+            return None
+        
+        return sum([c.close for c in candles[-period:]]) / period

@@ -215,41 +215,44 @@ async def get_analysis_config():
 
 @app.get("/api/analysis/history")
 async def get_analysis_history():
-    """Son analiz sonuçlarını döndür"""
-    # TODO: Gerçek analiz verilerini saklamak için bir sistem eklenecek
-    # Şimdilik mock data
-    mock_analyses = []
-    
-    # Son 10 analiz için mock data oluştur
-    current_price = storage.get_latest_price()
-    if current_price:
-        base_price = float(current_price.ons_try)
+    """Son analiz sonuçlarını döndür - GERÇEK VERİ"""
+    try:
+        # Gerçek analiz verilerini al
+        analyses = storage.get_analysis_history(limit=20)
         
-        for i in range(10):
-            timestamp = datetime.now() - timedelta(minutes=5*i)
-            price_variation = base_price * (1 + (i * 0.001))
-            
-            # Trend belirleme
-            if i < 3:
-                trend = "BULLISH"
-                signal = "BUY" if i == 0 else None
-            elif i < 7:
-                trend = "NEUTRAL"
-                signal = None
-            else:
-                trend = "BEARISH"
-                signal = "SELL" if i == 9 else None
-            
-            mock_analyses.append({
-                "timestamp": timestamp.isoformat(),
-                "price": price_variation,
-                "trend": trend,
-                "strength": "Güçlü" if signal else "Orta",
-                "signal": signal,
-                "confidence": 0.85 if signal else 0.65
+        # API formatına dönüştür
+        formatted_analyses = []
+        for analysis in analyses:
+            formatted_analyses.append({
+                "timestamp": analysis.timestamp.isoformat(),
+                "price": float(analysis.price),
+                "price_change": float(analysis.price_change) if analysis.price_change else 0,
+                "price_change_pct": analysis.price_change_pct,
+                "trend": analysis.trend.value,
+                "trend_strength": analysis.trend_strength.value,
+                "strength": "Güçlü" if analysis.trend_strength.value == "STRONG" else 
+                           "Orta" if analysis.trend_strength.value == "MODERATE" else "Zayıf",
+                "signal": analysis.signal,
+                "confidence": analysis.confidence,
+                "rsi": analysis.indicators.rsi if analysis.indicators else None,
+                "support_levels": [
+                    {"level": float(s.level), "strength": s.strength}
+                    for s in analysis.support_levels
+                ],
+                "resistance_levels": [
+                    {"level": float(r.level), "strength": r.strength}
+                    for r in analysis.resistance_levels
+                ],
+                "risk_level": analysis.risk_level,
+                "analysis_details": analysis.analysis_details
             })
-    
-    return {"analyses": mock_analyses}
+        
+        return {"analyses": formatted_analyses}
+        
+    except Exception as e:
+        logger.error(f"Error getting analysis history: {e}")
+        # Hata durumunda boş liste dön
+        return {"analyses": []}
 
 
 @app.get("/api/debug/candles")

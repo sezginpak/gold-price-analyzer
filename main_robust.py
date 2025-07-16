@@ -98,17 +98,37 @@ class RobustGoldPriceAnalyzer:
                 self.logger.debug(f"Not enough candles: {len(candles_15m)}")
                 return
             
-            # Sinyal üret
-            signal = self.signal_generator.generate_signal(
+            # Detaylı analiz yap ve kaydet
+            analysis = self.signal_generator.analyze_and_save(
                 price_data,
                 candles_15m,
                 settings.risk_tolerance
             )
             
-            if signal:
+            # Sinyal varsa göster
+            if analysis.signal:
                 self.stats["signals_generated"] += 1
+                # Geçici signal objesi oluştur (geriye uyumluluk için)
+                from models.trading_signal import TradingSignal, SignalType, RiskLevel
+                signal = TradingSignal(
+                    timestamp=analysis.timestamp,
+                    signal_type=SignalType(analysis.signal),
+                    price_level=analysis.price,
+                    confidence=analysis.confidence,
+                    risk_level=RiskLevel(analysis.risk_level) if analysis.risk_level else RiskLevel.MEDIUM,
+                    reasons=analysis.analysis_details.get("signal_reasons", []),
+                    target_price=analysis.take_profit,
+                    stop_loss=analysis.stop_loss
+                )
                 self._display_signal(signal, price_data)
                 self._save_signal_to_file(signal, price_data)
+            
+            # Analiz özeti logla
+            self.logger.info(
+                f"Analysis completed: {analysis.trend.value} trend ({analysis.trend_strength.value}), "
+                f"RSI: {analysis.indicators.rsi:.1f if analysis.indicators and analysis.indicators.rsi else 'N/A'}, "
+                f"Signal: {analysis.signal or 'None'}"
+            )
                 
         except Exception as e:
             self.error_count += 1

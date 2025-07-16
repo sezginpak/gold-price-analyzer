@@ -85,9 +85,10 @@
                             <th class="text-left py-2">Zaman</th>
                             <th class="text-left py-2">Fiyat</th>
                             <th class="text-left py-2">Trend</th>
-                            <th class="text-left py-2">Güç</th>
+                            <th class="text-left py-2">RSI</th>
                             <th class="text-left py-2">Sinyal</th>
                             <th class="text-left py-2">Güven</th>
+                            <th class="text-left py-2">Risk</th>
                         </tr>
                     </thead>
                     <tbody id="analysis-history">
@@ -163,24 +164,43 @@
                 if (history.analyses && history.analyses.length > 0) {
                     const historyHtml = history.analyses.map(a => `
                         <tr class="border-b border-gray-700">
-                            <td class="py-2">${new Date(a.timestamp).toLocaleTimeString('tr-TR')}</td>
-                            <td class="py-2">₺${a.price.toFixed(2)}</td>
+                            <td class="py-2 text-sm">${new Date(a.timestamp).toLocaleTimeString('tr-TR')}</td>
+                            <td class="py-2">
+                                ₺${a.price.toFixed(2)}
+                                <span class="text-xs ${a.price_change_pct > 0 ? 'text-green-400' : 'text-red-400'}">
+                                    (${a.price_change_pct > 0 ? '+' : ''}${a.price_change_pct.toFixed(2)}%)
+                                </span>
+                            </td>
                             <td class="py-2">
                                 <span class="${a.trend === 'BULLISH' ? 'text-green-400' : 
                                               a.trend === 'BEARISH' ? 'text-red-400' : 
-                                              'text-yellow-400'}">
-                                    ${a.trend === 'BULLISH' ? '↗️ Yükseliş' : 
-                                      a.trend === 'BEARISH' ? '↘️ Düşüş' : 
-                                      '→ Yatay'}
+                                              'text-yellow-400'} text-sm">
+                                    ${a.trend === 'BULLISH' ? '↗️' : 
+                                      a.trend === 'BEARISH' ? '↘️' : 
+                                      '→'} ${a.strength}
                                 </span>
                             </td>
-                            <td class="py-2">${a.strength || '-'}</td>
                             <td class="py-2">
-                                ${a.signal ? `<span class="${a.signal === 'BUY' ? 'text-green-400' : 'text-red-400'}">
-                                    ${a.signal === 'BUY' ? '🟢 AL' : '🔴 SAT'}
+                                <span class="${a.rsi > 70 ? 'text-red-400' : 
+                                              a.rsi < 30 ? 'text-green-400' : 
+                                              'text-gray-400'}">
+                                    ${a.rsi ? a.rsi.toFixed(0) : '-'}
+                                </span>
+                            </td>
+                            <td class="py-2">
+                                ${a.signal ? `<span class="${a.signal === 'BUY' ? 'text-green-400' : 'text-red-400'} font-bold">
+                                    ${a.signal === 'BUY' ? 'AL' : 'SAT'}
                                 </span>` : '-'}
                             </td>
                             <td class="py-2">${a.confidence ? `%${(a.confidence * 100).toFixed(0)}` : '-'}</td>
+                            <td class="py-2">
+                                <span class="text-xs ${a.risk_level === 'LOW' ? 'text-green-400' : 
+                                                      a.risk_level === 'MEDIUM' ? 'text-yellow-400' : 
+                                                      a.risk_level === 'HIGH' ? 'text-red-400' : 
+                                                      'text-gray-400'}">
+                                    ${a.risk_level || '-'}
+                                </span>
+                            </td>
                         </tr>
                     `).join('');
                     document.getElementById('analysis-history').innerHTML = historyHtml;
