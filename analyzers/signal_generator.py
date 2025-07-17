@@ -215,11 +215,20 @@ class SignalGenerator:
         sr_levels = self.sr_analyzer.analyze(candles)
         nearest_levels = self.sr_analyzer.get_nearest_levels(current_price.ons_try, sr_levels)
         
-        # Fiyat değişimi hesapla
+        # Fiyat değişimi hesapla - önceki analiz sonucundan al
         price_change = Decimal('0')
         price_change_pct = 0.0
-        if len(candles) > 0:
-            prev_close = candles[-1].close
+        
+        # Önceki analiz sonucunu al
+        previous_analyses = self.storage.get_analysis_history(limit=1)
+        if previous_analyses and len(previous_analyses) > 0:
+            prev_price = previous_analyses[0].price
+            price_change = current_price.ons_try - prev_price
+            if prev_price > 0:
+                price_change_pct = float((price_change / prev_price) * 100)
+        elif len(candles) > 1:
+            # Eğer önceki analiz yoksa, bir önceki muma bak
+            prev_close = candles[-2].close
             price_change = current_price.ons_try - prev_close
             price_change_pct = float((price_change / prev_close) * 100)
         
