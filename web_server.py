@@ -85,9 +85,9 @@ async def get_stats():
 
 @app.get("/api/prices/latest")
 async def get_latest_prices():
-    """Son 2 saatlik fiyat verisi"""
+    """Son 30 dakikalık fiyat verisi"""
     end_time = datetime.now()
-    start_time = end_time - timedelta(hours=2)  # 2 saat geriye git
+    start_time = end_time - timedelta(minutes=30)  # 30 dakika geriye git
     
     prices = storage.get_price_range(start_time, end_time)
     
@@ -99,7 +99,7 @@ async def get_latest_prices():
                 "usd_try": float(p.usd_try),
                 "ons_try": float(p.ons_try)
             }
-            for p in prices[-120:]  # Son 120 kayıt (dakikada bir veri topluyoruz)
+            for p in prices  # Tüm 30 dakikalık veriyi al
         ]
     }
 

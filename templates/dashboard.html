@@ -71,7 +71,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <!-- Price Chart -->
             <div class="bg-gray-800 rounded-lg p-6">
-                <h2 class="text-xl font-bold mb-4">📊 Fiyat Grafiği (Son 2 Saat)</h2>
+                <h2 class="text-xl font-bold mb-4">📊 Fiyat Grafiği (Son 30 Dakika)</h2>
                 <canvas id="priceChart"></canvas>
             </div>
             
@@ -236,7 +236,7 @@
                                 maxRotation: 45,
                                 minRotation: 45,
                                 autoSkip: true,
-                                maxTicksLimit: 15  // X eksende max 15 etiket göster
+                                maxTicksLimit: 10  // X eksende max 10 etiket göster
                             }
                         }
                     }
@@ -365,8 +365,8 @@
             priceChart.data.labels.push(time);
             priceChart.data.datasets[0].data.push(price.ons_try);
             
-            // Max 120 veri (2 saatlik veri)
-            if (priceChart.data.labels.length > 120) {
+            // Max 360 veri (30 dakika gerçek zamanlı)
+            if (priceChart.data.labels.length > 360) {
                 priceChart.data.labels.shift();
                 priceChart.data.datasets[0].data.shift();
             }
