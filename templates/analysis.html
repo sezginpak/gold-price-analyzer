@@ -43,8 +43,8 @@
                 <p class="text-xl font-bold" id="last-analysis-time">-</p>
             </div>
             <div class="analysis-card rounded-lg p-4">
-                <p class="text-gray-400 text-sm">Analiz Sıklığı</p>
-                <p class="text-xl font-bold" id="analysis-interval">Her 5 dakika</p>
+                <p class="text-gray-400 text-sm">Analiz Zaman Dilimleri</p>
+                <p class="text-xl font-bold" id="analysis-interval">15dk, 1s, 4s, günlük</p>
             </div>
             <div class="analysis-card rounded-lg p-4">
                 <p class="text-gray-400 text-sm">Güven Eşiği</p>
@@ -200,7 +200,13 @@
                 const response = await fetch('/api/analysis/config');
                 const config = await response.json();
                 
-                document.getElementById('analysis-interval').textContent = `Her ${config.collection_interval} dakika`;
+                // Analiz sıklığını doğru göster
+                const intervals = [];
+                if (config.analysis_interval_15m) intervals.push('15dk');
+                if (config.analysis_interval_1h) intervals.push('1s');
+                if (config.analysis_interval_4h) intervals.push('4s');
+                if (config.analysis_interval_daily) intervals.push('günlük');
+                document.getElementById('analysis-interval').textContent = intervals.join(', ');
                 document.getElementById('confidence-threshold').textContent = `%${Math.round(config.min_confidence_score * 100)}`;
                 document.getElementById('lookback-period').textContent = `${config.support_resistance_lookback} mum`;
                 document.getElementById('rsi-period').textContent = config.rsi_period;

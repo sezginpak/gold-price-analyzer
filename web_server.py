@@ -215,6 +215,10 @@ async def get_analysis_config():
     """Analiz konfigürasyonunu döndür"""
     return {
         "collection_interval": settings.collection_interval,
+        "analysis_interval_15m": settings.analysis_interval_15m,
+        "analysis_interval_1h": settings.analysis_interval_1h,
+        "analysis_interval_4h": settings.analysis_interval_4h,
+        "analysis_interval_daily": settings.analysis_interval_daily,
         "support_resistance_lookback": settings.support_resistance_lookback,
         "rsi_period": settings.rsi_period,
         "ma_short_period": settings.ma_short_period,
