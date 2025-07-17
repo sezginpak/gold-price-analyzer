@@ -126,7 +126,25 @@ class SQLiteStorage:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_signal_timestamp ON trading_signals(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_analysis_timestamp ON analysis_results(timestamp)")
             
+            # Eksik kolonları kontrol et ve ekle
+            self._check_and_add_missing_columns(cursor)
+            
             logger.info("Database initialized successfully")
+    
+    def _check_and_add_missing_columns(self, cursor):
+        """Eksik kolonları kontrol et ve ekle"""
+        # analysis_results tablosundaki kolonları kontrol et
+        cursor.execute("PRAGMA table_info(analysis_results)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        # Timeframe kolonu yoksa ekle
+        if 'timeframe' not in columns:
+            try:
+                cursor.execute("ALTER TABLE analysis_results ADD COLUMN timeframe TEXT DEFAULT '15m'")
+                logger.info("Added missing 'timeframe' column to analysis_results table")
+            except Exception as e:
+                # Kolon zaten varsa veya başka bir hata varsa logla
+                logger.debug(f"Could not add timeframe column: {e}")
     
     def save_price(self, price_data: PriceData):
         """Tek bir fiyat verisi kaydet"""
