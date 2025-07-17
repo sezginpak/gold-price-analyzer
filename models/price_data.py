@@ -13,6 +13,7 @@ class PriceData(BaseModel):
     ons_usd: Decimal = Field(..., description="Ons altın USD fiyatı")
     usd_try: Decimal = Field(..., description="USD/TRY kuru")
     ons_try: Decimal = Field(..., description="Ons altın TRY fiyatı")
+    gram_altin: Optional[Decimal] = Field(None, description="Gram altın TRY fiyatı")
     source: str = Field(default="api", description="Veri kaynağı")
     interval: str = Field(default="5s", description="Veri aralığı")
     
@@ -29,6 +30,7 @@ class PriceData(BaseModel):
             "ons_usd": float(self.ons_usd),
             "usd_try": float(self.usd_try),
             "ons_try": float(self.ons_try),
+            "gram_altin": float(self.gram_altin) if self.gram_altin else None,
             "source": self.source,
             "interval": self.interval
         }

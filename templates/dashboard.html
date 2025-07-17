@@ -51,7 +51,11 @@
         <!-- Current Price -->
         <div class="bg-gray-800 rounded-lg p-6 mb-6">
             <h2 class="text-xl font-bold mb-4">💰 Anlık Fiyatlar</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <span class="text-gray-400">Gram Altın:</span>
+                    <span class="text-2xl font-bold ml-2" id="gram-altin">-</span>
+                </div>
                 <div>
                     <span class="text-gray-400">ONS/USD:</span>
                     <span class="text-2xl font-bold ml-2" id="ons-usd">-</span>
@@ -171,6 +175,9 @@
 
         // Fiyat güncelle
         function updateCurrentPrice(price) {
+            if (price.gram_altin) {
+                document.getElementById('gram-altin').textContent = `₺${price.gram_altin.toFixed(2)}`;
+            }
             document.getElementById('ons-usd').textContent = `$${price.ons_usd.toFixed(2)}`;
             document.getElementById('usd-try').textContent = price.usd_try.toFixed(4);
             document.getElementById('ons-try').textContent = `₺${price.ons_try.toFixed(2)}`;

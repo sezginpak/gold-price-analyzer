@@ -50,11 +50,15 @@ class HaremPriceCollector:
             # ONS/TRY hesapla
             ons_try = ons_usd * usd_try
             
+            # Gram altın fiyatını al
+            gram_altin = Decimal(str(altin_data.get("satis", 0)))
+            
             # PriceData oluştur
             price_data = PriceData(
                 ons_usd=ons_usd,
                 usd_try=usd_try,
                 ons_try=ons_try,
+                gram_altin=gram_altin,
                 source="haremaltin"
             )
             

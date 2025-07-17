@@ -97,7 +97,8 @@ async def get_latest_prices():
                 "timestamp": p.timestamp.isoformat(),
                 "ons_usd": float(p.ons_usd),
                 "usd_try": float(p.usd_try),
-                "ons_try": float(p.ons_try)
+                "ons_try": float(p.ons_try),
+                "gram_altin": float(p.gram_altin) if p.gram_altin else None
             }
             for p in prices  # Tüm 30 dakikalık veriyi al
         ]
@@ -407,7 +408,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         "timestamp": latest_price.timestamp.isoformat(),
                         "ons_usd": float(latest_price.ons_usd),
                         "usd_try": float(latest_price.usd_try),
-                        "ons_try": float(latest_price.ons_try)
+                        "ons_try": float(latest_price.ons_try),
+                        "gram_altin": float(latest_price.gram_altin) if latest_price.gram_altin else None
                     }
                 }
                 await websocket.send_json(data)

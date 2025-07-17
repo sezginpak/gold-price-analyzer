@@ -145,6 +145,18 @@ class SQLiteStorage:
             except Exception as e:
                 # Kolon zaten varsa veya başka bir hata varsa logla
                 logger.debug(f"Could not add timeframe column: {e}")
+        
+        # price_data tablosundaki kolonları kontrol et
+        cursor.execute("PRAGMA table_info(price_data)")
+        price_columns = [col[1] for col in cursor.fetchall()]
+        
+        # gram_altin kolonu yoksa ekle
+        if 'gram_altin' not in price_columns:
+            try:
+                cursor.execute("ALTER TABLE price_data ADD COLUMN gram_altin REAL")
+                logger.info("Added missing 'gram_altin' column to price_data table")
+            except Exception as e:
+                logger.debug(f"Could not add gram_altin column: {e}")
     
     def save_price(self, price_data: PriceData):
         """Tek bir fiyat verisi kaydet"""
@@ -152,13 +164,14 @@ class SQLiteStorage:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT OR REPLACE INTO price_data 
-                (timestamp, ons_usd, usd_try, ons_try, source)
-                VALUES (?, ?, ?, ?, ?)
+                (timestamp, ons_usd, usd_try, ons_try, gram_altin, source)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 price_data.timestamp,
                 float(price_data.ons_usd),
                 float(price_data.usd_try),
                 float(price_data.ons_try),
+                float(price_data.gram_altin) if price_data.gram_altin else None,
                 price_data.source
             ))
     
@@ -178,6 +191,7 @@ class SQLiteStorage:
                     ons_usd=Decimal(str(row['ons_usd'])),
                     usd_try=Decimal(str(row['usd_try'])),
                     ons_try=Decimal(str(row['ons_try'])),
+                    gram_altin=Decimal(str(row['gram_altin'])) if row['gram_altin'] is not None else None,
                     source=row['source']
                 )
         return None
@@ -198,10 +212,36 @@ class SQLiteStorage:
                     ons_usd=Decimal(str(row['ons_usd'])),
                     usd_try=Decimal(str(row['usd_try'])),
                     ons_try=Decimal(str(row['ons_try'])),
+                    gram_altin=Decimal(str(row['gram_altin'])) if row['gram_altin'] is not None else None,
                     source=row['source']
                 )
                 for row in cursor.fetchall()
             ]
+    
+    def get_latest_prices(self, limit: int = 100) -> List[PriceData]:
+        """Son N fiyat verisini getir"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM price_data 
+                ORDER BY timestamp DESC 
+                LIMIT ?
+            """, (limit,))
+            
+            prices = [
+                PriceData(
+                    timestamp=datetime.fromisoformat(row['timestamp']),
+                    ons_usd=Decimal(str(row['ons_usd'])),
+                    usd_try=Decimal(str(row['usd_try'])),
+                    ons_try=Decimal(str(row['ons_try'])),
+                    gram_altin=Decimal(str(row['gram_altin'])) if row['gram_altin'] is not None else None,
+                    source=row['source']
+                )
+                for row in cursor.fetchall()
+            ]
+            
+            # Eski->Yeni sıralama için ters çevir
+            return list(reversed(prices))
     
     def generate_candles(self, interval_minutes: int, limit: int = 100) -> List[PriceCandle]:
         """Raw veriden OHLC mumları oluştur"""
