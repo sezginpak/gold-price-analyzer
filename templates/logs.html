@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Log Görüntüleme - Gold Price Analyzer{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .log-container {
+        background: rgba(30, 41, 59, 0.8);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .log-filters {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .log-category-btn {
+        padding: 8px 16px;
+        border-radius: 5px;
+        border: 1px solid #475569;
+        background: rgba(71, 85, 105, 0.3);
+        color: #e2e8f0;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .log-category-btn.active {
+        background: #3b82f6;
+        border-color: #3b82f6;
+    }
+    
+    .log-category-btn:hover {
+        background: rgba(71, 85, 105, 0.5);
+    }
+    
+    .log-entry {
+        padding: 10px;
+        margin-bottom: 5px;
+        border-radius: 5px;
+        background: rgba(15, 23, 42, 0.5);
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        border-left: 3px solid transparent;
+    }
+    
+    .log-entry.ERROR {
+        border-left-color: #ef4444;
+        background: rgba(239, 68, 68, 0.1);
+    }
+    
+    .log-entry.WARNING {
+        border-left-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.1);
+    }
+    
+    .log-entry.INFO {
+        border-left-color: #3b82f6;
+    }
+    
+    .log-entry.DEBUG {
+        border-left-color: #6b7280;
+        color: #9ca3af;
+    }
+    
+    .log-entry.CRITICAL {
+        border-left-color: #dc2626;
+        background: rgba(220, 38, 38, 0.2);
+        font-weight: bold;
+    }
+    
+    .log-timestamp {
+        color: #94a3b8;
+        margin-right: 10px;
+    }
+    
+    .log-level {
+        font-weight: bold;
+        margin-right: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+    }
+    
+    .log-level.ERROR { background: #ef4444; color: white; }
+    .log-level.WARNING { background: #f59e0b; color: white; }
+    .log-level.INFO { background: #3b82f6; color: white; }
+    .log-level.DEBUG { background: #6b7280; color: white; }
+    .log-level.CRITICAL { background: #dc2626; color: white; }
+    
+    .log-module {
+        color: #a78bfa;
+        margin-right: 10px;
+    }
+    
+    .log-message {
+        color: #e2e8f0;
+    }
+    
+    .log-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: rgba(30, 41, 59, 0.8);
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #94a3b8;
+        font-size: 14px;
+    }
+    
+    .refresh-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .refresh-btn:hover {
+        background: #2563eb;
+    }
+    
+    .loading {
+        text-align: center;
+        color: #94a3b8;
+        padding: 40px;
+    }
+    
+    .no-logs {
+        text-align: center;
+        color: #64748b;
+        padding: 40px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold">
+            <i class="fas fa-file-lines mr-3"></i>
+            <span class="gradient-text">Sistem Logları</span>
+        </h1>
+        
+        <button class="refresh-btn" onclick="loadLogs()">
+            <i class="fas fa-sync-alt"></i>
+            Yenile
+        </button>
+    </div>
+    
+    <!-- Log İstatistikleri -->
+    <div class="log-stats" id="logStats">
+        <div class="stat-card">
+            <div class="stat-value text-blue-400" id="totalLogs">-</div>
+            <div class="stat-label">Toplam Log</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-red-400" id="errorCount">-</div>
+            <div class="stat-label">Hata</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-yellow-400" id="warningCount">-</div>
+            <div class="stat-label">Uyarı</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-green-400" id="infoCount">-</div>
+            <div class="stat-label">Bilgi</div>
+        </div>
+    </div>
+    
+    <!-- Log Filtreleri -->
+    <div class="log-filters">
+        <button class="log-category-btn active" data-category="all" onclick="filterLogs('all')">
+            <i class="fas fa-list mr-2"></i>Tümü
+        </button>
+        <button class="log-category-btn" data-category="analyzer" onclick="filterLogs('analyzer')">
+            <i class="fas fa-chart-line mr-2"></i>Analiz
+        </button>
+        <button class="log-category-btn" data-category="web" onclick="filterLogs('web')">
+            <i class="fas fa-globe mr-2"></i>Web
+        </button>
+        <button class="log-category-btn" data-category="errors" onclick="filterLogs('errors')">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Hatalar
+        </button>
+        <button class="log-category-btn" data-category="critical" onclick="filterLogs('critical')">
+            <i class="fas fa-skull-crossbones mr-2"></i>Kritik
+        </button>
+        
+        <div style="margin-left: auto; display: flex; gap: 10px;">
+            <label style="color: #94a3b8;">
+                Satır Sayısı:
+                <select id="lineCount" onchange="loadLogs()" style="background: #1e293b; color: white; padding: 5px; border-radius: 5px;">
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+            </label>
+            
+            <label style="color: #94a3b8;">
+                <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                Otomatik Yenile
+            </label>
+        </div>
+    </div>
+    
+    <!-- Log Konteyneri -->
+    <div class="log-container" id="logContainer">
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p>Loglar yükleniyor...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentCategory = 'all';
+let autoRefreshInterval = null;
+let allLogs = {};
+
+async function loadLogs() {
+    const lineCount = document.getElementById('lineCount').value;
+    
+    try {
+        const response = await fetch(`/api/logs/recent?category=${currentCategory}&lines=${lineCount}`);
+        const data = await response.json();
+        
+        allLogs = data;
+        displayLogs(data);
+        updateStats(data);
+        
+    } catch (error) {
+        console.error('Error loading logs:', error);
+        document.getElementById('logContainer').innerHTML = `
+            <div class="no-logs">
+                <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
+                <p>Loglar yüklenirken hata oluştu</p>
+            </div>
+        `;
+    }
+}
+
+function displayLogs(logs) {
+    const container = document.getElementById('logContainer');
+    container.innerHTML = '';
+    
+    let hasLogs = false;
+    
+    // Tüm kategorilerdeki logları birleştir ve sırala
+    let allEntries = [];
+    
+    Object.keys(logs).forEach(category => {
+        logs[category].forEach(entry => {
+            allEntries.push({...entry, category});
+            hasLogs = true;
+        });
+    });
+    
+    // Timestamp'e göre sırala (en yeni en üstte)
+    allEntries.sort((a, b) => {
+        if (a.timestamp && b.timestamp) {
+            return b.timestamp.localeCompare(a.timestamp);
+        }
+        return 0;
+    });
+    
+    if (!hasLogs) {
+        container.innerHTML = `
+            <div class="no-logs">
+                <i class="fas fa-inbox fa-2x mb-3"></i>
+                <p>Log bulunamadı</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Logları göster
+    allEntries.forEach(entry => {
+        const logDiv = document.createElement('div');
+        logDiv.className = `log-entry ${entry.level}`;
+        
+        let content = '';
+        
+        if (entry.timestamp) {
+            content += `<span class="log-timestamp">${entry.timestamp}</span>`;
+        }
+        
+        if (entry.level) {
+            content += `<span class="log-level ${entry.level}">${entry.level}</span>`;
+        }
+        
+        if (entry.module) {
+            content += `<span class="log-module">[${entry.module}]</span>`;
+        }
+        
+        content += `<span class="log-message">${entry.message || entry.raw}</span>`;
+        
+        logDiv.innerHTML = content;
+        container.appendChild(logDiv);
+    });
+}
+
+function filterLogs(category) {
+    currentCategory = category;
+    
+    // Buton aktifliğini güncelle
+    document.querySelectorAll('.log-category-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-category="${category}"]`).classList.add('active');
+    
+    loadLogs();
+}
+
+function updateStats(logs) {
+    let totalCount = 0;
+    let errorCount = 0;
+    let warningCount = 0;
+    let infoCount = 0;
+    
+    Object.values(logs).forEach(categoryLogs => {
+        categoryLogs.forEach(entry => {
+            totalCount++;
+            
+            if (entry.level === 'ERROR') errorCount++;
+            else if (entry.level === 'WARNING') warningCount++;
+            else if (entry.level === 'INFO') infoCount++;
+        });
+    });
+    
+    document.getElementById('totalLogs').textContent = totalCount;
+    document.getElementById('errorCount').textContent = errorCount;
+    document.getElementById('warningCount').textContent = warningCount;
+    document.getElementById('infoCount').textContent = infoCount;
+}
+
+function toggleAutoRefresh() {
+    const checkbox = document.getElementById('autoRefresh');
+    
+    if (checkbox.checked) {
+        autoRefreshInterval = setInterval(loadLogs, 5000); // Her 5 saniyede yenile
+    } else {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+}
+
+// İlk yükleme
+loadLogs();
+</script>
+{% endblock %}

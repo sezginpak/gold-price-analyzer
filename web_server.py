@@ -204,34 +204,75 @@ async def get_today_signals():
 
 
 @app.get("/api/logs/recent")
-async def get_recent_logs():
-    """Son log satırları"""
-    # VPS'teki gerçek log dosyası konumları
-    log_file = "/root/gold-price-analyzer/logs/gold_analyzer.log"
-    error_file = "/root/gold-price-analyzer/logs/gold_analyzer_errors.log"
+async def get_recent_logs(category: str = "all", lines: int = 50):
+    """Kategoriye göre log satırları"""
+    log_categories = {
+        "analyzer": "logs/gold_analyzer.log",
+        "web": "logs/gold_analyzer_web.log",
+        "errors": "logs/gold_analyzer_errors.log",
+        "critical": "logs/gold_analyzer_critical.log"
+    }
     
-    # Eğer absolute path yoksa, relative path'e geç
-    if not os.path.exists(log_file):
-        log_file = "logs/gold_analyzer.log"
+    result = {}
     
-    if not os.path.exists(error_file):
-        error_file = "logs/gold_analyzer_errors.log"
+    if category == "all":
+        # Tüm kategorileri getir
+        for cat, path in log_categories.items():
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        file_lines = f.readlines()
+                        result[cat] = [
+                            parse_log_line(line.strip()) 
+                            for line in file_lines[-lines:]
+                        ]
+                except Exception as e:
+                    logger.error(f"Error reading {path}: {e}")
+                    result[cat] = []
+            else:
+                result[cat] = []
+    else:
+        # Sadece belirtilen kategori
+        if category in log_categories:
+            path = log_categories[category]
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        file_lines = f.readlines()
+                        result[category] = [
+                            parse_log_line(line.strip()) 
+                            for line in file_lines[-lines:]
+                        ]
+                except Exception as e:
+                    logger.error(f"Error reading {path}: {e}")
+                    result[category] = []
+            else:
+                result[category] = []
     
-    logs = {"main": [], "errors": []}
+    return result
+
+
+def parse_log_line(line: str) -> Dict[str, str]:
+    """Log satırını parse et"""
+    # Format: 2024-01-17 15:30:45 - module - LEVEL - message
+    parts = line.split(' - ', 3)
     
-    # Ana loglar
-    if os.path.exists(log_file):
-        with open(log_file, 'r') as f:
-            lines = f.readlines()
-            logs["main"] = [line.strip() for line in lines[-50:]]  # Son 50 satır
-    
-    # Hata logları
-    if os.path.exists(error_file):
-        with open(error_file, 'r') as f:
-            lines = f.readlines()
-            logs["errors"] = [line.strip() for line in lines[-20:]]  # Son 20 hata
-    
-    return logs
+    if len(parts) >= 4:
+        return {
+            "timestamp": parts[0],
+            "module": parts[1],
+            "level": parts[2],
+            "message": parts[3],
+            "raw": line
+        }
+    else:
+        return {
+            "timestamp": "",
+            "module": "",
+            "level": "INFO",
+            "message": line,
+            "raw": line
+        }
 
 
 @app.get("/menu")
@@ -250,6 +291,12 @@ async def analysis_page(request: Request):
 async def signals_page(request: Request):
     """Sinyaller sayfası"""
     return templates.TemplateResponse("signals.html", {"request": request})
+
+
+@app.get("/logs")
+async def logs_page(request: Request):
+    """Log görüntüleme sayfası"""
+    return templates.TemplateResponse("logs.html", {"request": request})
 
 
 @app.get("/api/analysis/config")
