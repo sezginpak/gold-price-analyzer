@@ -17,13 +17,14 @@ from models.market_data import GramAltinCandle
 from strategies.hybrid_strategy import HybridStrategy
 from config import settings
 from analyzers.timeframe_analyzer import TimeframeAnalyzer
+from utils.logger import setup_logger
 
-# Logging ayarları
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Logging setup - dosya ve console'a yaz
+logger = setup_logger(
+    name="gold_analyzer",
+    log_dir="logs",
+    level="INFO"
 )
-logger = logging.getLogger(__name__)
 
 
 class HybridGoldAnalyzer:

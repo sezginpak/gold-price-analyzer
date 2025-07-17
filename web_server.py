@@ -17,8 +17,14 @@ from storage.sqlite_storage import SQLiteStorage
 from services.harem_altin_service import HaremAltinPriceService
 from config import settings
 from utils.log_manager import LogManager
+from utils.logger import setup_logger
 
-logger = logging.getLogger(__name__)
+# Web server için ayrı logger
+logger = setup_logger(
+    name="gold_analyzer_web",
+    log_dir="logs",
+    level="INFO"
+)
 
 app = FastAPI(title="Gold Price Analyzer Dashboard")
 
