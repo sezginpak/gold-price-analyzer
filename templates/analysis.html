@@ -8,6 +8,13 @@
     <style>
         body { background-color: #111827; color: #f3f4f6; }
         .analysis-card { background-color: #1f2937; }
+        .indicator-box {
+            background: #374151;
+            border: 1px solid #4b5563;
+        }
+        .indicator-box:hover {
+            background: #404952;
+        }
     </style>
 </head>
 <body>
@@ -75,6 +82,69 @@
             </div>
         </div>
 
+        <!-- Teknik Göstergeler -->
+        <div class="analysis-card rounded-lg p-6 mb-6">
+            <h3 class="text-xl font-bold mb-4">📊 Teknik Göstergeler</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- RSI -->
+                <div class="indicator-box p-4 rounded">
+                    <h4 class="font-semibold mb-2">RSI</h4>
+                    <p class="text-2xl font-bold" id="current-rsi">-</p>
+                    <p class="text-sm text-gray-400" id="rsi-signal">-</p>
+                </div>
+                
+                <!-- MACD -->
+                <div class="indicator-box p-4 rounded">
+                    <h4 class="font-semibold mb-2">MACD</h4>
+                    <div class="text-sm">
+                        <p>Line: <span class="font-bold" id="macd-line">-</span></p>
+                        <p>Signal: <span class="font-bold" id="macd-signal">-</span></p>
+                        <p>Histogram: <span class="font-bold" id="macd-histogram">-</span></p>
+                    </div>
+                </div>
+                
+                <!-- Bollinger Bands -->
+                <div class="indicator-box p-4 rounded">
+                    <h4 class="font-semibold mb-2">Bollinger Bands</h4>
+                    <div class="text-sm">
+                        <p>Upper: <span class="font-bold" id="bb-upper">-</span></p>
+                        <p>Middle: <span class="font-bold" id="bb-middle">-</span></p>
+                        <p>Lower: <span class="font-bold" id="bb-lower">-</span></p>
+                        <p>%B: <span class="font-bold" id="bb-percent">-</span></p>
+                    </div>
+                </div>
+                
+                <!-- Stochastic -->
+                <div class="indicator-box p-4 rounded">
+                    <h4 class="font-semibold mb-2">Stochastic</h4>
+                    <div class="text-sm">
+                        <p>%K: <span class="font-bold" id="stoch-k">-</span></p>
+                        <p>%D: <span class="font-bold" id="stoch-d">-</span></p>
+                        <p>Zone: <span class="font-bold" id="stoch-zone">-</span></p>
+                    </div>
+                </div>
+                
+                <!-- ATR -->
+                <div class="indicator-box p-4 rounded">
+                    <h4 class="font-semibold mb-2">ATR</h4>
+                    <div class="text-sm">
+                        <p>Value: <span class="font-bold" id="atr-value">-</span></p>
+                        <p>Percent: <span class="font-bold" id="atr-percent">-</span>%</p>
+                        <p>Volatility: <span class="font-bold" id="volatility-level">-</span></p>
+                    </div>
+                </div>
+                
+                <!-- Patterns -->
+                <div class="indicator-box p-4 rounded">
+                    <h4 class="font-semibold mb-2">Patterns</h4>
+                    <div class="text-sm">
+                        <p id="pattern-count">No patterns</p>
+                        <p class="font-bold" id="strongest-pattern">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Son Analizler Tablosu -->
         <div class="analysis-card rounded-lg p-6">
             <h3 class="text-xl font-bold mb-4">📋 Son Analiz Sonuçları</h3>
@@ -129,6 +199,42 @@
         }
 
         // Analiz verilerini yükle
+        function updateIndicators(indicators) {
+            // RSI
+            document.getElementById('current-rsi').textContent = indicators.rsi ? indicators.rsi.toFixed(1) : '-';
+            document.getElementById('rsi-signal').textContent = indicators.rsi_signal || '-';
+            
+            // MACD
+            document.getElementById('macd-line').textContent = indicators.macd_line ? indicators.macd_line.toFixed(2) : '-';
+            document.getElementById('macd-signal').textContent = indicators.macd_signal ? indicators.macd_signal.toFixed(2) : '-';
+            document.getElementById('macd-histogram').textContent = indicators.macd_histogram ? indicators.macd_histogram.toFixed(2) : '-';
+            
+            // Bollinger Bands
+            document.getElementById('bb-upper').textContent = indicators.bb_upper ? `₺${indicators.bb_upper.toFixed(2)}` : '-';
+            document.getElementById('bb-middle').textContent = indicators.bb_middle ? `₺${indicators.bb_middle.toFixed(2)}` : '-';
+            document.getElementById('bb-lower').textContent = indicators.bb_lower ? `₺${indicators.bb_lower.toFixed(2)}` : '-';
+            document.getElementById('bb-percent').textContent = indicators.bb_percent_b ? indicators.bb_percent_b.toFixed(2) : '-';
+            
+            // Stochastic
+            document.getElementById('stoch-k').textContent = indicators.stoch_k ? indicators.stoch_k.toFixed(1) : '-';
+            document.getElementById('stoch-d').textContent = indicators.stoch_d ? indicators.stoch_d.toFixed(1) : '-';
+            document.getElementById('stoch-zone').textContent = indicators.stoch_zone || '-';
+            
+            // ATR
+            document.getElementById('atr-value').textContent = indicators.atr ? indicators.atr.toFixed(2) : '-';
+            document.getElementById('atr-percent').textContent = indicators.atr_percent ? indicators.atr_percent.toFixed(2) : '-';
+            document.getElementById('volatility-level').textContent = indicators.volatility_level || '-';
+            
+            // Patterns
+            if (indicators.patterns && indicators.patterns.length > 0) {
+                document.getElementById('pattern-count').textContent = `${indicators.patterns.length} pattern found`;
+                document.getElementById('strongest-pattern').textContent = indicators.strongest_pattern || indicators.patterns[0].name;
+            } else {
+                document.getElementById('pattern-count').textContent = 'No patterns';
+                document.getElementById('strongest-pattern').textContent = '-';
+            }
+        }
+        
         async function loadAnalysisData() {
             try {
                 // Mevcut analiz - Destek/Direnç seviyeleri
@@ -182,6 +288,11 @@
                     const history = await historyResponse.json();
                     
                     if (history.analyses && history.analyses.length > 0) {
+                        // İlk analizin indikatör verilerini göster
+                        const latestAnalysis = history.analyses[0];
+                        if (latestAnalysis.indicators) {
+                            updateIndicators(latestAnalysis.indicators);
+                        }
                         const historyHtml = history.analyses.map(a => `
                             <tr class="border-b border-gray-700">
                                 <td class="py-2 text-sm">${new Date(a.timestamp).toLocaleTimeString('tr-TR')}</td>

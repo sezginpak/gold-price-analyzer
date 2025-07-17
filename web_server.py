@@ -244,6 +244,7 @@ async def get_analysis_history():
                 "signal": analysis.signal,
                 "confidence": analysis.confidence,
                 "rsi": analysis.indicators.rsi if analysis.indicators else None,
+                "indicators": analysis.to_dict()["indicators"] if analysis.indicators else None,
                 "support_levels": [
                     {"level": float(s.level), "strength": s.strength}
                     for s in analysis.support_levels

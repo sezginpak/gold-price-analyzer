@@ -236,12 +236,61 @@ class SignalGenerator:
             elif ma_20 < ma_50 and candles[-2] and self._calculate_ma(candles[:-1], 20) >= self._calculate_ma(candles[:-1], 50):
                 ma_cross = "Death Cross"
         
+        # Multi-confirmation'dan gelen indikatör değerleri
+        indicator_values = {}
+        if signal and hasattr(signal, 'metadata') and 'indicator_details' in signal.metadata:
+            details = signal.metadata['indicator_details']
+            
+            # MACD
+            if 'macd' in details and details['macd']:
+                macd_data = details['macd']
+                indicator_values['macd_line'] = macd_data.get('macd_line')
+                indicator_values['macd_signal'] = macd_data.get('signal_line')
+                indicator_values['macd_histogram'] = macd_data.get('histogram')
+                indicator_values['macd_crossover'] = macd_data.get('crossover')
+                indicator_values['macd_trend'] = macd_data.get('trend')
+            
+            # Bollinger Bands
+            if 'bollinger' in details and details['bollinger']:
+                bb_data = details['bollinger']
+                indicator_values['bb_upper'] = bb_data.get('upper_band')
+                indicator_values['bb_middle'] = bb_data.get('middle_band')
+                indicator_values['bb_lower'] = bb_data.get('lower_band')
+                indicator_values['bb_percent_b'] = bb_data.get('percent_b')
+                indicator_values['bb_squeeze'] = bb_data.get('squeeze')
+                indicator_values['bb_signal'] = bb_data['signal'].get('type') if bb_data.get('signal') else None
+            
+            # Stochastic
+            if 'stochastic' in details and details['stochastic']:
+                stoch_data = details['stochastic']
+                indicator_values['stoch_k'] = stoch_data.get('k')
+                indicator_values['stoch_d'] = stoch_data.get('d')
+                indicator_values['stoch_zone'] = stoch_data.get('zone')
+                indicator_values['stoch_signal'] = stoch_data['signal'].get('type') if stoch_data.get('signal') else None
+            
+            # ATR
+            if 'atr' in details and details['atr']:
+                atr_data = details['atr']
+                indicator_values['atr'] = atr_data.get('atr')
+                indicator_values['atr_percent'] = atr_data.get('atr_percent')
+                indicator_values['volatility_level'] = atr_data.get('volatility_level')
+            
+            # Pattern Recognition
+            if 'patterns' in details and details['patterns']:
+                pattern_data = details['patterns']
+                indicator_values['patterns'] = pattern_data.get('patterns', [])
+                if pattern_data.get('strongest_pattern'):
+                    indicator_values['strongest_pattern'] = pattern_data['strongest_pattern'].get('name')
+                if pattern_data.get('signal'):
+                    indicator_values['pattern_signal'] = pattern_data['signal'].get('type')
+        
         indicators = TechnicalIndicators(
             rsi=rsi,
             rsi_signal=rsi_signal,
             ma_short=ma_20,
             ma_long=ma_50,
-            ma_cross=ma_cross
+            ma_cross=ma_cross,
+            **indicator_values
         )
         
         # Support/Resistance levels

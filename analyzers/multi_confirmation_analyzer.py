@@ -190,8 +190,17 @@ class MultiConfirmationAnalyzer:
                 logger.error(f"ATR calculation failed: {e}")
                 # ATR başarısız olsa bile devam et
             
+            # İndikatör sonuçlarını topla
+            indicator_details = {
+                'macd': macd_result,
+                'bollinger': bb_result,
+                'stochastic': stoch_result,
+                'patterns': pattern_result,
+                'atr': atr_result
+            }
+            
             # Sinyalleri değerlendir
-            final_signal = self._evaluate_signals(indicators, current_price, atr_result, volatility_multiplier)
+            final_signal = self._evaluate_signals(indicators, current_price, atr_result, volatility_multiplier, indicator_details)
             
             return final_signal
             
@@ -203,7 +212,8 @@ class MultiConfirmationAnalyzer:
                          indicators: List[IndicatorSignal], 
                          current_price: PriceData,
                          atr_result: Dict[str, any],
-                         volatility_multiplier: float) -> Optional[TradingSignal]:
+                         volatility_multiplier: float,
+                         indicator_details: Dict[str, any]) -> Optional[TradingSignal]:
         """Sinyalleri değerlendir ve final sinyal üret"""
         
         if not indicators:
@@ -279,7 +289,8 @@ class MultiConfirmationAnalyzer:
                 "confirmations": len(confirmations),
                 "volatility_adjusted": volatility_multiplier != 1.0,
                 "atr": atr_result.get("atr"),
-                "indicators_used": [c.indicator_name for c in confirmations]
+                "indicators_used": [c.indicator_name for c in confirmations],
+                "indicator_details": indicator_details
             }
         )
         
