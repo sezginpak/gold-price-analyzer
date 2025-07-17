@@ -81,16 +81,25 @@
             
             <!-- Candle Chart -->
             <div class="bg-gray-800 rounded-lg p-6">
-                <h2 class="text-xl font-bold mb-4">🕯️ OHLC (15 Dakika)</h2>
+                <h2 class="text-xl font-bold mb-4">🕯️ Gram Altın OHLC</h2>
                 <div class="mb-2">
-                    <button onclick="loadCandles('15m')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">15D</button>
-                    <button onclick="loadCandles('1h')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">1S</button>
-                    <button onclick="loadCandles('4h')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">4S</button>
+                    <button onclick="loadGramCandles('15m')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">15D</button>
+                    <button onclick="loadGramCandles('1h')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">1S</button>
+                    <button onclick="loadGramCandles('4h')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">4S</button>
+                    <button onclick="loadGramCandles('1d')" class="px-3 py-1 bg-blue-600 rounded mr-2 text-sm">1G</button>
                 </div>
                 <div id="candleChart" style="min-height: 300px;"></div>
             </div>
         </div>
 
+        <!-- Hibrit Analiz Sonuçları -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">🎯 Son Hibrit Analiz</h2>
+            <div id="hybrid-analysis-container" class="space-y-2">
+                <p class="text-gray-400">Yükleniyor...</p>
+            </div>
+        </div>
+        
         <!-- Signals -->
         <div class="bg-gray-800 rounded-lg p-6 mb-6">
             <h2 class="text-xl font-bold mb-4">🚨 Bugünkü Sinyaller</h2>
@@ -302,13 +311,13 @@
             candleChart.render();
             
             // İlk yükleme
-            loadCandles('15m');
+            loadGramCandles('15m');
         }
         
-        // Mum verilerini yükle
-        async function loadCandles(interval) {
+        // Gram altın mum verilerini yükle
+        async function loadGramCandles(interval) {
             try {
-                const response = await fetch(`/api/candles/${interval}`);
+                const response = await fetch(`/api/gram-candles/${interval}`);
                 const data = await response.json();
                 
                 if (data.candles.length === 0) {
@@ -381,6 +390,74 @@
             priceChart.update();
         }
 
+        // Hibrit analiz sonuçlarını yükle
+        async function loadHybridAnalysis() {
+            try {
+                const response = await fetch('/api/analysis/history?limit=1');
+                const data = await response.json();
+                
+                const container = document.getElementById('hybrid-analysis-container');
+                
+                if (data.analyses && data.analyses.length > 0) {
+                    const analysis = data.analyses[0];
+                    const signalColor = analysis.signal === 'BUY' ? 'text-green-400' : 
+                                      analysis.signal === 'SELL' ? 'text-red-400' : 
+                                      'text-gray-400';
+                    
+                    container.innerHTML = `
+                        <div class="bg-gray-700 p-4 rounded">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-400">Sinyal</p>
+                                    <p class="${signalColor} font-bold text-xl">
+                                        ${analysis.signal === 'BUY' ? '🟢 ALIŞ' : 
+                                          analysis.signal === 'SELL' ? '🔴 SATIŞ' : 
+                                          '⚪ BEKLE'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-400">Güven</p>
+                                    <p class="text-xl font-bold">%${(analysis.confidence * 100).toFixed(0)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-400">Pozisyon</p>
+                                    <p class="text-xl font-bold">%${(analysis.position_size * 100).toFixed(0)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-400">Risk</p>
+                                    <p class="text-xl font-bold ${
+                                        analysis.currency_risk === 'LOW' ? 'text-green-400' :
+                                        analysis.currency_risk === 'MEDIUM' ? 'text-yellow-400' :
+                                        analysis.currency_risk === 'HIGH' ? 'text-red-400' :
+                                        'text-red-600'
+                                    }">${analysis.currency_risk || '-'}</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-gray-600">
+                                <p class="text-sm">
+                                    <span class="text-gray-400">Global Trend:</span> 
+                                    <span class="${analysis.global_trend === 'BULLISH' ? 'text-green-400' : 
+                                                  analysis.global_trend === 'BEARISH' ? 'text-red-400' : 
+                                                  'text-yellow-400'}">
+                                        ${analysis.global_trend} (${analysis.global_trend_strength})
+                                    </span>
+                                </p>
+                                <p class="text-sm mt-2 text-gray-300">${analysis.summary}</p>
+                                ${analysis.stop_loss ? `<p class="text-sm mt-1">🛑 Stop Loss: ₺${analysis.stop_loss.toFixed(2)}</p>` : ''}
+                                ${analysis.take_profit ? `<p class="text-sm mt-1">🎯 Hedef: ₺${analysis.take_profit.toFixed(2)}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<p class="text-gray-400">Henüz hibrit analiz yok</p>';
+                }
+            } catch (error) {
+                console.error('Hibrit analiz yüklenemedi:', error);
+                document.getElementById('hybrid-analysis-container').innerHTML = 
+                    '<p class="text-red-400">Analiz yüklenemedi</p>';
+            }
+        }
+        
         // Sinyalleri yükle
         async function loadSignals() {
             try {
@@ -514,6 +591,7 @@
             initCandleChart(); // Mum grafiği başlat
             loadStats();
             loadInitialPrices();
+            loadHybridAnalysis();
             loadSignals();
             loadLogs();
             loadLogStats();
@@ -521,7 +599,8 @@
             
             // Periyodik güncellemeler
             setInterval(loadStats, 30000);     // 30 saniye
-            setInterval(() => loadCandles('15m'), 60000); // 1 dakikada bir mum güncelle
+            setInterval(() => loadGramCandles('15m'), 60000); // 1 dakikada bir mum güncelle
+            setInterval(loadHybridAnalysis, 60000); // 1 dakika
             setInterval(loadSignals, 60000);   // 1 dakika
             setInterval(loadLogs, 60000);      // 1 dakika
             setInterval(loadLogStats, 60000);  // 1 dakika
