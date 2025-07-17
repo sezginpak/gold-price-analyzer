@@ -54,7 +54,7 @@ class GramAltinAnalyzer:
             macd_result = self.macd.calculate(candles)
             bb_result = self.bollinger.calculate(candles)
             stoch_result = self.stochastic.calculate(candles)
-            atr_value = self.atr.calculate(high_prices, low_prices, prices)
+            atr_value = self.atr.calculate(candles)
             patterns = self.pattern_recognition.identify_patterns(candles)
             
             # Trend analizi
