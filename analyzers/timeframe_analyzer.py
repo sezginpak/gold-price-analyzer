@@ -20,11 +20,14 @@ class TimeframeAnalyzer:
             analyze_callback: Analiz fonksiyonu (price_data, timeframe, candle_minutes)
         """
         self.analyze_callback = analyze_callback
+        # İlk analizleri erken başlatmak için geçmiş zamanlar kullan
+        # Ancak çok fazla geriye gitmeyelim ki sürekli analiz yapmasın
+        now = datetime.now()
         self.last_analysis_times: Dict[str, datetime] = {
-            "15m": datetime.min,
-            "1h": datetime.min,
-            "4h": datetime.min,
-            "1d": datetime.min
+            "15m": now - timedelta(minutes=14),   # 1 dakika sonra ilk analiz
+            "1h": now - timedelta(minutes=55),    # 5 dakika sonra ilk analiz
+            "4h": now - timedelta(minutes=230),   # 10 dakika sonra ilk analiz
+            "1d": now - timedelta(minutes=1420)   # 20 dakika sonra ilk analiz
         }
         
         # Zaman dilimi ayarları (dakika cinsinden)

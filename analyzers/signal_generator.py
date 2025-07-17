@@ -352,7 +352,7 @@ class SignalGenerator:
         # Veritabanına kaydet
         try:
             self.storage.save_analysis_result(analysis)
-            logger.info(f"Analysis saved: {trend.value} trend, Signal: {analysis.signal}")
+            logger.info(f"Analysis saved for {timeframe}: {trend.value} trend, Signal: {analysis.signal}, Price: {current_price.ons_try}")
         except Exception as e:
             logger.error(f"Failed to save analysis: {e}")
         
