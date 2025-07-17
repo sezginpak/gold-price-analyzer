@@ -10,7 +10,7 @@ import numpy as np
 from models.market_data import MarketData, GramAltinCandle
 from indicators.rsi import RSIIndicator
 from indicators.macd import MACDIndicator
-from indicators.bollinger_bands import BollingerBands
+from indicators.bollinger_bands import BollingerBandsIndicator
 from indicators.stochastic import StochasticIndicator
 from indicators.atr import ATRIndicator
 from indicators.pattern_recognition import PatternRecognition
@@ -25,7 +25,7 @@ class GramAltinAnalyzer:
     def __init__(self):
         self.rsi = RSIIndicator()
         self.macd = MACDIndicator()
-        self.bollinger = BollingerBands()
+        self.bollinger = BollingerBandsIndicator()
         self.stochastic = StochasticIndicator()
         self.atr = ATRIndicator()
         self.pattern_recognition = PatternRecognition()
