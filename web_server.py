@@ -200,21 +200,16 @@ async def get_today_signals():
 @app.get("/api/logs/recent")
 async def get_recent_logs():
     """Son log satırları"""
-    # Önce logs/ klasöründe, yoksa service log'larına bak
-    log_file = "logs/gold_analyzer.log"
-    error_file = "logs/gold_analyzer_errors.log"
+    # VPS'teki gerçek log dosyası konumları
+    log_file = "/root/gold-price-analyzer/logs/gold_analyzer.log"
+    error_file = "/root/gold-price-analyzer/logs/gold_analyzer_errors.log"
     
-    # Eğer logs/ klasöründe yoksa, service log'larını kontrol et
+    # Eğer absolute path yoksa, relative path'e geç
     if not os.path.exists(log_file):
-        # Systemd service log konumu
-        service_log = "/root/gold-price-analyzer/logs/service.log"
-        if os.path.exists(service_log):
-            log_file = service_log
+        log_file = "logs/gold_analyzer.log"
     
     if not os.path.exists(error_file):
-        service_error_log = "/root/gold-price-analyzer/logs/service-error.log"
-        if os.path.exists(service_error_log):
-            error_file = service_error_log
+        error_file = "logs/gold_analyzer_errors.log"
     
     logs = {"main": [], "errors": []}
     
