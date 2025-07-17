@@ -106,18 +106,18 @@ class RobustGoldPriceAnalyzer:
             # Timeframe'e göre minimum mum sayısını belirle
             min_candles_map = {
                 "15m": 50,  # 12.5 saat
-                "1h": 24,   # 1 gün
-                "4h": 12,   # 2 gün
-                "1d": 7     # 1 hafta
+                "1h": 50,   # 2+ gün (MACD ve MA için yeterli)
+                "4h": 35,   # 5.8 gün (MACD için minimum)
+                "1d": 26    # 26 gün (MACD için minimum)
             }
             min_candles = min_candles_map.get(timeframe, 50)
             
             # OHLC mumları al (ideal mum sayısı kadar)
             ideal_candles_map = {
                 "15m": 100,  # 25 saat
-                "1h": 72,    # 3 gün
-                "4h": 30,    # 5 gün
-                "1d": 20     # 20 gün
+                "1h": 100,   # 4+ gün (iyi trend analizi için)
+                "4h": 60,    # 10 gün (2 haftalık veri)
+                "1d": 50     # 50 gün (MA50 için ideal)
             }
             ideal_candles = ideal_candles_map.get(timeframe, 100)
             candles = self.storage.generate_candles(candle_minutes, ideal_candles)

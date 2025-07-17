@@ -37,17 +37,17 @@ class TimeframeAnalyzer:
             "1h": {
                 "interval": settings.analysis_interval_1h,
                 "candle_minutes": 60,
-                "min_candles": 24
+                "min_candles": 50
             },
             "4h": {
                 "interval": settings.analysis_interval_4h,
                 "candle_minutes": 240,
-                "min_candles": 12
+                "min_candles": 35
             },
             "1d": {
                 "interval": settings.analysis_interval_daily,
                 "candle_minutes": 1440,
-                "min_candles": 7
+                "min_candles": 26
             }
         }
         
