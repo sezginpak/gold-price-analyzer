@@ -204,7 +204,9 @@
                 
                 if (data.system.last_update) {
                     const date = new Date(data.system.last_update);
-                    document.getElementById('last-update').textContent = date.toLocaleTimeString('tr-TR');
+                    // Türkiye saati için UTC+3 ekle
+                    const trDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+                    document.getElementById('last-update').textContent = trDate.toLocaleTimeString('tr-TR');
                 }
             } catch (error) {
                 console.error('Stats yüklenemedi:', error);

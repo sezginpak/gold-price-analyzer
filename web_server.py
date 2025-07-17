@@ -200,8 +200,21 @@ async def get_today_signals():
 @app.get("/api/logs/recent")
 async def get_recent_logs():
     """Son log satırları"""
+    # Önce logs/ klasöründe, yoksa service log'larına bak
     log_file = "logs/gold_analyzer.log"
     error_file = "logs/gold_analyzer_errors.log"
+    
+    # Eğer logs/ klasöründe yoksa, service log'larını kontrol et
+    if not os.path.exists(log_file):
+        # Systemd service log konumu
+        service_log = "/root/gold-price-analyzer/logs/service.log"
+        if os.path.exists(service_log):
+            log_file = service_log
+    
+    if not os.path.exists(error_file):
+        service_error_log = "/root/gold-price-analyzer/logs/service-error.log"
+        if os.path.exists(service_error_log):
+            error_file = service_error_log
     
     logs = {"main": [], "errors": []}
     
