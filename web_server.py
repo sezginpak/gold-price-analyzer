@@ -310,6 +310,46 @@ async def debug_candles():
     }
 
 
+@app.get("/api/debug/analysis-timeframes")
+async def debug_analysis_timeframes():
+    """Analiz timeframe değerlerini debug et"""
+    with storage.get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Tüm unique timeframe değerlerini al
+        cursor.execute("""
+            SELECT DISTINCT timeframe, COUNT(*) as count 
+            FROM analysis_results 
+            GROUP BY timeframe
+        """)
+        
+        timeframe_counts = {}
+        for row in cursor.fetchall():
+            timeframe_counts[row[0] if row[0] else "NULL"] = row[1]
+        
+        # Son 10 analizi timeframe ile birlikte al
+        cursor.execute("""
+            SELECT id, timestamp, timeframe, price 
+            FROM analysis_results 
+            ORDER BY timestamp DESC 
+            LIMIT 10
+        """)
+        
+        recent_analyses = []
+        for row in cursor.fetchall():
+            recent_analyses.append({
+                "id": row[0],
+                "timestamp": row[1],
+                "timeframe": row[2],
+                "price": row[3]
+            })
+        
+        return {
+            "timeframe_counts": timeframe_counts,
+            "recent_analyses": recent_analyses
+        }
+
+
 @app.get("/api/analysis/levels")
 async def get_support_resistance():
     """Destek/Direnç seviyeleri"""
