@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gold Price Analyzer{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Styles -->
+    <style>
+        body { 
+            background-color: #0f172a; 
+            color: #e2e8f0;
+        }
+        
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(to right, #fbbf24, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .signal-buy { color: #10b981; }
+        .signal-sell { color: #ef4444; }
+        .signal-hold { color: #6b7280; }
+        
+        /* Mobile menu animation */
+        .mobile-menu {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .mobile-menu.active {
+            transform: translateX(0);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen">
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="lg:hidden fixed top-4 left-4 z-50 p-3 glass-card rounded-lg">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+    
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+    
+    <!-- Navigation -->
+    <nav id="mobile-menu" class="mobile-menu fixed lg:relative top-0 left-0 w-64 lg:w-full h-full lg:h-auto bg-slate-900 lg:bg-transparent z-50 lg:z-auto">
+        <div class="lg:container lg:mx-auto px-4 py-4">
+            <!-- Mobile Menu Header -->
+            <div class="lg:hidden flex justify-between items-center mb-8 pt-12">
+                <h2 class="text-xl font-bold gradient-text">Gold Analyzer</h2>
+                <button id="mobile-menu-close" class="p-2">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Desktop Header -->
+            <div class="hidden lg:flex lg:justify-between lg:items-center">
+                <h1 class="text-2xl font-bold">
+                    <span class="gradient-text">Gold Price Analyzer</span>
+                </h1>
+                
+                <!-- Desktop Menu -->
+                <div class="flex items-center space-x-6">
+                    <a href="/" class="nav-link hover:text-yellow-400 transition-colors {% if request.endpoint == 'dashboard' %}text-yellow-400{% endif %}">
+                        <i class="fas fa-chart-line mr-2"></i>Dashboard
+                    </a>
+                    <a href="/analysis" class="nav-link hover:text-yellow-400 transition-colors {% if request.endpoint == 'analysis' %}text-yellow-400{% endif %}">
+                        <i class="fas fa-brain mr-2"></i>Analizler
+                    </a>
+                    <a href="/api/docs" class="nav-link hover:text-yellow-400 transition-colors">
+                        <i class="fas fa-code mr-2"></i>API
+                    </a>
+                    <div class="flex items-center space-x-2 text-sm">
+                        <span class="text-gray-400">Son Güncelleme:</span>
+                        <span id="last-update" class="text-yellow-400">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mobile Menu Items -->
+            <div class="lg:hidden space-y-4">
+                <a href="/" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors {% if request.endpoint == 'dashboard' %}bg-slate-800 text-yellow-400{% endif %}">
+                    <i class="fas fa-chart-line mr-3"></i>Dashboard
+                </a>
+                <a href="/analysis" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors {% if request.endpoint == 'analysis' %}bg-slate-800 text-yellow-400{% endif %}">
+                    <i class="fas fa-brain mr-3"></i>Analizler
+                </a>
+                <a href="/api/docs" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
+                    <i class="fas fa-code mr-3"></i>API Dokümantasyon
+                </a>
+                
+                <div class="mt-8 p-4 glass-card rounded-lg">
+                    <div class="text-sm text-gray-400 mb-1">Son Güncelleme</div>
+                    <div class="text-yellow-400" id="mobile-last-update">-</div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="lg:container lg:mx-auto px-4 py-8 lg:py-12">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="mt-auto py-6 text-center text-gray-400 text-sm">
+        <p>Gold Price Analyzer © 2024 | Gerçek Zamanlı Altın Fiyat Takibi</p>
+    </footer>
+    
+    <!-- Base Scripts -->
+    <script>
+        // Mobile menu toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+        const mobileMenuClose = document.getElementById('mobile-menu-close');
+        
+        function openMobileMenu() {
+            mobileMenu.classList.add('active');
+            mobileMenuOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeMobileMenu() {
+            mobileMenu.classList.remove('active');
+            mobileMenuOverlay.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+        
+        mobileMenuBtn?.addEventListener('click', openMobileMenu);
+        mobileMenuClose?.addEventListener('click', closeMobileMenu);
+        mobileMenuOverlay?.addEventListener('click', closeMobileMenu);
+        
+        // Update last update time
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const trTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+            const timeStr = trTime.toLocaleTimeString('tr-TR');
+            
+            const lastUpdate = document.getElementById('last-update');
+            const mobileLastUpdate = document.getElementById('mobile-last-update');
+            
+            if (lastUpdate) lastUpdate.textContent = timeStr;
+            if (mobileLastUpdate) mobileLastUpdate.textContent = timeStr;
+        }
+        
+        // Update time on load and every minute
+        updateLastUpdateTime();
+        setInterval(updateLastUpdateTime, 60000);
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -45,7 +45,7 @@ system_stats = {
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Ana dashboard sayfası"""
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse("dashboard_new.html", {"request": request})
 
 
 @app.get("/api/stats")
@@ -237,7 +237,7 @@ async def get_menu(request: Request):
 @app.get("/analysis")
 async def analysis_page(request: Request):
     """Analiz sayfası"""
-    return templates.TemplateResponse("analysis.html", {"request": request})
+    return templates.TemplateResponse("analysis_new.html", {"request": request})
 
 
 @app.get("/signals")
