@@ -578,7 +578,7 @@ class SQLiteStorage:
                     analysis_summary, gram_analysis, global_analysis, currency_analysis
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                analysis["timestamp"],
+                analysis["timestamp"].isoformat() if isinstance(analysis["timestamp"], datetime) else analysis["timestamp"],
                 analysis.get("timeframe", "15m"),
                 float(analysis["gram_price"]) if analysis["gram_price"] else 0,
                 analysis["signal"],
