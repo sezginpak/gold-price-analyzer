@@ -55,7 +55,7 @@ class GramAltinAnalyzer:
             bb_result = self.bollinger.calculate(candles)
             stoch_result = self.stochastic.calculate(candles)
             atr_value = self.atr.calculate(candles)
-            patterns = self.pattern_recognition.identify_patterns(candles)
+            patterns = self.pattern_recognition.detect_patterns(candles)
             
             # Trend analizi
             trend, trend_strength = self._analyze_trend(prices, macd_result)
@@ -232,7 +232,14 @@ class GramAltinAnalyzer:
             confidence = sell_signals / total_weight
         else:
             signal = "HOLD"
-            confidence = 0.5
+            # HOLD durumunda da dinamik confidence hesapla
+            # Alım ve satım sinyallerinin dengeye yakınlığına göre
+            total_signals = buy_signals + sell_signals
+            if total_signals > 0:
+                balance_ratio = 1 - abs(buy_signals - sell_signals) / total_signals
+                confidence = 0.3 + (balance_ratio * 0.4)  # 0.3 - 0.7 arası
+            else:
+                confidence = 0.5
         
         return signal, confidence
     

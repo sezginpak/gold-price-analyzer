@@ -157,19 +157,25 @@ class HybridStrategy:
         max_score = max(signal_scores.values())
         final_signal = [k for k, v in signal_scores.items() if v == max_score][0]
         
+        # Güven skorunu normalize et (0-1 aralığına)
+        # Maksimum olası skor: gram(0.5) + global(0.3) + currency(0.2) = 1.0
+        total_possible_score = sum(self.weights.values())
+        normalized_confidence = min(signal_scores[final_signal] / total_possible_score, 1.0)
+        
         # Sinyal gücü
         if final_signal != "HOLD":
             strength = self._calculate_signal_strength(
-                signal_scores[final_signal], global_direction, risk_level
+                normalized_confidence, global_direction, risk_level
             )
         else:
             strength = "WEAK"
         
         return {
             "signal": final_signal,
-            "confidence": signal_scores[final_signal],
+            "confidence": normalized_confidence,
             "strength": strength,
-            "scores": signal_scores
+            "scores": signal_scores,
+            "raw_confidence": signal_scores[final_signal]
         }
     
     def _calculate_signal_strength(self, score: float, trend: str, risk: str) -> str:
