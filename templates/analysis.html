@@ -24,6 +24,18 @@
     <div class="container mx-auto px-4">
         <h2 class="text-2xl font-bold mb-6">🔍 Analiz Detayları</h2>
         
+        <!-- Zaman Dilimi Seçici -->
+        <div class="analysis-card rounded-lg p-4 mb-6">
+            <label class="text-sm text-gray-400 mr-4">Zaman Dilimi:</label>
+            <select id="timeframe-selector" class="bg-gray-700 text-white px-4 py-2 rounded">
+                <option value="">Tümü</option>
+                <option value="15m" selected>15 Dakika</option>
+                <option value="1h">1 Saat</option>
+                <option value="4h">4 Saat</option>
+                <option value="1d">Günlük</option>
+            </select>
+        </div>
+        
         <!-- Analiz Özeti -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="analysis-card rounded-lg p-4">
@@ -153,6 +165,7 @@
                     <thead>
                         <tr class="border-b border-gray-700">
                             <th class="text-left py-2">Zaman</th>
+                            <th class="text-left py-2">TF</th>
                             <th class="text-left py-2">Fiyat</th>
                             <th class="text-left py-2">Trend</th>
                             <th class="text-left py-2">RSI</th>
@@ -163,7 +176,7 @@
                     </thead>
                     <tbody id="analysis-history">
                         <tr>
-                            <td colspan="7" class="text-center py-4 text-gray-400">
+                            <td colspan="8" class="text-center py-4 text-gray-400">
                                 Yükleniyor...
                             </td>
                         </tr>
@@ -281,7 +294,9 @@
                 
                 // Analiz geçmişi
                 try {
-                    const historyResponse = await fetch('/api/analysis/history');
+                    const timeframe = document.getElementById('timeframe-selector').value;
+                    const url = timeframe ? `/api/analysis/history?timeframe=${timeframe}` : '/api/analysis/history';
+                    const historyResponse = await fetch(url);
                     if (!historyResponse.ok) {
                         throw new Error('API hatası');
                     }
@@ -296,6 +311,7 @@
                         const historyHtml = history.analyses.map(a => `
                             <tr class="border-b border-gray-700">
                                 <td class="py-2 text-sm">${new Date(a.timestamp).toLocaleTimeString('tr-TR')}</td>
+                                <td class="py-2 text-sm">${a.timeframe || '15m'}</td>
                                 <td class="py-2">
                                     ₺${a.price.toFixed(2)}
                                     <span class="text-xs ${a.price_change_pct > 0 ? 'text-green-400' : 'text-red-400'}">
@@ -356,6 +372,11 @@
         // Sayfa yüklendiğinde
         loadConfig();
         loadAnalysisData();
+        
+        // Timeframe değişimi
+        document.getElementById('timeframe-selector').addEventListener('change', function() {
+            loadAnalysisData();
+        });
         
         // Her 30 saniyede bir güncelle
         setInterval(loadAnalysisData, 30000);

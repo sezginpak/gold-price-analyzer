@@ -223,17 +223,18 @@ async def get_analysis_config():
 
 
 @app.get("/api/analysis/history")
-async def get_analysis_history():
+async def get_analysis_history(timeframe: str = None):
     """Son analiz sonuçlarını döndür - GERÇEK VERİ"""
     try:
         # Gerçek analiz verilerini al
-        analyses = storage.get_analysis_history(limit=20)
+        analyses = storage.get_analysis_history(limit=20, timeframe=timeframe)
         
         # API formatına dönüştür
         formatted_analyses = []
         for analysis in analyses:
             formatted_analyses.append({
                 "timestamp": analysis.timestamp.isoformat(),
+                "timeframe": analysis.timeframe,
                 "price": float(analysis.price),
                 "price_change": float(analysis.price_change) if analysis.price_change else 0,
                 "price_change_pct": analysis.price_change_pct,

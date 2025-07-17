@@ -84,6 +84,7 @@ class AnalysisResult:
     """Analiz sonucu"""
     id: Optional[int] = None
     timestamp: datetime = None
+    timeframe: str = "15m"  # 15m, 1h, 4h, 1d
     
     # Fiyat bilgileri
     price: Decimal = None
@@ -132,6 +133,7 @@ class AnalysisResult:
         return {
             "id": self.id,
             "timestamp": self.timestamp.isoformat(),
+            "timeframe": self.timeframe,
             "price": float(self.price) if self.price else None,
             "price_change": float(self.price_change) if self.price_change else None,
             "price_change_pct": self.price_change_pct,

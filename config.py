@@ -23,7 +23,11 @@ class Settings(BaseSettings):
     redis_db: int = int(os.getenv("REDIS_DB", "0"))
     
     # Data Collection
-    collection_interval: int = int(os.getenv("COLLECTION_INTERVAL", "5"))
+    collection_interval: int = int(os.getenv("COLLECTION_INTERVAL", "1"))  # Dakika cinsinden veri toplama (her dakika fiyat kaydet)
+    analysis_interval_15m: int = int(os.getenv("ANALYSIS_INTERVAL_15M", "15"))  # 15 dakikalık analiz
+    analysis_interval_1h: int = int(os.getenv("ANALYSIS_INTERVAL_1H", "60"))  # 1 saatlik analiz
+    analysis_interval_4h: int = int(os.getenv("ANALYSIS_INTERVAL_4H", "240"))  # 4 saatlik analiz
+    analysis_interval_daily: int = int(os.getenv("ANALYSIS_INTERVAL_DAILY", "1440"))  # Günlük analiz
     data_retention_raw: int = int(os.getenv("DATA_RETENTION_RAW", "7"))
     data_retention_compressed: int = int(os.getenv("DATA_RETENTION_COMPRESSED", "30"))
     

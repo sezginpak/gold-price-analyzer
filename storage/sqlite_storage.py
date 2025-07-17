@@ -94,6 +94,7 @@ class SQLiteStorage:
                 CREATE TABLE IF NOT EXISTS analysis_results (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp DATETIME NOT NULL,
+                    timeframe TEXT DEFAULT '15m',
                     price REAL NOT NULL,
                     price_change REAL,
                     price_change_pct REAL,
@@ -302,15 +303,16 @@ class SQLiteStorage:
             
             cursor.execute("""
                 INSERT INTO analysis_results (
-                    timestamp, price, price_change, price_change_pct,
+                    timestamp, timeframe, price, price_change, price_change_pct,
                     trend, trend_strength, nearest_support, nearest_resistance,
                     signal, signal_strength, confidence, risk_level,
                     stop_loss, take_profit, rsi, rsi_signal,
                     ma_short, ma_long, ma_cross,
                     support_levels, resistance_levels, analysis_details
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 analysis.timestamp,
+                analysis.timeframe,
                 float(analysis.price) if analysis.price else None,
                 float(analysis.price_change) if analysis.price_change else None,
                 analysis.price_change_pct,
@@ -351,15 +353,24 @@ class SQLiteStorage:
                 return self._row_to_analysis_result(row)
             return None
     
-    def get_analysis_history(self, limit: int = 10) -> List[AnalysisResult]:
+    def get_analysis_history(self, limit: int = 10, timeframe: str = None) -> List[AnalysisResult]:
         """Son analiz sonuçlarını getir"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM analysis_results 
-                ORDER BY timestamp DESC 
-                LIMIT ?
-            """, (limit,))
+            
+            if timeframe:
+                cursor.execute("""
+                    SELECT * FROM analysis_results 
+                    WHERE timeframe = ?
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                """, (timeframe, limit))
+            else:
+                cursor.execute("""
+                    SELECT * FROM analysis_results 
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                """, (limit,))
             
             results = []
             for row in cursor.fetchall():
@@ -404,6 +415,7 @@ class SQLiteStorage:
         return AnalysisResult(
             id=row['id'],
             timestamp=datetime.fromisoformat(row['timestamp']),
+            timeframe=row.get('timeframe', '15m'),  # Eski veriler için varsayılan
             price=Decimal(str(row['price'])) if row['price'] else None,
             price_change=Decimal(str(row['price_change'])) if row['price_change'] else None,
             price_change_pct=row['price_change_pct'],

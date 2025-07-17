@@ -14,6 +14,7 @@ import traceback
 from services.harem_altin_service import HaremAltinPriceService
 from collectors.harem_price_collector import HaremPriceCollector
 from analyzers.signal_generator import SignalGenerator
+from analyzers.timeframe_analyzer import TimeframeAnalyzer
 from storage.sqlite_storage import SQLiteStorage
 from models.price_data import PriceData, PriceCandle
 from config import settings
@@ -72,6 +73,11 @@ class RobustGoldPriceAnalyzer:
                 min_confidence=settings.min_confidence_score
             )
             
+            # Timeframe analyzer
+            self.timeframe_analyzer = TimeframeAnalyzer(
+                analyze_callback=self.analyze_price_safe
+            )
+            
             self.logger.info("All services initialized successfully")
             return True
             
@@ -79,7 +85,7 @@ class RobustGoldPriceAnalyzer:
             log_exception(self.logger, e, "Service initialization")
             return False
     
-    async def analyze_price_safe(self, price_data: PriceData):
+    async def analyze_price_safe(self, price_data: PriceData, timeframe: str = "15m", candle_minutes: int = 15):
         """Güvenli fiyat analizi"""
         try:
             self.stats["total_price_updates"] += 1
@@ -92,18 +98,22 @@ class RobustGoldPriceAnalyzer:
             self.logger.info(f"Starting analysis - Update count: {self.stats['total_price_updates']}, Price: {price_data.ons_try}")
             
             # OHLC mumları al
-            candles_15m = self.storage.generate_candles(15, 100)
+            candles = self.storage.generate_candles(candle_minutes, 100)
             
-            if len(candles_15m) < 50:
-                self.logger.warning(f"Not enough candles for analysis: {len(candles_15m)} (need 50)")
+            if len(candles) < 50:
+                self.logger.warning(f"Not enough candles for {timeframe} analysis: {len(candles)} (need 50)")
                 return
             
             # Detaylı analiz yap ve kaydet
             analysis = self.signal_generator.analyze_and_save(
                 price_data,
-                candles_15m,
+                candles,
                 settings.risk_tolerance
             )
+            
+            # Timeframe bilgisini ekle
+            if analysis:
+                analysis.timeframe = timeframe
             
             # Sinyal varsa göster
             if analysis.signal:
@@ -260,8 +270,8 @@ class RobustGoldPriceAnalyzer:
             self.logger.error("Failed to initialize services")
             return
         
-        # Callback ekle
-        self.collector.add_analysis_callback(self.analyze_price_safe)
+        # Callback ekle - TimeframeAnalyzer'a yönlendir
+        self.collector.add_analysis_callback(self.timeframe_analyzer.process_price_update)
         self.logger.info(f"Analysis callback added. Total callbacks: {len(self.collector.analysis_callbacks)}")
         
         # Collector'ı başlat
