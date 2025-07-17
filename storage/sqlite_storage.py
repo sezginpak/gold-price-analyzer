@@ -4,7 +4,7 @@ SQLite storage for price data
 import sqlite3
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 import logging
 from contextlib import contextmanager
 from models.price_data import PriceData, PriceCandle
