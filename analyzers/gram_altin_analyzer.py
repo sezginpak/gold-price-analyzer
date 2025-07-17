@@ -266,6 +266,7 @@ class GramAltinAnalyzer:
             else:
                 confidence = 0.5
         
+        logger.info(f"Signal generation: buy={buy_signals}, sell={sell_signals}, total_weight={total_weight}, signal={signal}, confidence={confidence:.3f}")
         return signal, confidence
     
     def _calculate_risk_levels(self, current_price: Decimal, signal: str, 

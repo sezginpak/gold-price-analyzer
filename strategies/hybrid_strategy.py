@@ -159,10 +159,15 @@ class HybridStrategy:
         max_score = max(signal_scores.values())
         final_signal = [k for k, v in signal_scores.items() if v == max_score][0]
         
+        # Debug log ekle
+        logger.info(f"Signal scores: {signal_scores}")
+        logger.info(f"Final signal: {final_signal}, max_score: {max_score}")
+        
         # Güven skorunu normalize et (0-1 aralığına)
         # Maksimum olası skor: gram(0.5) + global(0.3) + currency(0.2) = 1.0
         total_possible_score = sum(self.weights.values())
         normalized_confidence = min(signal_scores[final_signal] / total_possible_score, 1.0)
+        logger.info(f"Normalized confidence: {normalized_confidence}")
         
         # Sinyal gücü
         if final_signal != "HOLD":
@@ -226,12 +231,15 @@ class HybridStrategy:
         if confidence < 0.5:
             position *= 0.8
         
-        return {
+        result = {
             "recommended_size": round(position, 2),
             "max_size": 1.0,
             "min_size": 0.2,
             "risk_adjusted": True
         }
+        
+        logger.info(f"Position calculation: base={base_position}, strength_mult={strength_multipliers.get(signal['strength'], 0.5)}, currency_mult={currency_multiplier}, final={result['recommended_size']}")
+        return result
     
     def _adjust_risk_levels(self, gram: Dict, currency: Dict) -> Dict[str, Any]:
         """Stop-loss ve take-profit seviyelerini ayarla"""
