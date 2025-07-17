@@ -415,7 +415,7 @@ class SQLiteStorage:
         return AnalysisResult(
             id=row['id'],
             timestamp=datetime.fromisoformat(row['timestamp']),
-            timeframe=row.get('timeframe', '15m'),  # Eski veriler için varsayılan
+            timeframe=row['timeframe'] if 'timeframe' in row.keys() else '15m',  # Eski veriler için varsayılan
             price=Decimal(str(row['price'])) if row['price'] else None,
             price_change=Decimal(str(row['price_change'])) if row['price_change'] else None,
             price_change_pct=row['price_change_pct'],
