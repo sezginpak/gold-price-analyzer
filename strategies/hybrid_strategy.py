@@ -43,7 +43,9 @@ class HybridStrategy:
         """
         try:
             # 1. Gram altın analizi (ana sinyal)
+            logger.info(f"Gram analizi başlıyor. Mum sayısı: {len(gram_candles)}")
             gram_analysis = self.gram_analyzer.analyze(gram_candles)
+            logger.info(f"Gram analizi tamamlandı. Fiyat: {gram_analysis.get('price')}")
             
             # 2. Global trend analizi
             global_analysis = self.global_analyzer.analyze(market_data)

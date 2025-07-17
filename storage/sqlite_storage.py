@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from models.price_data import PriceData, PriceCandle
 from models.analysis_result import AnalysisResult, TrendType, TrendStrength
 import json
+from dataclasses import asdict
 
 logger = logging.getLogger(__name__)
 
@@ -354,6 +355,7 @@ class SQLiteStorage:
         }
         
         interval_str = interval_map.get(interval_minutes, f"{interval_minutes}m")
+        logger.info(f"Generating gram candles for {interval_str} interval, limit: {limit}")
         
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -423,6 +425,11 @@ class SQLiteStorage:
             
             if len(result) > 0:
                 logger.info(f"Generated {len(result)} gram candles for {interval_str} interval")
+                # İlk ve son mum fiyatlarını logla
+                logger.info(f"First candle: {result[0].timestamp} - Close: {result[0].close}")
+                logger.info(f"Last candle: {result[-1].timestamp} - Close: {result[-1].close}")
+            else:
+                logger.warning(f"No candles generated for {interval_str} interval")
             
             return result
     
@@ -570,6 +577,12 @@ class SQLiteStorage:
             return obj.isoformat()
         elif isinstance(obj, Decimal):
             return float(obj)
+        elif hasattr(obj, '__dict__'):
+            # Dataclass veya objeler için dict'e çevir
+            return obj.__dict__
+        elif hasattr(obj, '__dataclass_fields__'):
+            # Dataclass objeler için
+            return asdict(obj)
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
     
     def save_hybrid_analysis(self, analysis: Dict[str, Any]):

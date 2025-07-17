@@ -82,10 +82,10 @@ class HybridGoldAnalyzer:
             
             # Gerekli mum sayısı (ideal / minimum)
             candle_requirements = {
-                "15m": 50,   # 50 mum = 12.5 saat veri
-                "1h": 24,    # 24 mum = 1 gün veri
-                "4h": 12,    # 12 mum = 2 gün veri
-                "1d": 7      # 7 mum = 1 hafta veri
+                "15m": 30,   # 30 mum = 7.5 saat veri
+                "1h": 20,    # 20 mum = 20 saat veri
+                "4h": 10,    # 10 mum = 1.5 gün veri
+                "1d": 5      # 5 mum = 5 gün veri
             }
             
             required_candles = candle_requirements.get(timeframe, 100)

@@ -38,8 +38,14 @@ class GramAltinAnalyzer:
             Analiz sonuçları (göstergeler, destek/direnç, sinyal)
         """
         try:
-            if len(candles) < 50:
-                logger.warning(f"Yetersiz mum verisi: {len(candles)}")
+            logger.info(f"Gram altın analizi başladı. Mum sayısı: {len(candles) if candles else 0}")
+            
+            if not candles:
+                logger.error("Candles listesi boş!")
+                return self._empty_analysis()
+                
+            if len(candles) < 20:
+                logger.warning(f"Yetersiz mum verisi: {len(candles)}, minimum 20 gerekli")
                 return self._empty_analysis()
             
             # Fiyat dizisi hazırla
@@ -48,6 +54,7 @@ class GramAltinAnalyzer:
             low_prices = [float(c.low) for c in candles]
             
             current_price = Decimal(str(prices[-1]))
+            logger.info(f"Mevcut gram altın fiyatı: {current_price}")
             
             # Teknik göstergeler
             rsi_value, rsi_signal = self.rsi.calculate(prices)
@@ -80,7 +87,7 @@ class GramAltinAnalyzer:
                 current_price, signal, atr_value, support_levels, resistance_levels
             )
             
-            return {
+            result = {
                 "timestamp": datetime.utcnow(),
                 "price": current_price,
                 "trend": trend,
@@ -104,6 +111,9 @@ class GramAltinAnalyzer:
                     rsi_signal, macd_result, bb_result, stoch_result, patterns
                 )
             }
+            
+            logger.info(f"Gram altın analizi tamamlandı. Sinyal: {signal}, Güven: {confidence:.2%}, Fiyat: {current_price}")
+            return result
             
         except Exception as e:
             logger.error(f"Gram altın analiz hatası: {e}", exc_info=True)
