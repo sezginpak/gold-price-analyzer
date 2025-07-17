@@ -121,27 +121,39 @@ class GramAltinAnalyzer:
     
     def _analyze_trend(self, prices: List[float], macd: Dict) -> Tuple[TrendType, TrendStrength]:
         """Trend yönü ve gücünü belirle"""
-        # Son 20 mumun ortalaması
-        ma20 = np.mean(prices[-20:])
         current_price = prices[-1]
         
-        # MACD durumu
-        macd_bullish = macd.get("histogram", 0) > 0
+        # Yeterli veri varsa MA20 kullan, yoksa daha kısa MA kullan
+        if len(prices) >= 20:
+            ma_period = 20
+        elif len(prices) >= 10:
+            ma_period = 10
+        else:
+            ma_period = len(prices) // 2 if len(prices) > 2 else 2
         
-        # Fiyat MA20'nin üstünde ve MACD pozitif
-        if current_price > ma20 and macd_bullish:
+        ma = np.mean(prices[-ma_period:])
+        
+        # MACD durumu
+        macd_histogram = macd.get("histogram")
+        macd_bullish = macd_histogram is not None and macd_histogram > 0
+        
+        # Fiyat MA'nin üstünde ve MACD pozitif
+        if current_price > ma and macd_bullish:
             trend = TrendType.BULLISH
-        elif current_price < ma20 and not macd_bullish:
+        elif current_price < ma and not macd_bullish:
             trend = TrendType.BEARISH
         else:
             trend = TrendType.NEUTRAL
         
         # Trend gücü
-        price_distance = abs((current_price - ma20) / ma20 * 100)
-        if price_distance > 3:
-            strength = TrendStrength.STRONG
-        elif price_distance > 1:
-            strength = TrendStrength.MODERATE
+        if ma > 0:  # Sıfıra bölme kontrolü
+            price_distance = abs((current_price - ma) / ma * 100)
+            if price_distance > 3:
+                strength = TrendStrength.STRONG
+            elif price_distance > 1:
+                strength = TrendStrength.MODERATE
+            else:
+                strength = TrendStrength.WEAK
         else:
             strength = TrendStrength.WEAK
             
