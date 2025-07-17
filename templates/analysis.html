@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analiz Detayları - Gold Price Analyzer</title>
+    <title>Hibrit Analiz Detayları - Gold Price Analyzer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #111827; color: #f3f4f6; }
@@ -15,6 +15,12 @@
         .indicator-box:hover {
             background: #404952;
         }
+        .signal-buy { color: #10b981; }
+        .signal-sell { color: #ef4444; }
+        .signal-hold { color: #6b7280; }
+        .strength-strong { color: #10b981; }
+        .strength-moderate { color: #f59e0b; }
+        .strength-weak { color: #6b7280; }
     </style>
 </head>
 <body>
@@ -22,7 +28,7 @@
     <div id="menu-container"></div>
 
     <div class="container mx-auto px-4">
-        <h2 class="text-2xl font-bold mb-6">🔍 Analiz Detayları</h2>
+        <h2 class="text-2xl font-bold mb-6">🎯 Hibrit Analiz Detayları</h2>
         
         <!-- Zaman Dilimi Seçici -->
         <div class="analysis-card rounded-lg p-4 mb-6">
@@ -36,130 +42,158 @@
             </select>
         </div>
         
-        <!-- Analiz Özeti -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <!-- Sistem Durumu -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="analysis-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Ana Fiyat</p>
+                <p class="text-xl font-bold text-yellow-400">GRAM ALTIN</p>
+            </div>
+            <div class="analysis-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Trend Kaynağı</p>
+                <p class="text-xl font-bold text-blue-400">ONS/USD</p>
+            </div>
+            <div class="analysis-card rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Risk Değerlendirme</p>
+                <p class="text-xl font-bold text-red-400">USD/TRY</p>
+            </div>
             <div class="analysis-card rounded-lg p-4">
                 <p class="text-gray-400 text-sm">Son Analiz</p>
                 <p class="text-xl font-bold" id="last-analysis-time">-</p>
             </div>
-            <div class="analysis-card rounded-lg p-4">
-                <p class="text-gray-400 text-sm">Analiz Zaman Dilimleri</p>
-                <p class="text-xl font-bold" id="analysis-interval">15dk, 1s, 4s, günlük</p>
-            </div>
-            <div class="analysis-card rounded-lg p-4">
-                <p class="text-gray-400 text-sm">Güven Eşiği</p>
-                <p class="text-xl font-bold" id="confidence-threshold">%70</p>
-            </div>
         </div>
 
-        <!-- Mevcut Analiz -->
+        <!-- Mevcut Hibrit Analiz -->
         <div class="analysis-card rounded-lg p-6 mb-6">
-            <h3 class="text-xl font-bold mb-4">📈 Mevcut Durum Analizi</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h4 class="text-green-400 font-semibold mb-2">Destek Seviyeleri</h4>
-                    <div id="current-support-levels" class="space-y-1">
-                        <p class="text-gray-400">Yükleniyor...</p>
+            <h3 class="text-xl font-bold mb-4">⚡ Mevcut Hibrit Analiz</h3>
+            <div id="current-hybrid-analysis" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="text-center">
+                    <p class="text-gray-400 text-sm">Sinyal</p>
+                    <p class="text-3xl font-bold" id="current-signal">-</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-400 text-sm">Güven</p>
+                    <p class="text-3xl font-bold" id="current-confidence">-</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-400 text-sm">Pozisyon</p>
+                    <p class="text-3xl font-bold" id="current-position">-</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-400 text-sm">Global Trend</p>
+                    <p class="text-xl font-bold" id="current-global-trend">-</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-400 text-sm">Kur Riski</p>
+                    <p class="text-xl font-bold" id="current-currency-risk">-</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-400 text-sm">Risk/Ödül</p>
+                    <p class="text-xl font-bold" id="current-risk-reward">-</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-600">
+                <h4 class="font-semibold mb-2">📋 Analiz Özeti</h4>
+                <p class="text-gray-300" id="current-summary">Yükleniyor...</p>
+            </div>
+            <div class="mt-4">
+                <h4 class="font-semibold mb-2">💡 Öneriler</h4>
+                <ul class="text-gray-300" id="current-recommendations">
+                    <li>Yükleniyor...</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Analiz Bileşenleri -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- Gram Altın Analizi -->
+            <div class="analysis-card rounded-lg p-6">
+                <h3 class="text-lg font-bold mb-4 text-yellow-400">💰 Gram Altın Analizi</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Fiyat:</span>
+                        <span class="font-bold" id="gram-price">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Trend:</span>
+                        <span class="font-bold" id="gram-trend">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">RSI:</span>
+                        <span class="font-bold" id="gram-rsi">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Sinyal:</span>
+                        <span class="font-bold" id="gram-signal">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Stop Loss:</span>
+                        <span class="font-bold" id="gram-stop-loss">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Take Profit:</span>
+                        <span class="font-bold" id="gram-take-profit">-</span>
                     </div>
                 </div>
-                <div>
-                    <h4 class="text-red-400 font-semibold mb-2">Direnç Seviyeleri</h4>
-                    <div id="current-resistance-levels" class="space-y-1">
-                        <p class="text-gray-400">Yükleniyor...</p>
+            </div>
+
+            <!-- Global Trend Analizi -->
+            <div class="analysis-card rounded-lg p-6">
+                <h3 class="text-lg font-bold mb-4 text-blue-400">🌍 Global Trend Analizi</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Yön:</span>
+                        <span class="font-bold" id="global-direction">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Güç:</span>
+                        <span class="font-bold" id="global-strength">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Momentum:</span>
+                        <span class="font-bold" id="global-momentum">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Volatilite:</span>
+                        <span class="font-bold" id="global-volatility">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Destekleyici:</span>
+                        <span class="font-bold" id="global-supportive">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kur Riski Analizi -->
+            <div class="analysis-card rounded-lg p-6">
+                <h3 class="text-lg font-bold mb-4 text-red-400">💱 Kur Riski Analizi</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Risk Seviyesi:</span>
+                        <span class="font-bold" id="currency-risk-level">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Volatilite:</span>
+                        <span class="font-bold" id="currency-volatility">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Pozisyon Çarpan:</span>
+                        <span class="font-bold" id="currency-multiplier">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Müdahale Riski:</span>
+                        <span class="font-bold" id="intervention-risk">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Trend Uyumu:</span>
+                        <span class="font-bold" id="currency-trend-align">-</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Analiz Parametreleri -->
-        <div class="analysis-card rounded-lg p-6 mb-6">
-            <h3 class="text-xl font-bold mb-4">⚙️ Analiz Parametreleri</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                    <p class="text-gray-400 text-sm">Lookback Period</p>
-                    <p class="font-bold" id="lookback-period">100 mum</p>
-                </div>
-                <div>
-                    <p class="text-gray-400 text-sm">RSI Periyodu</p>
-                    <p class="font-bold" id="rsi-period">14</p>
-                </div>
-                <div>
-                    <p class="text-gray-400 text-sm">Kısa MA</p>
-                    <p class="font-bold" id="ma-short">20</p>
-                </div>
-                <div>
-                    <p class="text-gray-400 text-sm">Uzun MA</p>
-                    <p class="font-bold" id="ma-long">50</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Teknik Göstergeler -->
-        <div class="analysis-card rounded-lg p-6 mb-6">
-            <h3 class="text-xl font-bold mb-4">📊 Teknik Göstergeler</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- RSI -->
-                <div class="indicator-box p-4 rounded">
-                    <h4 class="font-semibold mb-2">RSI</h4>
-                    <p class="text-2xl font-bold" id="current-rsi">-</p>
-                    <p class="text-sm text-gray-400" id="rsi-signal">-</p>
-                </div>
-                
-                <!-- MACD -->
-                <div class="indicator-box p-4 rounded">
-                    <h4 class="font-semibold mb-2">MACD</h4>
-                    <div class="text-sm">
-                        <p>Line: <span class="font-bold" id="macd-line">-</span></p>
-                        <p>Signal: <span class="font-bold" id="macd-signal">-</span></p>
-                        <p>Histogram: <span class="font-bold" id="macd-histogram">-</span></p>
-                    </div>
-                </div>
-                
-                <!-- Bollinger Bands -->
-                <div class="indicator-box p-4 rounded">
-                    <h4 class="font-semibold mb-2">Bollinger Bands</h4>
-                    <div class="text-sm">
-                        <p>Upper: <span class="font-bold" id="bb-upper">-</span></p>
-                        <p>Middle: <span class="font-bold" id="bb-middle">-</span></p>
-                        <p>Lower: <span class="font-bold" id="bb-lower">-</span></p>
-                        <p>%B: <span class="font-bold" id="bb-percent">-</span></p>
-                    </div>
-                </div>
-                
-                <!-- Stochastic -->
-                <div class="indicator-box p-4 rounded">
-                    <h4 class="font-semibold mb-2">Stochastic</h4>
-                    <div class="text-sm">
-                        <p>%K: <span class="font-bold" id="stoch-k">-</span></p>
-                        <p>%D: <span class="font-bold" id="stoch-d">-</span></p>
-                        <p>Zone: <span class="font-bold" id="stoch-zone">-</span></p>
-                    </div>
-                </div>
-                
-                <!-- ATR -->
-                <div class="indicator-box p-4 rounded">
-                    <h4 class="font-semibold mb-2">ATR</h4>
-                    <div class="text-sm">
-                        <p>Value: <span class="font-bold" id="atr-value">-</span></p>
-                        <p>Percent: <span class="font-bold" id="atr-percent">-</span>%</p>
-                        <p>Volatility: <span class="font-bold" id="volatility-level">-</span></p>
-                    </div>
-                </div>
-                
-                <!-- Patterns -->
-                <div class="indicator-box p-4 rounded">
-                    <h4 class="font-semibold mb-2">Patterns</h4>
-                    <div class="text-sm">
-                        <p id="pattern-count">No patterns</p>
-                        <p class="font-bold" id="strongest-pattern">-</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Son Analizler Tablosu -->
+        <!-- Hibrit Analiz Geçmişi -->
         <div class="analysis-card rounded-lg p-6">
-            <h3 class="text-xl font-bold mb-4">📋 Son Analiz Sonuçları</h3>
+            <h3 class="text-xl font-bold mb-4">📊 Hibrit Analiz Geçmişi</h3>
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
@@ -167,16 +201,18 @@
                             <th class="text-left py-2">Zaman</th>
                             <th class="text-left py-2">TF</th>
                             <th class="text-left py-2">Fiyat</th>
-                            <th class="text-left py-2">Trend</th>
-                            <th class="text-left py-2">RSI</th>
                             <th class="text-left py-2">Sinyal</th>
+                            <th class="text-left py-2">Güç</th>
                             <th class="text-left py-2">Güven</th>
-                            <th class="text-left py-2">Risk</th>
+                            <th class="text-left py-2">Pozisyon</th>
+                            <th class="text-left py-2">Global</th>
+                            <th class="text-left py-2">Kur Risk</th>
+                            <th class="text-left py-2">R/R</th>
                         </tr>
                     </thead>
-                    <tbody id="analysis-history">
+                    <tbody id="hybrid-analysis-history">
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-gray-400">
+                            <td colspan="10" class="text-center py-4 text-gray-400">
                                 Yükleniyor...
                             </td>
                         </tr>
@@ -194,198 +230,191 @@
                 document.getElementById('menu-container').innerHTML = html;
             });
 
-        // Analiz config'ini yükle
-        async function loadConfig() {
+        // Hibrit analiz verilerini yükle
+        async function loadHybridAnalysisData() {
             try {
-                const response = await fetch('/api/analysis/config');
-                const config = await response.json();
+                const timeframe = document.getElementById('timeframe-selector').value;
+                const url = timeframe ? `/api/analysis/history?timeframe=${timeframe}` : '/api/analysis/history';
+                const response = await fetch(url);
                 
-                // Analiz sıklığını doğru göster
-                const intervals = [];
-                if (config.analysis_interval_15m) intervals.push('15dk');
-                if (config.analysis_interval_1h) intervals.push('1s');
-                if (config.analysis_interval_4h) intervals.push('4s');
-                if (config.analysis_interval_daily) intervals.push('günlük');
-                document.getElementById('analysis-interval').textContent = intervals.join(', ');
-                document.getElementById('confidence-threshold').textContent = `%${Math.round(config.min_confidence_score * 100)}`;
-                document.getElementById('lookback-period').textContent = `${config.support_resistance_lookback} mum`;
-                document.getElementById('rsi-period').textContent = config.rsi_period;
-                document.getElementById('ma-short').textContent = config.ma_short_period;
-                document.getElementById('ma-long').textContent = config.ma_long_period;
-            } catch (error) {
-                console.error('Config yüklenemedi:', error);
-            }
-        }
-
-        // Analiz verilerini yükle
-        function updateIndicators(indicators) {
-            // RSI
-            document.getElementById('current-rsi').textContent = indicators.rsi ? indicators.rsi.toFixed(1) : '-';
-            document.getElementById('rsi-signal').textContent = indicators.rsi_signal || '-';
-            
-            // MACD
-            document.getElementById('macd-line').textContent = indicators.macd_line ? indicators.macd_line.toFixed(2) : '-';
-            document.getElementById('macd-signal').textContent = indicators.macd_signal ? indicators.macd_signal.toFixed(2) : '-';
-            document.getElementById('macd-histogram').textContent = indicators.macd_histogram ? indicators.macd_histogram.toFixed(2) : '-';
-            
-            // Bollinger Bands
-            document.getElementById('bb-upper').textContent = indicators.bb_upper ? `₺${indicators.bb_upper.toFixed(2)}` : '-';
-            document.getElementById('bb-middle').textContent = indicators.bb_middle ? `₺${indicators.bb_middle.toFixed(2)}` : '-';
-            document.getElementById('bb-lower').textContent = indicators.bb_lower ? `₺${indicators.bb_lower.toFixed(2)}` : '-';
-            document.getElementById('bb-percent').textContent = indicators.bb_percent_b ? indicators.bb_percent_b.toFixed(2) : '-';
-            
-            // Stochastic
-            document.getElementById('stoch-k').textContent = indicators.stoch_k ? indicators.stoch_k.toFixed(1) : '-';
-            document.getElementById('stoch-d').textContent = indicators.stoch_d ? indicators.stoch_d.toFixed(1) : '-';
-            document.getElementById('stoch-zone').textContent = indicators.stoch_zone || '-';
-            
-            // ATR
-            document.getElementById('atr-value').textContent = indicators.atr ? indicators.atr.toFixed(2) : '-';
-            document.getElementById('atr-percent').textContent = indicators.atr_percent ? indicators.atr_percent.toFixed(2) : '-';
-            document.getElementById('volatility-level').textContent = indicators.volatility_level || '-';
-            
-            // Patterns
-            if (indicators.patterns && indicators.patterns.length > 0) {
-                document.getElementById('pattern-count').textContent = `${indicators.patterns.length} pattern found`;
-                document.getElementById('strongest-pattern').textContent = indicators.strongest_pattern || indicators.patterns[0].name;
-            } else {
-                document.getElementById('pattern-count').textContent = 'No patterns';
-                document.getElementById('strongest-pattern').textContent = '-';
-            }
-        }
-        
-        async function loadAnalysisData() {
-            try {
-                // Mevcut analiz - Destek/Direnç seviyeleri
-                try {
-                    const levelsResponse = await fetch('/api/analysis/levels');
-                    if (levelsResponse.ok) {
-                        const levels = await levelsResponse.json();
-                        
-                        // Destek seviyeleri
-                        if (levels.support && levels.support.length > 0) {
-                            const supportHtml = levels.support.map(s => 
-                                `<div class="flex justify-between">
-                                    <span>₺${s.level.toFixed(2)}</span>
-                                    <span class="text-sm ${s.strength === 'Güçlü' ? 'text-green-400' : 
-                                                           s.strength === 'Orta' ? 'text-yellow-400' : 
-                                                           'text-gray-400'}">${s.strength}</span>
-                                </div>`
-                            ).join('');
-                            document.getElementById('current-support-levels').innerHTML = supportHtml;
-                        } else {
-                            document.getElementById('current-support-levels').innerHTML = '<p class="text-gray-400">Veri yok</p>';
-                        }
-                        
-                        // Direnç seviyeleri
-                        if (levels.resistance && levels.resistance.length > 0) {
-                            const resistanceHtml = levels.resistance.map(r => 
-                                `<div class="flex justify-between">
-                                    <span>₺${r.level.toFixed(2)}</span>
-                                    <span class="text-sm ${r.strength === 'Güçlü' ? 'text-red-400' : 
-                                                           r.strength === 'Orta' ? 'text-yellow-400' : 
-                                                           'text-gray-400'}">${r.strength}</span>
-                                </div>`
-                            ).join('');
-                            document.getElementById('current-resistance-levels').innerHTML = resistanceHtml;
-                        } else {
-                            document.getElementById('current-resistance-levels').innerHTML = '<p class="text-gray-400">Veri yok</p>';
-                        }
-                    }
-                } catch (e) {
-                    console.error('Destek/Direnç yüklenemedi:', e);
-                    document.getElementById('current-support-levels').innerHTML = '<p class="text-gray-400">Yüklenemedi</p>';
-                    document.getElementById('current-resistance-levels').innerHTML = '<p class="text-gray-400">Yüklenemedi</p>';
+                if (!response.ok) {
+                    throw new Error('API hatası');
                 }
                 
-                // Analiz geçmişi
-                try {
-                    const timeframe = document.getElementById('timeframe-selector').value;
-                    const url = timeframe ? `/api/analysis/history?timeframe=${timeframe}` : '/api/analysis/history';
-                    const historyResponse = await fetch(url);
-                    if (!historyResponse.ok) {
-                        throw new Error('API hatası');
-                    }
-                    const history = await historyResponse.json();
+                const data = await response.json();
+                
+                if (data.analyses && data.analyses.length > 0) {
+                    // En son analizi göster
+                    const latest = data.analyses[0];
+                    updateCurrentAnalysis(latest);
                     
-                    if (history.analyses && history.analyses.length > 0) {
-                        // İlk analizin indikatör verilerini göster
-                        const latestAnalysis = history.analyses[0];
-                        if (latestAnalysis.indicators) {
-                            updateIndicators(latestAnalysis.indicators);
-                        }
-                        const historyHtml = history.analyses.map(a => `
+                    // Analiz geçmişini göster
+                    const historyHtml = data.analyses.map(analysis => {
+                        const date = new Date(analysis.timestamp);
+                        const trDate = new Date(date.getTime() + (3 * 60 * 60 * 1000)); // UTC+3
+                        
+                        return `
                             <tr class="border-b border-gray-700">
-                                <td class="py-2 text-sm">${new Date(a.timestamp).toLocaleTimeString('tr-TR')}</td>
-                                <td class="py-2 text-sm">${a.timeframe || '15m'}</td>
+                                <td class="py-2 text-sm">${trDate.toLocaleTimeString('tr-TR')}</td>
+                                <td class="py-2 text-sm">${analysis.timeframe}</td>
+                                <td class="py-2">₺${analysis.price.toFixed(2)}</td>
                                 <td class="py-2">
-                                    ₺${a.price.toFixed(2)}
-                                    <span class="text-xs ${a.price_change_pct > 0 ? 'text-green-400' : 'text-red-400'}">
-                                        (${a.price_change_pct > 0 ? '+' : ''}${a.price_change_pct.toFixed(2)}%)
+                                    <span class="${analysis.signal === 'BUY' ? 'signal-buy' : 
+                                                  analysis.signal === 'SELL' ? 'signal-sell' : 
+                                                  'signal-hold'} font-bold">
+                                        ${analysis.signal === 'BUY' ? '🟢 AL' : 
+                                          analysis.signal === 'SELL' ? '🔴 SAT' : 
+                                          '⚪ BEKLE'}
                                     </span>
                                 </td>
                                 <td class="py-2">
-                                    <span class="${a.trend === 'BULLISH' ? 'text-green-400' : 
-                                                  a.trend === 'BEARISH' ? 'text-red-400' : 
+                                    <span class="${analysis.signal_strength === 'STRONG' ? 'strength-strong' : 
+                                                  analysis.signal_strength === 'MODERATE' ? 'strength-moderate' : 
+                                                  'strength-weak'} text-sm">
+                                        ${analysis.signal_strength}
+                                    </span>
+                                </td>
+                                <td class="py-2">%${(analysis.confidence * 100).toFixed(0)}</td>
+                                <td class="py-2">%${(analysis.position_size * 100).toFixed(0)}</td>
+                                <td class="py-2">
+                                    <span class="${analysis.global_trend === 'BULLISH' ? 'text-green-400' : 
+                                                  analysis.global_trend === 'BEARISH' ? 'text-red-400' : 
                                                   'text-yellow-400'} text-sm">
-                                        ${a.trend === 'BULLISH' ? '↗️' : 
-                                          a.trend === 'BEARISH' ? '↘️' : 
-                                          '→'} ${a.strength}
+                                        ${analysis.global_trend}
                                     </span>
                                 </td>
                                 <td class="py-2">
-                                    <span class="${a.rsi > 70 ? 'text-red-400' : 
-                                                  a.rsi < 30 ? 'text-green-400' : 
-                                                  'text-gray-400'}">
-                                        ${a.rsi ? a.rsi.toFixed(0) : '-'}
+                                    <span class="${analysis.currency_risk === 'LOW' ? 'text-green-400' : 
+                                                  analysis.currency_risk === 'MEDIUM' ? 'text-yellow-400' : 
+                                                  analysis.currency_risk === 'HIGH' ? 'text-red-400' : 
+                                                  'text-red-600'} text-sm">
+                                        ${analysis.currency_risk}
                                     </span>
                                 </td>
-                                <td class="py-2">
-                                    ${a.signal ? `<span class="${a.signal === 'BUY' ? 'text-green-400' : 'text-red-400'} font-bold">
-                                        ${a.signal === 'BUY' ? 'AL' : 'SAT'}
-                                    </span>` : '-'}
-                                </td>
-                                <td class="py-2">${a.confidence ? `%${(a.confidence * 100).toFixed(0)}` : '-'}</td>
-                                <td class="py-2">
-                                    <span class="text-xs ${a.risk_level === 'LOW' ? 'text-green-400' : 
-                                                          a.risk_level === 'MEDIUM' ? 'text-yellow-400' : 
-                                                          a.risk_level === 'HIGH' ? 'text-red-400' : 
-                                                          'text-gray-400'}">
-                                        ${a.risk_level || '-'}
-                                    </span>
-                                </td>
+                                <td class="py-2">${analysis.risk_reward_ratio ? analysis.risk_reward_ratio.toFixed(2) : '-'}</td>
                             </tr>
-                        `).join('');
-                        document.getElementById('analysis-history').innerHTML = historyHtml;
-                    } else {
-                        document.getElementById('analysis-history').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-400">Henüz veri yok</td></tr>';
-                    }
+                        `;
+                    }).join('');
+                    
+                    document.getElementById('hybrid-analysis-history').innerHTML = historyHtml;
+                } else {
+                    document.getElementById('hybrid-analysis-history').innerHTML = 
+                        '<tr><td colspan="10" class="text-center py-4 text-gray-400">Henüz hibrit analiz yok</td></tr>';
+                }
                 
                 // Son analiz zamanı
                 document.getElementById('last-analysis-time').textContent = 
-                    new Date().toLocaleTimeString('tr-TR');
-                    
-                } catch (error) {
-                    console.error('Analiz geçmişi yüklenemedi:', error);
-                    document.getElementById('analysis-history').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-400">Yüklenemedi</td></tr>';
-                }
+                    new Date(Date.now() + (3 * 60 * 60 * 1000)).toLocaleTimeString('tr-TR');
                     
             } catch (error) {
-                console.error('Analiz verileri yüklenemedi:', error);
+                console.error('Hibrit analiz verileri yüklenemedi:', error);
+                document.getElementById('hybrid-analysis-history').innerHTML = 
+                    '<tr><td colspan="10" class="text-center py-4 text-red-400">Yüklenemedi</td></tr>';
+            }
+        }
+
+        // Mevcut analizi güncelle
+        function updateCurrentAnalysis(analysis) {
+            // Ana metrikler
+            const signalClass = analysis.signal === 'BUY' ? 'signal-buy' : 
+                               analysis.signal === 'SELL' ? 'signal-sell' : 'signal-hold';
+            const signalText = analysis.signal === 'BUY' ? '🟢 ALIŞ' : 
+                              analysis.signal === 'SELL' ? '🔴 SATIŞ' : '⚪ BEKLE';
+            
+            document.getElementById('current-signal').className = `text-3xl font-bold ${signalClass}`;
+            document.getElementById('current-signal').textContent = signalText;
+            document.getElementById('current-confidence').textContent = `%${(analysis.confidence * 100).toFixed(0)}`;
+            document.getElementById('current-position').textContent = `%${(analysis.position_size * 100).toFixed(0)}`;
+            
+            // Global trend
+            const globalTrendClass = analysis.global_trend === 'BULLISH' ? 'text-green-400' : 
+                                   analysis.global_trend === 'BEARISH' ? 'text-red-400' : 'text-yellow-400';
+            document.getElementById('current-global-trend').className = `text-xl font-bold ${globalTrendClass}`;
+            document.getElementById('current-global-trend').textContent = 
+                `${analysis.global_trend} (${analysis.global_trend_strength})`;
+            
+            // Kur riski
+            const currencyRiskClass = analysis.currency_risk === 'LOW' ? 'text-green-400' : 
+                                    analysis.currency_risk === 'MEDIUM' ? 'text-yellow-400' : 
+                                    analysis.currency_risk === 'HIGH' ? 'text-red-400' : 'text-red-600';
+            document.getElementById('current-currency-risk').className = `text-xl font-bold ${currencyRiskClass}`;
+            document.getElementById('current-currency-risk').textContent = analysis.currency_risk;
+            
+            // Risk/Ödül
+            document.getElementById('current-risk-reward').textContent = 
+                analysis.risk_reward_ratio ? `1:${analysis.risk_reward_ratio.toFixed(2)}` : '-';
+            
+            // Özet ve öneriler
+            document.getElementById('current-summary').textContent = analysis.summary;
+            
+            if (analysis.recommendations && analysis.recommendations.length > 0) {
+                const recommendationsHtml = analysis.recommendations.map(rec => 
+                    `<li class="mb-1">• ${rec}</li>`
+                ).join('');
+                document.getElementById('current-recommendations').innerHTML = recommendationsHtml;
+            } else {
+                document.getElementById('current-recommendations').innerHTML = '<li>Öneri yok</li>';
+            }
+            
+            // Detay analizleri
+            if (analysis.details) {
+                updateDetailedAnalysis(analysis.details);
+            }
+            
+            // Stop loss ve take profit
+            document.getElementById('gram-stop-loss').textContent = 
+                analysis.stop_loss ? `₺${analysis.stop_loss.toFixed(2)}` : '-';
+            document.getElementById('gram-take-profit').textContent = 
+                analysis.take_profit ? `₺${analysis.take_profit.toFixed(2)}` : '-';
+            
+            // Gram altın fiyatı
+            document.getElementById('gram-price').textContent = `₺${analysis.price.toFixed(2)}`;
+        }
+
+        // Detaylı analiz bileşenlerini güncelle
+        function updateDetailedAnalysis(details) {
+            // Gram altın detayları
+            if (details.gram) {
+                const gram = details.gram;
+                document.getElementById('gram-trend').textContent = gram.trend || '-';
+                document.getElementById('gram-rsi').textContent = gram.rsi ? gram.rsi.toFixed(1) : '-';
+                document.getElementById('gram-signal').textContent = gram.signal || '-';
+            }
+            
+            // Global trend detayları
+            if (details.global) {
+                const global = details.global;
+                document.getElementById('global-direction').textContent = global.trend_direction || '-';
+                document.getElementById('global-strength').textContent = global.trend_strength || '-';
+                document.getElementById('global-momentum').textContent = global.momentum?.signal || '-';
+                document.getElementById('global-volatility').textContent = global.volatility?.level || '-';
+                document.getElementById('global-supportive').textContent = global.supportive ? 'Evet' : 'Hayır';
+            }
+            
+            // Kur riski detayları
+            if (details.currency) {
+                const currency = details.currency;
+                document.getElementById('currency-risk-level').textContent = currency.risk_level || '-';
+                document.getElementById('currency-volatility').textContent = currency.volatility?.level || '-';
+                document.getElementById('currency-multiplier').textContent = 
+                    currency.position_size_multiplier ? `x${currency.position_size_multiplier.toFixed(2)}` : '-';
+                document.getElementById('intervention-risk').textContent = 
+                    currency.intervention_risk?.has_risk ? 'Var' : 'Yok';
+                document.getElementById('currency-trend-align').textContent = 
+                    currency.trend_alignment ? 'Uyumlu' : 'Uyumsuz';
             }
         }
 
         // Sayfa yüklendiğinde
-        loadConfig();
-        loadAnalysisData();
+        loadHybridAnalysisData();
         
         // Timeframe değişimi
         document.getElementById('timeframe-selector').addEventListener('change', function() {
-            loadAnalysisData();
+            loadHybridAnalysisData();
         });
         
         // Her 30 saniyede bir güncelle
-        setInterval(loadAnalysisData, 30000);
+        setInterval(loadHybridAnalysisData, 30000);
     </script>
 </body>
 </html>
