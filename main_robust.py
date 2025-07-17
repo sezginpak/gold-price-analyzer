@@ -103,11 +103,27 @@ class RobustGoldPriceAnalyzer:
             
             self.logger.info(f"Starting {timeframe} analysis - Price: {price_data.ons_try}")
             
-            # OHLC mumları al
-            candles = self.storage.generate_candles(candle_minutes, 100)
+            # Timeframe'e göre minimum mum sayısını belirle
+            min_candles_map = {
+                "15m": 50,  # 12.5 saat
+                "1h": 24,   # 1 gün
+                "4h": 12,   # 2 gün
+                "1d": 7     # 1 hafta
+            }
+            min_candles = min_candles_map.get(timeframe, 50)
             
-            if len(candles) < 50:
-                self.logger.warning(f"Not enough candles for {timeframe} analysis: {len(candles)} (need 50)")
+            # OHLC mumları al (ideal mum sayısı kadar)
+            ideal_candles_map = {
+                "15m": 100,  # 25 saat
+                "1h": 72,    # 3 gün
+                "4h": 30,    # 5 gün
+                "1d": 20     # 20 gün
+            }
+            ideal_candles = ideal_candles_map.get(timeframe, 100)
+            candles = self.storage.generate_candles(candle_minutes, ideal_candles)
+            
+            if len(candles) < min_candles:
+                self.logger.warning(f"Not enough candles for {timeframe} analysis: {len(candles)} (need {min_candles})")
                 return
             
             # Detaylı analiz yap ve kaydet
