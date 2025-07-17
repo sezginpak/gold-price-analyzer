@@ -124,9 +124,12 @@ class RobustGoldPriceAnalyzer:
                 self._save_signal_to_file(signal, price_data)
             
             # Analiz özeti logla
+            rsi_value = analysis.indicators.rsi if analysis.indicators and analysis.indicators.rsi else None
+            rsi_str = f"{rsi_value:.1f}" if rsi_value is not None else "N/A"
+            
             self.logger.info(
                 f"Analysis completed: {analysis.trend.value} trend ({analysis.trend_strength.value}), "
-                f"RSI: {analysis.indicators.rsi:.1f if analysis.indicators and analysis.indicators.rsi else 'N/A'}, "
+                f"RSI: {rsi_str}, "
                 f"Signal: {analysis.signal or 'None'}"
             )
                 
