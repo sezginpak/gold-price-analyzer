@@ -144,14 +144,26 @@ class RobustGoldPriceAnalyzer:
                 self._save_signal_to_file(signal, price_data)
             
             # Analiz özeti logla
-            rsi_value = analysis.indicators.rsi if analysis.indicators and analysis.indicators.rsi else None
-            rsi_str = f"{rsi_value:.1f}" if rsi_value is not None else "N/A"
-            
-            self.logger.info(
-                f"Analysis completed: {analysis.trend.value} trend ({analysis.trend_strength.value}), "
-                f"RSI: {rsi_str}, "
-                f"Signal: {analysis.signal or 'None'}"
-            )
+            try:
+                rsi_value = None
+                if analysis.indicators and hasattr(analysis.indicators, 'rsi'):
+                    rsi_value = analysis.indicators.rsi
+                
+                rsi_str = "N/A"
+                if rsi_value is not None:
+                    try:
+                        rsi_str = f"{float(rsi_value):.1f}"
+                    except:
+                        rsi_str = str(rsi_value)
+                
+                self.logger.info(
+                    f"Analysis completed: {analysis.trend.value} trend ({analysis.trend_strength.value}), "
+                    f"RSI: {rsi_str}, "
+                    f"Signal: {analysis.signal or 'None'}"
+                )
+            except Exception as log_error:
+                # Loglama hatası analizi etkilemesin
+                self.logger.info("Analysis completed but logging error occurred")
                 
         except Exception as e:
             self.error_count += 1
