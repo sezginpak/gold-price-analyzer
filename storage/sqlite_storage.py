@@ -564,6 +564,14 @@ class SQLiteStorage:
             
             return results
     
+    def _json_serializer(self, obj):
+        """Custom JSON serializer for datetime and Decimal objects"""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, Decimal):
+            return float(obj)
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    
     def save_hybrid_analysis(self, analysis: Dict[str, Any]):
         """Hibrit analiz sonucunu kaydet"""
         with self.get_connection() as conn:
@@ -594,9 +602,9 @@ class SQLiteStorage:
                 analysis["currency_risk"].get("position_size_multiplier"),
                 json.dumps(analysis["recommendations"]),
                 analysis["summary"],
-                json.dumps(analysis["gram_analysis"]),
-                json.dumps(analysis["global_trend"]),
-                json.dumps(analysis["currency_risk"])
+                json.dumps(analysis["gram_analysis"], default=self._json_serializer),
+                json.dumps(analysis["global_trend"], default=self._json_serializer),
+                json.dumps(analysis["currency_risk"], default=self._json_serializer)
             ))
             
             logger.info(f"Hybrid analysis saved: {analysis['signal']} - {analysis['signal_strength']} - Confidence: {analysis['confidence']:.2%}")

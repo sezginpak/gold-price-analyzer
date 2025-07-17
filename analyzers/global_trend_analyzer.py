@@ -174,11 +174,12 @@ class GlobalTrendAnalyzer:
     
     def _calculate_volatility(self, prices: List[float]) -> Dict[str, float]:
         """Volatilite hesapla"""
-        if len(prices) < 20:
+        if len(prices) < 21:
             return {"daily": 0, "level": "LOW"}
         
         # Günlük getiriler
-        returns = np.diff(prices[-20:]) / prices[-21:-1]
+        recent_prices = prices[-21:]
+        returns = np.diff(recent_prices) / recent_prices[:-1]
         daily_vol = np.std(returns) * 100
         
         # Volatilite seviyesi

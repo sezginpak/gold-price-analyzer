@@ -51,9 +51,9 @@ class GramAltinAnalyzer:
             
             # Teknik göstergeler
             rsi_value, rsi_signal = self.rsi.calculate(prices)
-            macd_result = self.macd.calculate(prices)
-            bb_result = self.bollinger.calculate(prices)
-            stoch_result = self.stochastic.calculate(high_prices, low_prices, prices)
+            macd_result = self.macd.calculate(candles)
+            bb_result = self.bollinger.calculate(candles)
+            stoch_result = self.stochastic.calculate(candles)
             atr_value = self.atr.calculate(high_prices, low_prices, prices)
             patterns = self.pattern_recognition.identify_patterns(candles)
             
