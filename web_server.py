@@ -105,6 +105,33 @@ async def get_latest_prices():
     }
 
 
+@app.get("/api/gram-candles/{interval}")
+async def get_gram_candles(interval: str):
+    """Gram altın OHLC mum verileri"""
+    interval_map = {
+        "15m": 15,
+        "1h": 60,
+        "4h": 240,
+        "1d": 1440
+    }
+    
+    minutes = interval_map.get(interval, 60)
+    candles = storage.generate_gram_candles(minutes, 100)
+    
+    return {
+        "candles": [
+            {
+                "timestamp": c.timestamp.isoformat(),
+                "open": float(c.open),
+                "high": float(c.high),
+                "low": float(c.low),
+                "close": float(c.close)
+            }
+            for c in candles
+        ]
+    }
+
+
 @app.get("/api/candles/{interval}")
 async def get_candles(interval: str):
     """OHLC mum verileri"""
@@ -253,44 +280,41 @@ async def get_recent_errors(count: int = 10):
 
 @app.get("/api/analysis/history")
 async def get_analysis_history(timeframe: str = None):
-    """Son analiz sonuçlarını döndür - GERÇEK VERİ"""
+    """Son hibrit analiz sonuçlarını döndür"""
     try:
-        # Gerçek analiz verilerini al
-        analyses = storage.get_analysis_history(limit=20, timeframe=timeframe)
+        # Hibrit analiz verilerini al
+        analyses = storage.get_hybrid_analysis_history(limit=20, timeframe=timeframe)
         
         # API formatına dönüştür
         formatted_analyses = []
         for analysis in analyses:
             formatted_analyses.append({
-                "timestamp": analysis.timestamp.isoformat(),
-                "timeframe": analysis.timeframe,
-                "price": float(analysis.price),
-                "price_change": float(analysis.price_change) if analysis.price_change else 0,
-                "price_change_pct": analysis.price_change_pct,
-                "trend": analysis.trend.value,
-                "trend_strength": analysis.trend_strength.value,
-                "strength": "Güçlü" if analysis.trend_strength.value == "STRONG" else 
-                           "Orta" if analysis.trend_strength.value == "MODERATE" else "Zayıf",
-                "signal": analysis.signal,
-                "confidence": analysis.confidence,
-                "rsi": analysis.indicators.rsi if analysis.indicators else None,
-                "indicators": analysis.to_dict()["indicators"] if analysis.indicators else None,
-                "support_levels": [
-                    {"level": float(s.level), "strength": s.strength}
-                    for s in analysis.support_levels
-                ],
-                "resistance_levels": [
-                    {"level": float(r.level), "strength": r.strength}
-                    for r in analysis.resistance_levels
-                ],
-                "risk_level": analysis.risk_level,
-                "analysis_details": analysis.analysis_details
+                "timestamp": analysis["timestamp"].isoformat(),
+                "timeframe": analysis["timeframe"],
+                "price": float(analysis["gram_price"]),
+                "signal": analysis["signal"],
+                "signal_strength": analysis["signal_strength"],
+                "confidence": analysis["confidence"],
+                "position_size": analysis["position_size"]["recommended_size"],
+                "stop_loss": float(analysis["stop_loss"]) if analysis["stop_loss"] else None,
+                "take_profit": float(analysis["take_profit"]) if analysis["take_profit"] else None,
+                "risk_reward_ratio": analysis["risk_reward_ratio"],
+                "global_trend": analysis["global_trend"]["direction"],
+                "global_trend_strength": analysis["global_trend"]["strength"],
+                "currency_risk": analysis["currency_risk"]["level"],
+                "recommendations": analysis["recommendations"],
+                "summary": analysis["summary"],
+                "details": {
+                    "gram": analysis["details"]["gram"],
+                    "global": analysis["details"]["global"],
+                    "currency": analysis["details"]["currency"]
+                }
             })
         
         return {"analyses": formatted_analyses}
         
     except Exception as e:
-        logger.error(f"Error getting analysis history: {e}")
+        logger.error(f"Error getting hybrid analysis history: {e}")
         # Hata durumunda boş liste dön
         return {"analyses": []}
 

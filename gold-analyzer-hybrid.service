@@ -1,0 +1,19 @@
+[Unit]
+Description=Gold Price Analyzer Hybrid Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/gold_price_analyzer
+Environment="PATH=/usr/bin:/usr/local/bin"
+ExecStart=/usr/bin/python3 main_hybrid.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/root/gold_price_analyzer/logs/service.log
+StandardError=append:/root/gold_price_analyzer/logs/service-error.log
+
+[Install]
+WantedBy=multi-user.target

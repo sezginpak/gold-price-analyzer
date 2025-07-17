@@ -71,6 +71,23 @@ class SQLiteStorage:
                 )
             """)
             
+            # Gram altın mum tablosu
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS gram_candles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME NOT NULL,
+                    interval TEXT NOT NULL,
+                    open REAL NOT NULL,
+                    high REAL NOT NULL,
+                    low REAL NOT NULL,
+                    close REAL NOT NULL,
+                    volume REAL,
+                    tick_count INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(timestamp, interval)
+                )
+            """)
+            
             # Sinyal tablosu
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS trading_signals (
@@ -120,11 +137,40 @@ class SQLiteStorage:
                 )
             """)
             
+            # Hibrit analiz sonuçları tablosu
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS hybrid_analysis (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME NOT NULL,
+                    timeframe TEXT DEFAULT '15m',
+                    gram_price REAL NOT NULL,
+                    signal TEXT NOT NULL,
+                    signal_strength TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    position_size REAL NOT NULL,
+                    stop_loss REAL,
+                    take_profit REAL,
+                    risk_reward_ratio REAL,
+                    global_trend TEXT,
+                    global_trend_strength TEXT,
+                    currency_risk_level TEXT,
+                    position_multiplier REAL,
+                    recommendations TEXT,  -- JSON
+                    analysis_summary TEXT,
+                    gram_analysis TEXT,  -- JSON
+                    global_analysis TEXT,  -- JSON
+                    currency_analysis TEXT,  -- JSON
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             # Index'ler
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_timestamp ON price_data(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_candle_timestamp ON price_candles(timestamp, interval)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_gram_candle_timestamp ON gram_candles(timestamp, interval)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_signal_timestamp ON trading_signals(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_analysis_timestamp ON analysis_results(timestamp)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_hybrid_timestamp ON hybrid_analysis(timestamp)")
             
             # Eksik kolonları kontrol et ve ekle
             self._check_and_add_missing_columns(cursor)
@@ -298,6 +344,79 @@ class SQLiteStorage:
             
             return list(reversed(candles))  # Eski->Yeni sıralama
     
+    def generate_gram_candles(self, interval_minutes: int, limit: int = 100) -> List[PriceCandle]:
+        """Gram altın için OHLC mumları oluştur"""
+        interval_map = {
+            15: "15m",
+            60: "1h",
+            240: "4h",
+            1440: "1d"
+        }
+        
+        interval_str = interval_map.get(interval_minutes, f"{interval_minutes}m")
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Gram altın fiyatları üzerinden gruplama
+            cursor.execute(f"""
+                WITH grouped_data AS (
+                    SELECT 
+                        datetime(
+                            strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 
+                            'unixepoch'
+                        ) as candle_time,
+                        gram_altin,
+                        timestamp,
+                        ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp ASC) as rn_first,
+                        ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp DESC) as rn_last
+                    FROM price_data
+                    WHERE gram_altin IS NOT NULL
+                )
+                SELECT 
+                    candle_time,
+                    MIN(gram_altin) as low,
+                    MAX(gram_altin) as high,
+                    MAX(CASE WHEN rn_first = 1 THEN gram_altin END) as open,
+                    MAX(CASE WHEN rn_last = 1 THEN gram_altin END) as close,
+                    COUNT(*) as tick_count
+                FROM grouped_data
+                GROUP BY candle_time
+                ORDER BY candle_time DESC
+                LIMIT ?
+            """, (limit,))
+            
+            candles = []
+            for row in cursor.fetchall():
+                if row['open'] and row['high'] and row['low'] and row['close']:
+                    candle = PriceCandle(
+                        timestamp=datetime.fromisoformat(row['candle_time']),
+                        open=Decimal(str(row['open'])),
+                        high=Decimal(str(row['high'])),
+                        low=Decimal(str(row['low'])),
+                        close=Decimal(str(row['close'])),
+                        interval=interval_str
+                    )
+                    candles.append(candle)
+            
+            # Mumları gram_candles tablosuna da kaydet
+            for candle in candles:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO gram_candles 
+                    (timestamp, interval, open, high, low, close, tick_count)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    candle.timestamp,
+                    candle.interval,
+                    float(candle.open),
+                    float(candle.high),
+                    float(candle.low),
+                    float(candle.close),
+                    row['tick_count'] if 'tick_count' in locals() else 0
+                ))
+            
+            return list(reversed(candles))  # Eski->Yeni sıralama
+    
     def cleanup_old_data(self, days_to_keep: int = 30):
         """Eski verileri temizle"""
         cutoff_date = datetime.now() - timedelta(days=days_to_keep)
@@ -436,6 +555,83 @@ class SQLiteStorage:
             
             return results
     
+    def save_hybrid_analysis(self, analysis: Dict[str, Any]):
+        """Hibrit analiz sonucunu kaydet"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO hybrid_analysis (
+                    timestamp, timeframe, gram_price, signal, signal_strength,
+                    confidence, position_size, stop_loss, take_profit,
+                    risk_reward_ratio, global_trend, global_trend_strength,
+                    currency_risk_level, position_multiplier, recommendations,
+                    analysis_summary, gram_analysis, global_analysis, currency_analysis
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                analysis["timestamp"],
+                analysis.get("timeframe", "15m"),
+                float(analysis["gram_price"]) if analysis["gram_price"] else 0,
+                analysis["signal"],
+                analysis["signal_strength"],
+                analysis["confidence"],
+                analysis["position_size"]["recommended_size"],
+                float(analysis["stop_loss"]) if analysis.get("stop_loss") else None,
+                float(analysis["take_profit"]) if analysis.get("take_profit") else None,
+                analysis.get("risk_reward_ratio"),
+                analysis["global_trend"].get("trend_direction"),
+                analysis["global_trend"].get("trend_strength"),
+                analysis["currency_risk"].get("risk_level"),
+                analysis["currency_risk"].get("position_size_multiplier"),
+                json.dumps(analysis["recommendations"]),
+                analysis["summary"],
+                json.dumps(analysis["gram_analysis"]),
+                json.dumps(analysis["global_trend"]),
+                json.dumps(analysis["currency_risk"])
+            ))
+            
+            logger.info(f"Hybrid analysis saved: {analysis['signal']} - {analysis['signal_strength']} - Confidence: {analysis['confidence']:.2%}")
+    
+    def get_latest_hybrid_analysis(self) -> Optional[Dict[str, Any]]:
+        """En son hibrit analiz sonucunu getir"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM hybrid_analysis 
+                ORDER BY timestamp DESC 
+                LIMIT 1
+            """)
+            
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_hybrid_analysis(row)
+            return None
+    
+    def get_hybrid_analysis_history(self, limit: int = 10, timeframe: str = None) -> List[Dict[str, Any]]:
+        """Son hibrit analiz sonuçlarını getir"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            if timeframe:
+                cursor.execute("""
+                    SELECT * FROM hybrid_analysis 
+                    WHERE timeframe = ?
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                """, (timeframe, limit))
+            else:
+                cursor.execute("""
+                    SELECT * FROM hybrid_analysis 
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                """, (limit,))
+            
+            results = []
+            for row in cursor.fetchall():
+                results.append(self._row_to_hybrid_analysis(row))
+            
+            return results
+    
     def _row_to_analysis_result(self, row) -> AnalysisResult:
         """Veritabanı satırını AnalysisResult nesnesine dönüştür"""
         from models.analysis_result import TechnicalIndicators, SupportResistanceLevel
@@ -492,3 +688,36 @@ class SQLiteStorage:
             take_profit=Decimal(str(row['take_profit'])) if row['take_profit'] else None,
             analysis_details=json.loads(row['analysis_details']) if row['analysis_details'] else {}
         )
+    
+    def _row_to_hybrid_analysis(self, row) -> Dict[str, Any]:
+        """Veritabanı satırını hibrit analiz dict'ine dönüştür"""
+        return {
+            "id": row["id"],
+            "timestamp": datetime.fromisoformat(row["timestamp"]),
+            "timeframe": row["timeframe"],
+            "gram_price": Decimal(str(row["gram_price"])),
+            "signal": row["signal"],
+            "signal_strength": row["signal_strength"],
+            "confidence": row["confidence"],
+            "position_size": {
+                "recommended_size": row["position_size"],
+                "multiplier": row["position_multiplier"]
+            },
+            "stop_loss": Decimal(str(row["stop_loss"])) if row["stop_loss"] else None,
+            "take_profit": Decimal(str(row["take_profit"])) if row["take_profit"] else None,
+            "risk_reward_ratio": row["risk_reward_ratio"],
+            "global_trend": {
+                "direction": row["global_trend"],
+                "strength": row["global_trend_strength"]
+            },
+            "currency_risk": {
+                "level": row["currency_risk_level"]
+            },
+            "recommendations": json.loads(row["recommendations"]) if row["recommendations"] else [],
+            "summary": row["analysis_summary"],
+            "details": {
+                "gram": json.loads(row["gram_analysis"]) if row["gram_analysis"] else {},
+                "global": json.loads(row["global_analysis"]) if row["global_analysis"] else {},
+                "currency": json.loads(row["currency_analysis"]) if row["currency_analysis"] else {}
+            }
+        }
