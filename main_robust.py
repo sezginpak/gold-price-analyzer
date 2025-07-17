@@ -101,11 +101,7 @@ class RobustGoldPriceAnalyzer:
             self.stats["total_price_updates"] += 1
             self.stats["last_price_update"] = datetime.now()
             
-            # Her 12 update'de bir analiz (60 saniye)
-            if self.stats["total_price_updates"] % 12 != 0:
-                return
-            
-            self.logger.info(f"Starting analysis - Update count: {self.stats['total_price_updates']}, Price: {price_data.ons_try}")
+            self.logger.info(f"Starting {timeframe} analysis - Price: {price_data.ons_try}")
             
             # OHLC mumları al
             candles = self.storage.generate_candles(candle_minutes, 100)
@@ -118,12 +114,9 @@ class RobustGoldPriceAnalyzer:
             analysis = self.signal_generator.analyze_and_save(
                 price_data,
                 candles,
-                settings.risk_tolerance
+                settings.risk_tolerance,
+                timeframe=timeframe
             )
-            
-            # Timeframe bilgisini ekle
-            if analysis:
-                analysis.timeframe = timeframe
             
             # Sinyal varsa göster
             if analysis.signal:

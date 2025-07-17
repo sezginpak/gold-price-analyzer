@@ -191,7 +191,8 @@ class SignalGenerator:
         self, 
         current_price: PriceData,
         candles: List[PriceCandle],
-        risk_tolerance: str = "medium"
+        risk_tolerance: str = "medium",
+        timeframe: str = "15m"
     ) -> AnalysisResult:
         """Detaylı analiz yap ve kaydet"""
         
@@ -323,6 +324,7 @@ class SignalGenerator:
         # AnalysisResult oluştur
         analysis = AnalysisResult(
             timestamp=datetime.now(),
+            timeframe=timeframe,  # Timeframe bilgisini ekle
             price=current_price.ons_try,
             price_change=price_change,
             price_change_pct=price_change_pct,
