@@ -123,7 +123,7 @@ class GramAltinAnalyzer:
         elif current_price < ma20 and not macd_bullish:
             trend = TrendType.BEARISH
         else:
-            trend = TrendType.SIDEWAYS
+            trend = TrendType.NEUTRAL
         
         # Trend gücü
         price_distance = abs((current_price - ma20) / ma20 * 100)
@@ -289,7 +289,7 @@ class GramAltinAnalyzer:
         return {
             "timestamp": datetime.utcnow(),
             "price": None,
-            "trend": TrendType.SIDEWAYS,
+            "trend": TrendType.NEUTRAL,
             "trend_strength": TrendStrength.WEAK,
             "indicators": {},
             "patterns": [],

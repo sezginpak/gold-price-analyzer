@@ -105,7 +105,7 @@ class HybridStrategy:
         # Temel sinyaller
         gram_signal = gram.get("signal", "HOLD")
         gram_confidence = gram.get("confidence", 0)
-        global_direction = global_trend.get("trend_direction", "SIDEWAYS")
+        global_direction = global_trend.get("trend_direction", "NEUTRAL")
         risk_level = currency.get("risk_level", "MEDIUM")
         
         # Sinyal puanları
@@ -273,7 +273,7 @@ class HybridStrategy:
             parts.append("Bekleme pozisyonunda kalın")
         
         # Gram altın durumu
-        gram_trend = gram.get("trend", "SIDEWAYS")
+        gram_trend = gram.get("trend", "NEUTRAL")
         parts.append(f"Gram altın {gram_trend} trendinde")
         
         # Global durum

@@ -101,7 +101,7 @@ class GlobalTrendAnalyzer:
             elif current_price < ma50 < ma200:
                 direction = "BEARISH"
             else:
-                direction = "SIDEWAYS"
+                direction = "NEUTRAL"
         elif ma50:
             if current_price > ma50:
                 direction = "BULLISH"
@@ -115,7 +115,7 @@ class GlobalTrendAnalyzer:
             elif recent_trend < -2:
                 direction = "BEARISH"
             else:
-                direction = "SIDEWAYS"
+                direction = "NEUTRAL"
         
         # Trend gücü
         strength = self._calculate_trend_strength(prices, ma_values)
@@ -243,7 +243,7 @@ class GlobalTrendAnalyzer:
             return "Global trend gram altın alımını destekliyor"
         elif direction == "BEARISH" and "BEARISH" in momentum_signal:
             return "Global trend satış yönünde, dikkatli olun"
-        elif direction == "SIDEWAYS":
+        elif direction == "NEUTRAL":
             return "Global trend yatay, yerel fiyat hareketlerine odaklanın"
         else:
             return "Karışık sinyaller, pozisyon boyutunu azaltın"

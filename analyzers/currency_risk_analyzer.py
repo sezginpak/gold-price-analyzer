@@ -166,7 +166,7 @@ class CurrencyRiskAnalyzer:
         elif current < ma10 < ma20:
             direction = "DOWNTREND"
         else:
-            direction = "SIDEWAYS"
+            direction = "NEUTRAL"
         
         # Trend gücü
         if len(values) >= 20:
