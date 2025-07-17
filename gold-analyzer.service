@@ -1,27 +1,19 @@
 [Unit]
-Description=Gold Price Analyzer Service
+Description=Gold Price Analyzer Hybrid Service
 After=network.target
 
 [Service]
 Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/gold_price_analyzer
-Environment="PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin"
-Environment="PYTHONUNBUFFERED=1"
-Environment="LOG_LEVEL=INFO"
-ExecStart=/usr/bin/python3 /home/ubuntu/gold_price_analyzer/main_robust.py
+User=root
+WorkingDirectory=/root/gold_price_analyzer
+Environment="PATH=/usr/bin:/usr/local/bin"
+ExecStart=/usr/bin/python3 main.py
 Restart=always
-RestartSec=30
-StandardOutput=append:/home/ubuntu/gold_price_analyzer/logs/service.log
-StandardError=append:/home/ubuntu/gold_price_analyzer/logs/service_error.log
+RestartSec=10
 
-# Restart settings
-StartLimitInterval=300
-StartLimitBurst=5
-
-# Resource limits
-MemoryLimit=512M
-CPUQuota=50%
+# Logging
+StandardOutput=append:/root/gold_price_analyzer/logs/service.log
+StandardError=append:/root/gold_price_analyzer/logs/service-error.log
 
 [Install]
 WantedBy=multi-user.target

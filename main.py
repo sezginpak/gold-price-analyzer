@@ -1,21 +1,22 @@
 """
-Gold Price Analyzer - Ana uygulama
+Gold Price Analyzer - Hibrit Sistem Ana Uygulama
 """
 import asyncio
 import signal
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from services.harem_altin_service import HaremAltinPriceService
-
 from collectors.harem_price_collector import HaremPriceCollector
-from analyzers.signal_generator import SignalGenerator
 from storage.sqlite_storage import SQLiteStorage
-from models.price_data import PriceData, PriceCandle
+from models.price_data import PriceData
+from models.market_data import GramAltinCandle
+from strategies.hybrid_strategy import HybridStrategy
 from config import settings
+from analyzers.timeframe_analyzer import TimeframeAnalyzer
 
 # Logging ayarları
 logging.basicConfig(
@@ -25,8 +26,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class GoldPriceAnalyzer:
-    """Ana analiz sistemi"""
+class HybridGoldAnalyzer:
+    """Hibrit analiz sistemi - Gram altın odaklı"""
     
     def __init__(self):
         # HaremAltin servisi
@@ -38,72 +39,150 @@ class GoldPriceAnalyzer:
         # Storage
         self.storage = SQLiteStorage()
         
-        # Signal generator
-        self.signal_generator = SignalGenerator(min_confidence=settings.min_confidence_score)
+        # Hibrit strateji
+        self.strategy = HybridStrategy()
         
-        # Analiz için buffer
-        self.analysis_counter = 0
-        self.analysis_interval = 12  # Her 12 update'de bir analiz (60 saniye)
+        # Timeframe analyzer (farklı zaman dilimleri için)
+        self.timeframe_analyzer = TimeframeAnalyzer(self.storage)
         
-        # Sinyal geçmişi
-        self.recent_signals = []
-        self.max_signal_history = 10
+        # Son analiz zamanları
+        self.last_analysis_times = {
+            "15m": datetime.min,
+            "1h": datetime.min,
+            "4h": datetime.min,
+            "1d": datetime.min
+        }
+        
+        # Analiz aralıkları (dakika)
+        self.analysis_intervals = {
+            "15m": 15,
+            "1h": 60,
+            "4h": 240,
+            "1d": 1440
+        }
         
     async def analyze_price(self, price_data: PriceData):
-        """Fiyat analizi yap"""
-        self.analysis_counter += 1
-        
-        # Her analysis_interval'de bir analiz yap
-        if self.analysis_counter % self.analysis_interval != 0:
-            return
-            
+        """Fiyat verisi geldiğinde analiz yap"""
         try:
-            # Son 100 mumu al (15 dakikalık)
-            candles_15m = self.storage.generate_candles(15, 100)
+            current_time = datetime.now()
             
-            if len(candles_15m) < 50:
-                logger.info(f"Not enough candles for analysis: {len(candles_15m)}")
+            # Her timeframe için analiz zamanı geldi mi kontrol et
+            for timeframe, interval_minutes in self.analysis_intervals.items():
+                if current_time >= self.last_analysis_times[timeframe] + timedelta(minutes=interval_minutes):
+                    await self.run_hybrid_analysis(timeframe)
+                    self.last_analysis_times[timeframe] = current_time
+                    
+        except Exception as e:
+            logger.error(f"Price analysis error: {e}", exc_info=True)
+    
+    async def run_hybrid_analysis(self, timeframe: str):
+        """Hibrit analizi çalıştır"""
+        try:
+            logger.info(f"Running hybrid analysis for {timeframe}")
+            
+            # Gerekli mum sayısı
+            candle_requirements = {
+                "15m": 100,
+                "1h": 100,
+                "4h": 60,
+                "1d": 50
+            }
+            
+            required_candles = candle_requirements.get(timeframe, 100)
+            interval_minutes = self.analysis_intervals.get(timeframe, 15)
+            
+            # Gram altın mumlarını oluştur
+            gram_candles = self.storage.generate_gram_candles(interval_minutes, required_candles)
+            
+            if len(gram_candles) < required_candles * 0.8:  # %80'i varsa analiz yap
+                logger.warning(f"Not enough gram candles for {timeframe}: {len(gram_candles)}/{required_candles}")
                 return
             
-            # Sinyal üret
-            signal = self.signal_generator.generate_signal(
-                price_data, 
-                candles_15m, 
-                settings.risk_tolerance
-            )
+            # Market data (son 200 kayıt - trend analizi için)
+            end_time = datetime.now()
+            start_time = end_time - timedelta(hours=48)
+            market_data = self.storage.get_price_range(start_time, end_time)
             
-            if signal:
-                # Sinyal geçmişine ekle
-                self.recent_signals.append(signal)
-                if len(self.recent_signals) > self.max_signal_history:
-                    self.recent_signals.pop(0)
-                
-                # Sinyali logla ve göster
-                self._display_signal(signal, price_data)
-                
-                # TODO: Burada email/SMS bildirimi gönderilebilir
-                
+            if len(market_data) < 50:
+                logger.warning(f"Not enough market data: {len(market_data)}")
+                return
+            
+            # Gram altın mumlarını model formatına çevir
+            gram_candle_models = []
+            for candle in gram_candles:
+                gram_candle_models.append(GramAltinCandle(
+                    timestamp=candle.timestamp,
+                    open=candle.open,
+                    high=candle.high,
+                    low=candle.low,
+                    close=candle.close,
+                    interval=candle.interval
+                ))
+            
+            # Hibrit analiz
+            analysis_result = self.strategy.analyze(gram_candle_models, market_data)
+            
+            # Timeframe ekle
+            analysis_result["timeframe"] = timeframe
+            
+            # Sonucu kaydet
+            self.storage.save_hybrid_analysis(analysis_result)
+            
+            # Sinyali göster
+            self._display_hybrid_signal(analysis_result, timeframe)
+            
         except Exception as e:
-            logger.error(f"Analysis error: {e}")
+            logger.error(f"Hybrid analysis error for {timeframe}: {e}", exc_info=True)
     
-    def _display_signal(self, signal, price_data):
-        """Sinyali güzel formatta göster"""
-        signal_emoji = "🟢 ALIŞ" if signal.signal_type.value == "BUY" else "🔴 SATIŞ"
+    def _display_hybrid_signal(self, analysis: Dict, timeframe: str):
+        """Hibrit analiz sonucunu göster"""
+        signal = analysis["signal"]
+        if signal == "HOLD":
+            return  # HOLD sinyallerini gösterme
         
-        print(f"\n{'='*60}")
-        print(f"⚡ {signal_emoji} SİNYALİ ⚡")
-        print(f"{'='*60}")
+        signal_emoji = "🟢 ALIŞ" if signal == "BUY" else "🔴 SATIŞ"
+        strength_emoji = {
+            "STRONG": "💪",
+            "MODERATE": "👍",
+            "WEAK": "👌"
+        }.get(analysis["signal_strength"], "")
+        
+        print(f"\n{'='*70}")
+        print(f"⚡ {signal_emoji} SİNYALİ {strength_emoji} [{timeframe}] ⚡")
+        print(f"{'='*70}")
         print(f"📅 Zaman: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"💰 Fiyat: {price_data.ons_try:.2f} TRY")
-        print(f"📊 USD/TRY: {price_data.usd_try:.4f}")
-        print(f"🎯 Hedef: {signal.target_price:.2f} TRY")
-        print(f"🛑 Stop Loss: {signal.stop_loss:.2f} TRY")
-        print(f"📈 Güven: %{signal.overall_confidence*100:.0f}")
-        print(f"⚠️  Risk: {signal.risk_level.value}")
-        print(f"\n📝 Sebepler:")
-        for reason in signal.reasons:
-            print(f"   • {reason}")
-        print(f"{'='*60}\n")
+        print(f"💰 Gram Altın: {analysis['gram_price']:.2f} TRY")
+        print(f"📊 Güven: %{analysis['confidence']*100:.0f}")
+        print(f"📈 Pozisyon: %{analysis['position_size']['recommended_size']*100:.0f}")
+        
+        if analysis.get("stop_loss"):
+            print(f"🛑 Stop Loss: {analysis['stop_loss']:.2f} TRY")
+        if analysis.get("take_profit"):
+            print(f"🎯 Hedef: {analysis['take_profit']:.2f} TRY")
+        if analysis.get("risk_reward_ratio"):
+            print(f"⚖️  Risk/Ödül: 1:{analysis['risk_reward_ratio']:.2f}")
+        
+        # Global durum
+        global_trend = analysis["global_trend"]
+        print(f"\n🌍 Global Trend: {global_trend['trend_direction']} ({global_trend['trend_strength']})")
+        
+        # Kur riski
+        currency_risk = analysis["currency_risk"]
+        risk_emoji = {
+            "LOW": "🟢",
+            "MEDIUM": "🟡",
+            "HIGH": "🔴",
+            "EXTREME": "🚨"
+        }.get(currency_risk['risk_level'], "")
+        print(f"💱 USD/TRY Risk: {risk_emoji} {currency_risk['risk_level']}")
+        
+        # Öneriler
+        print(f"\n📝 Öneriler:")
+        for rec in analysis["recommendations"]:
+            print(f"   • {rec}")
+        
+        print(f"\n📋 Özet: {analysis['summary']}")
+        print(f"{'='*70}\n")
     
     async def show_statistics(self):
         """Periyodik istatistik gösterimi"""
@@ -112,21 +191,27 @@ class GoldPriceAnalyzer:
             
             try:
                 stats = self.storage.get_statistics()
+                latest_analysis = self.storage.get_latest_hybrid_analysis()
+                
                 if stats['total_records'] > 0:
-                    print(f"\n📊 İSTATİSTİKLER")
-                    print(f"{'─'*40}")
+                    print(f"\n📊 SİSTEM İSTATİSTİKLERİ")
+                    print(f"{'─'*50}")
                     print(f"Toplam Kayıt: {stats['total_records']:,}")
-                    print(f"İlk Kayıt: {stats['oldest_record']}")
-                    print(f"Son Kayıt: {stats['newest_record']}")
-                    print(f"Ort. Fiyat: {stats['average_price']:.2f} TRY")
-                    print(f"Son {len(self.recent_signals)} Sinyal")
-                    print(f"{'─'*40}\n")
+                    print(f"Son Güncelleme: {stats['newest_record']}")
+                    
+                    if latest_analysis:
+                        print(f"\nSon Analiz:")
+                        print(f"  Sinyal: {latest_analysis['signal']} ({latest_analysis['signal_strength']})")
+                        print(f"  Güven: %{latest_analysis['confidence']*100:.0f}")
+                        print(f"  Gram Altın: {latest_analysis['gram_price']:.2f} TRY")
+                    
+                    print(f"{'─'*50}\n")
             except Exception as e:
                 logger.error(f"Statistics error: {e}")
     
     async def start(self):
         """Sistemi başlat"""
-        logger.info("Gold Price Analyzer starting...")
+        logger.info("Hybrid Gold Price Analyzer starting...")
         
         # Analiz callback'ini ekle
         self.collector.add_analysis_callback(self.analyze_price)
@@ -140,14 +225,15 @@ class GoldPriceAnalyzer:
         logger.info("System started successfully")
         
         # Başlangıç mesajı
-        print(f"\n{'='*60}")
-        print("🏆 ALTIN FİYAT ANALİZ SİSTEMİ 🏆")
-        print(f"{'='*60}")
+        print(f"\n{'='*70}")
+        print("🏆 HİBRİT ALTIN ANALİZ SİSTEMİ 🏆")
+        print(f"{'='*70}")
         print(f"✅ Sistem başlatıldı")
-        print(f"📊 Veri toplama aralığı: {self.harem_service.refresh_interval} saniye")
-        print(f"🎯 Minimum güven skoru: %{settings.min_confidence_score*100:.0f}")
-        print(f"⚠️  Risk toleransı: {settings.risk_tolerance}")
-        print(f"{'='*60}\n")
+        print(f"📊 Ana Fiyat: GRAM ALTIN")
+        print(f"🌍 Trend Belirleyici: ONS/USD")
+        print(f"💱 Risk Değerlendirme: USD/TRY")
+        print(f"🎯 Analiz Aralıkları: 15dk, 1s, 4s, Günlük")
+        print(f"{'='*70}\n")
         
     async def stop(self):
         """Sistemi durdur"""
@@ -159,7 +245,7 @@ class GoldPriceAnalyzer:
 
 async def main():
     """Ana fonksiyon"""
-    analyzer = GoldPriceAnalyzer()
+    analyzer = HybridGoldAnalyzer()
     
     # Signal handler
     def signal_handler(signum, frame):
