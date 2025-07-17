@@ -359,6 +359,7 @@ class SQLiteStorage:
             cursor = conn.cursor()
             
             # Gram altın fiyatları üzerinden gruplama
+            # Eğer gram_altin yoksa, ons_try / 31.1035 formülü ile hesapla
             cursor.execute(f"""
                 WITH grouped_data AS (
                     SELECT 
@@ -366,19 +367,22 @@ class SQLiteStorage:
                             strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 
                             'unixepoch'
                         ) as candle_time,
-                        gram_altin,
+                        CASE 
+                            WHEN gram_altin IS NOT NULL THEN gram_altin 
+                            ELSE ons_try / 31.1035 
+                        END as calculated_gram,
                         timestamp,
                         ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp ASC) as rn_first,
                         ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp DESC) as rn_last
                     FROM price_data
-                    WHERE gram_altin IS NOT NULL
+                    WHERE ons_try IS NOT NULL
                 )
                 SELECT 
                     candle_time,
-                    MIN(gram_altin) as low,
-                    MAX(gram_altin) as high,
-                    MAX(CASE WHEN rn_first = 1 THEN gram_altin END) as open,
-                    MAX(CASE WHEN rn_last = 1 THEN gram_altin END) as close,
+                    MIN(calculated_gram) as low,
+                    MAX(calculated_gram) as high,
+                    MAX(CASE WHEN rn_first = 1 THEN calculated_gram END) as open,
+                    MAX(CASE WHEN rn_last = 1 THEN calculated_gram END) as close,
                     COUNT(*) as tick_count
                 FROM grouped_data
                 GROUP BY candle_time
@@ -415,7 +419,12 @@ class SQLiteStorage:
                     row['tick_count'] if 'tick_count' in locals() else 0
                 ))
             
-            return list(reversed(candles))  # Eski->Yeni sıralama
+            result = list(reversed(candles))  # Eski->Yeni sıralama
+            
+            if len(result) > 0:
+                logger.info(f"Generated {len(result)} gram candles for {interval_str} interval")
+            
+            return result
     
     def cleanup_old_data(self, days_to_keep: int = 30):
         """Eski verileri temizle"""
