@@ -71,7 +71,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <!-- Price Chart -->
             <div class="bg-gray-800 rounded-lg p-6">
-                <h2 class="text-xl font-bold mb-4">📊 Fiyat Grafiği (1 Saat)</h2>
+                <h2 class="text-xl font-bold mb-4">📊 Fiyat Grafiği (Son 2 Saat)</h2>
                 <canvas id="priceChart"></canvas>
             </div>
             
@@ -217,15 +217,27 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: true,
                     plugins: {
                         legend: { display: false }
                     },
                     scales: {
                         y: {
-                            ticks: { color: 'rgb(156, 163, 175)' }
+                            ticks: { 
+                                color: 'rgb(156, 163, 175)',
+                                callback: function(value) {
+                                    return '₺' + value.toFixed(2);
+                                }
+                            }
                         },
                         x: {
-                            ticks: { color: 'rgb(156, 163, 175)' }
+                            ticks: { 
+                                color: 'rgb(156, 163, 175)',
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: true,
+                                maxTicksLimit: 15  // X eksende max 15 etiket göster
+                            }
                         }
                     }
                 }
@@ -353,8 +365,8 @@
             priceChart.data.labels.push(time);
             priceChart.data.datasets[0].data.push(price.ons_try);
             
-            // Max 50 veri
-            if (priceChart.data.labels.length > 50) {
+            // Max 120 veri (2 saatlik veri)
+            if (priceChart.data.labels.length > 120) {
                 priceChart.data.labels.shift();
                 priceChart.data.datasets[0].data.shift();
             }
