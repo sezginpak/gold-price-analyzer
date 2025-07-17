@@ -210,9 +210,11 @@ class GramAltinAnalyzer:
         # Pattern recognition
         patterns = kwargs["patterns"]
         for pattern in patterns:
-            if "bullish" in pattern["name"].lower():
+            # Pattern bir string veya dict olabilir
+            pattern_name = pattern if isinstance(pattern, str) else pattern.get("name", "")
+            if "bullish" in pattern_name.lower():
                 buy_signals += 2
-            elif "bearish" in pattern["name"].lower():
+            elif "bearish" in pattern_name.lower():
                 sell_signals += 2
             total_weight += 2
         
