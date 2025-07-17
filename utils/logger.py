@@ -12,8 +12,8 @@ def setup_logger(
     name: str = "gold_analyzer",
     log_dir: str = "logs",
     level: str = "INFO",
-    max_bytes: int = 10 * 1024 * 1024,  # 10MB
-    backup_count: int = 5
+    max_bytes: int = 5 * 1024 * 1024,  # 5MB per file
+    backup_count: int = 3  # Keep 3 backups
 ) -> logging.Logger:
     """
     Gelişmiş logger kurulumu

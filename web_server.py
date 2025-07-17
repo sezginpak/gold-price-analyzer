@@ -16,6 +16,7 @@ import logging
 from storage.sqlite_storage import SQLiteStorage
 from services.harem_altin_service import HaremAltinPriceService
 from config import settings
+from utils.log_manager import LogManager
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ templates = Jinja2Templates(directory="templates")
 
 # Storage
 storage = SQLiteStorage()
+log_manager = LogManager()
 
 # WebSocket clients
 active_connections: List[WebSocket] = []
@@ -220,6 +222,28 @@ async def get_analysis_config():
         "min_confidence_score": settings.min_confidence_score,
         "risk_tolerance": settings.risk_tolerance
     }
+
+
+@app.get("/api/logs/stats")
+async def get_log_stats():
+    """Log istatistiklerini döndür"""
+    try:
+        stats = log_manager.get_log_statistics()
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting log stats: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/logs/recent-errors")
+async def get_recent_errors(count: int = 10):
+    """Son hataları döndür"""
+    try:
+        errors = log_manager.get_recent_errors(count)
+        return {"errors": errors, "count": len(errors)}
+    except Exception as e:
+        logger.error(f"Error getting recent errors: {e}")
+        return {"error": str(e)}
 
 
 @app.get("/api/analysis/history")

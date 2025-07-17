@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     min_confidence_score: float = float(os.getenv("MIN_CONFIDENCE_SCORE", "0.7"))
     risk_tolerance: str = os.getenv("RISK_TOLERANCE", "medium")
     
+    # Log Management Settings
+    log_max_size_mb: int = int(os.getenv("LOG_MAX_SIZE_MB", "100"))  # Toplam log boyutu limiti
+    log_max_age_days: int = int(os.getenv("LOG_MAX_AGE_DAYS", "7"))  # Log saklama süresi
+    log_compress_after_days: int = int(os.getenv("LOG_COMPRESS_AFTER_DAYS", "1"))  # Sıkıştırma süresi
+    log_check_interval_minutes: int = int(os.getenv("LOG_CHECK_INTERVAL_MINUTES", "60"))  # Kontrol sıklığı
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

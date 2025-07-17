@@ -19,6 +19,7 @@ from storage.sqlite_storage import SQLiteStorage
 from models.price_data import PriceData, PriceCandle
 from config import settings
 from utils.logger import setup_logger, log_exception
+from utils.log_manager import LogManager
 
 # Logger setup
 logger = setup_logger(
@@ -76,6 +77,15 @@ class RobustGoldPriceAnalyzer:
             # Timeframe analyzer
             self.timeframe_analyzer = TimeframeAnalyzer(
                 analyze_callback=self.analyze_price_safe
+            )
+            
+            # Log manager
+            self.log_manager = LogManager(
+                log_dir="logs",
+                max_total_size_mb=settings.log_max_size_mb,
+                max_age_days=settings.log_max_age_days,
+                compress_after_days=settings.log_compress_after_days,
+                check_interval_minutes=settings.log_check_interval_minutes
             )
             
             self.logger.info("All services initialized successfully")
@@ -280,6 +290,7 @@ class RobustGoldPriceAnalyzer:
         # Background task'ları başlat
         asyncio.create_task(self.show_statistics())
         asyncio.create_task(self.cleanup_old_data())
+        asyncio.create_task(self.log_manager.start())  # Log manager'ı başlat
         
         self.logger.info("System started successfully")
         
@@ -290,6 +301,7 @@ class RobustGoldPriceAnalyzer:
         print(f"📊 Log dosyası: logs/gold_analyzer.log")
         print(f"🚨 Hata dosyası: logs/gold_analyzer_errors.log")
         print(f"📍 Sinyal dosyası: signals/signals_YYYYMMDD.log")
+        print(f"🧹 Log temizleme: Her {settings.log_check_interval_minutes} dakikada")
         print(f"{'='*60}\n")
     
     async def stop(self):
@@ -302,6 +314,8 @@ class RobustGoldPriceAnalyzer:
                 await self.collector.stop()
             if hasattr(self, 'harem_service') and self.harem_service:
                 await self.harem_service.stop()
+            if hasattr(self, 'log_manager') and self.log_manager:
+                self.log_manager.stop()
         except Exception as e:
             self.logger.error(f"Error during shutdown: {e}")
             

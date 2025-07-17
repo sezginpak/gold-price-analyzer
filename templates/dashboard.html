@@ -95,6 +95,29 @@
             </div>
         </div>
 
+        <!-- Log İstatistikleri -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">🧹 Log Yönetimi</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <p class="text-gray-400 text-sm">Toplam Boyut</p>
+                    <p class="text-xl font-bold" id="log-total-size">-</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">Dosya Sayısı</p>
+                    <p class="text-xl font-bold" id="log-file-count">-</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">Sıkıştırılmış</p>
+                    <p class="text-xl font-bold" id="log-compressed">-</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">En Eski Log</p>
+                    <p class="text-sm" id="log-oldest">-</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Logs -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-gray-800 rounded-lg p-6">
@@ -428,6 +451,42 @@
             }
         }
 
+        // Log istatistiklerini yükle
+        async function loadLogStats() {
+            try {
+                const response = await fetch('/api/logs/stats');
+                const stats = await response.json();
+                
+                if (!stats.error) {
+                    document.getElementById('log-total-size').textContent = `${stats.total_size_mb.toFixed(1)} MB`;
+                    document.getElementById('log-file-count').textContent = stats.total_files;
+                    document.getElementById('log-compressed').textContent = stats.compressed_files;
+                    document.getElementById('log-oldest').textContent = stats.oldest_file || '-';
+                }
+            } catch (error) {
+                console.error('Log stats yüklenemedi:', error);
+            }
+        }
+        
+        // Son hataları yükle
+        async function loadRecentErrors() {
+            try {
+                const response = await fetch('/api/logs/recent-errors?count=5');
+                const data = await response.json();
+                
+                if (data.errors && data.errors.length > 0) {
+                    const errorHtml = data.errors.map(error => 
+                        `<div class="text-red-400 text-xs p-1 border-b border-gray-700">${error}</div>`
+                    ).join('');
+                    document.getElementById('error-logs').innerHTML = errorHtml;
+                } else {
+                    document.getElementById('error-logs').innerHTML = '<p class="text-green-400">Son zamanlarda hata yok</p>';
+                }
+            } catch (error) {
+                console.error('Error logs yüklenemedi:', error);
+            }
+        }
+        
         // Sayfa yüklendiğinde
         window.onload = () => {
             loadMenu();  // Menu yükle
@@ -438,12 +497,16 @@
             loadInitialPrices();
             loadSignals();
             loadLogs();
+            loadLogStats();
+            loadRecentErrors();
             
             // Periyodik güncellemeler
             setInterval(loadStats, 30000);     // 30 saniye
             setInterval(() => loadCandles('15m'), 60000); // 1 dakikada bir mum güncelle
             setInterval(loadSignals, 60000);   // 1 dakika
             setInterval(loadLogs, 60000);      // 1 dakika
+            setInterval(loadLogStats, 60000);  // 1 dakika
+            setInterval(loadRecentErrors, 30000); // 30 saniye
         };
     </script>
 </body>
