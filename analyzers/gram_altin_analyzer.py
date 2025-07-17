@@ -44,8 +44,8 @@ class GramAltinAnalyzer:
                 logger.error("Candles listesi boş!")
                 return self._empty_analysis()
                 
-            if len(candles) < 20:
-                logger.warning(f"Yetersiz mum verisi: {len(candles)}, minimum 20 gerekli")
+            if len(candles) < 10:
+                logger.warning(f"Yetersiz mum verisi: {len(candles)}, minimum 10 gerekli")
                 return self._empty_analysis()
             
             # Fiyat dizisi hazırla

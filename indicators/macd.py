@@ -80,8 +80,10 @@ class MACDIndicator:
                 logger.warning("No candles provided for MACD calculation")
                 return self._empty_result()
             
-            if len(candles) < self.slow_period + self.signal_period:
-                logger.warning(f"Not enough data for MACD. Need {self.slow_period + self.signal_period}, got {len(candles)}")
+            # Minimum gereksinim: en az slow_period kadar veri
+            minimum_required = self.slow_period
+            if len(candles) < minimum_required:
+                logger.warning(f"Not enough data for MACD. Need {minimum_required}, got {len(candles)}")
                 return self._empty_result()
         
             # Kapanış fiyatlarını al

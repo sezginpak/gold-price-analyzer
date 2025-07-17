@@ -80,12 +80,12 @@ class HybridGoldAnalyzer:
         try:
             logger.info(f"Running hybrid analysis for {timeframe}")
             
-            # Gerekli mum sayısı (ideal / minimum)
+            # Gerekli mum sayısı (başlangıç için düşük, zamanla artar)
             candle_requirements = {
-                "15m": 30,   # 30 mum = 7.5 saat veri
-                "1h": 20,    # 20 mum = 20 saat veri
-                "4h": 10,    # 10 mum = 1.5 gün veri
-                "1d": 5      # 5 mum = 5 gün veri
+                "15m": 15,   # 15 mum = 3.75 saat veri  
+                "1h": 12,    # 12 mum = 12 saat veri
+                "4h": 6,     # 6 mum = 1 gün veri
+                "1d": 3      # 3 mum = 3 gün veri
             }
             
             required_candles = candle_requirements.get(timeframe, 100)
