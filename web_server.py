@@ -85,7 +85,7 @@ async def get_stats():
 
 @app.get("/api/prices/latest")
 async def get_latest_prices():
-    """Son 30 dakikalık fiyat verisi"""
+    """Son 30 dakikalık gram altın fiyat verisi"""
     end_time = datetime.now()
     start_time = end_time - timedelta(minutes=30)  # 30 dakika geriye git
     
@@ -98,7 +98,7 @@ async def get_latest_prices():
                 "ons_usd": float(p.ons_usd),
                 "usd_try": float(p.usd_try),
                 "ons_try": float(p.ons_try),
-                "gram_altin": float(p.gram_altin) if p.gram_altin else None
+                "gram_altin": float(p.gram_altin) if p.gram_altin else float(p.ons_try / 31.1035)
             }
             for p in prices  # Tüm 30 dakikalık veriyi al
         ]

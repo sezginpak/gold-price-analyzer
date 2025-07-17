@@ -226,7 +226,7 @@
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'ONS/TRY',
+                        label: 'Gram Altın',
                         data: [],
                         borderColor: 'rgb(59, 130, 246)',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -381,7 +381,8 @@
             const time = new Date(price.timestamp).toLocaleTimeString('tr-TR');
             
             priceChart.data.labels.push(time);
-            priceChart.data.datasets[0].data.push(price.ons_try);
+            // Gram altın fiyatını kullan (API'de zaten hesaplanmış)
+            priceChart.data.datasets[0].data.push(price.gram_altin);
             
             // Max 360 veri (30 dakika gerçek zamanlı)
             if (priceChart.data.labels.length > 360) {
