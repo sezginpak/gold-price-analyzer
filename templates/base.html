@@ -94,10 +94,10 @@
                 
                 <!-- Desktop Menu -->
                 <div class="flex items-center space-x-6">
-                    <a href="/" class="nav-link hover:text-yellow-400 transition-colors {% if request.endpoint == 'dashboard' %}text-yellow-400{% endif %}">
+                    <a href="/" class="nav-link hover:text-yellow-400 transition-colors">
                         <i class="fas fa-chart-line mr-2"></i>Dashboard
                     </a>
-                    <a href="/analysis" class="nav-link hover:text-yellow-400 transition-colors {% if request.endpoint == 'analysis' %}text-yellow-400{% endif %}">
+                    <a href="/analysis" class="nav-link hover:text-yellow-400 transition-colors">
                         <i class="fas fa-brain mr-2"></i>Analizler
                     </a>
                     <a href="/api/docs" class="nav-link hover:text-yellow-400 transition-colors">
@@ -112,10 +112,10 @@
             
             <!-- Mobile Menu Items -->
             <div class="lg:hidden space-y-4">
-                <a href="/" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors {% if request.endpoint == 'dashboard' %}bg-slate-800 text-yellow-400{% endif %}">
+                <a href="/" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
                     <i class="fas fa-chart-line mr-3"></i>Dashboard
                 </a>
-                <a href="/analysis" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors {% if request.endpoint == 'analysis' %}bg-slate-800 text-yellow-400{% endif %}">
+                <a href="/analysis" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
                     <i class="fas fa-brain mr-3"></i>Analizler
                 </a>
                 <a href="/api/docs" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
