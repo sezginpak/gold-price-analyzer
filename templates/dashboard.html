@@ -88,7 +88,7 @@
                 <button onclick="loadGramCandles('4h')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">4S</button>
                 <button onclick="loadGramCandles('1d')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">1G</button>
             </div>
-            <div id="candleChart" class="h-64 lg:h-72"></div>
+            <div id="candleChart" class="h-80 lg:h-96"></div>
         </div>
     </div>
 
@@ -268,9 +268,10 @@
             const options = {
                 chart: {
                     type: 'candlestick',
-                    height: '100%',
+                    height: 350,
                     background: 'transparent',
-                    toolbar: { show: false }
+                    toolbar: { show: false },
+                    offsetY: -10
                 },
                 series: [{
                     name: 'OHLC',
@@ -285,7 +286,11 @@
                 yaxis: {
                     labels: {
                         style: { colors: '#9CA3AF' },
-                        formatter: (val) => '₺' + val.toFixed(2)
+                        formatter: (val) => '₺' + val.toFixed(0),
+                        offsetX: 0
+                    },
+                    tooltip: {
+                        enabled: true
                     }
                 },
                 theme: { mode: 'dark' },
@@ -298,9 +303,14 @@
                     }
                 },
                 grid: {
-                    borderColor: '#374151'
+                    borderColor: '#374151',
+                    padding: {
+                        top: 10,
+                        right: 30,
+                        bottom: 10,
+                        left: 10
+                    }
                 }
-            };
             
             candleChart = new ApexCharts(document.querySelector("#candleChart"), options);
             candleChart.render();
