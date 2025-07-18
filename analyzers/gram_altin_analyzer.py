@@ -74,11 +74,13 @@ class GramAltinAnalyzer:
             # Sinyal üretimi
             signal, confidence = self._generate_signal(
                 current_price=current_price,
+                prices=prices,
                 rsi=(rsi_value, rsi_signal),
                 macd=macd_result,
                 bollinger=bb_result,
                 stochastic=stoch_result,
                 trend=trend,
+                trend_strength=trend_strength,
                 patterns=patterns
             )
             
@@ -287,6 +289,15 @@ class GramAltinAnalyzer:
                 # Histogram değerini normalize et (-1 ile 1 arası)
                 macd_normalized = 1 - min(abs(macd_hist) / 10, 1.0)
                 components.append(("momentum", macd_normalized, 0.15))
+            
+            # 4.5 Fiyat değişim hızı (son 5 mum)
+            prices = kwargs.get("prices", [])
+            if len(prices) >= 5:
+                recent_prices = prices[-5:]
+                price_change = (recent_prices[-1] - recent_prices[0]) / recent_prices[0]
+                # Altın için %0.5'lik değişim bile önemli
+                volatility_score = min(abs(price_change) * 200, 1.0)  # %0.5 = 1.0 skor
+                components.append(("price_change", 1 - volatility_score, 0.1))
             
             # 5. Stochastic değeri
             stoch_k = stoch.get("k", 50)

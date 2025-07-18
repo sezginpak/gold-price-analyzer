@@ -44,14 +44,41 @@ class HaremPriceCollector:
                 return
                 
             # ONS fiyatını USD cinsinden al
-            ons_usd = Decimal(str(ons_data.get("satis", 0)))
-            usd_try = Decimal(str(usd_data.get("satis", 0)))
+            ons_usd_value = ons_data.get("satis", 0)
+            usd_try_value = usd_data.get("satis", 0)
+            gram_altin_value = altin_data.get("satis", 0)
+            
+            # Değerlerin geçerliliğini kontrol et
+            if not all([ons_usd_value > 0, usd_try_value > 0, gram_altin_value > 0]):
+                logger.warning(f"Geçersiz fiyat verisi: ONS={ons_usd_value}, USD={usd_try_value}, Gram={gram_altin_value}")
+                # Son geçerli fiyatı kullan
+                last_price = self.storage.get_latest_price()
+                if last_price:
+                    logger.info("Son geçerli fiyat kullanılıyor")
+                    price_data = PriceData(
+                        ons_usd=last_price.ons_usd,
+                        usd_try=last_price.usd_try,
+                        ons_try=last_price.ons_try,
+                        gram_altin=last_price.gram_altin,
+                        source="haremaltin_cached"
+                    )
+                    # Analiz callback'lerini çağır ama veritabanına kaydetme
+                    for callback in self.analysis_callbacks:
+                        try:
+                            if asyncio.iscoroutinefunction(callback):
+                                await callback(price_data)
+                            else:
+                                callback(price_data)
+                        except Exception as e:
+                            logger.error(f"Analysis callback error: {e}", exc_info=True)
+                return
+            
+            ons_usd = Decimal(str(ons_usd_value))
+            usd_try = Decimal(str(usd_try_value))
+            gram_altin = Decimal(str(gram_altin_value))
             
             # ONS/TRY hesapla
             ons_try = ons_usd * usd_try
-            
-            # Gram altın fiyatını al
-            gram_altin = Decimal(str(altin_data.get("satis", 0)))
             
             # PriceData oluştur
             price_data = PriceData(
