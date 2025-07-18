@@ -238,19 +238,41 @@ class HybridStrategy:
         currency_multiplier = currency.get("position_size_multiplier", 0.8)
         position *= currency_multiplier
         
-        # Güven skoruna göre son ayarlama
+        # Güven skoruna göre dinamik ayarlama (doğrusal ölçekleme)
         confidence = signal.get("confidence", 0.5)
-        if confidence < 0.5:
-            position *= 0.8
+        
+        # Güven skoru bazlı çarpan (0.3-0.7 arası güven için 0.6-1.0 arası çarpan)
+        if confidence >= 0.7:
+            confidence_multiplier = 1.0
+        elif confidence >= 0.5:
+            # 0.5-0.7 arası güven için 0.8-1.0 arası çarpan
+            confidence_multiplier = 0.8 + (confidence - 0.5) * 1.0
+        elif confidence >= 0.3:
+            # 0.3-0.5 arası güven için 0.6-0.8 arası çarpan
+            confidence_multiplier = 0.6 + (confidence - 0.3) * 1.0
+        else:
+            confidence_multiplier = 0.5
+        
+        position *= confidence_multiplier
+        
+        # HOLD sinyali için özel ayarlama
+        if signal.get("signal") == "HOLD":
+            # HOLD durumunda güven skoruna göre pozisyon
+            # Güven ne kadar yüksekse, o kadar az pozisyon (çünkü bekleme sinyali)
+            position = 0.2 + (0.7 - confidence) * 0.3  # 0.2-0.5 arası
+        
+        # Minimum ve maksimum sınırlar
+        position = max(0.2, min(1.0, position))
         
         result = {
             "recommended_size": round(position, 2),
             "max_size": 1.0,
             "min_size": 0.2,
-            "risk_adjusted": True
+            "risk_adjusted": True,
+            "confidence_multiplier": round(confidence_multiplier, 2)
         }
         
-        logger.info(f"Position calculation: base={base_position}, strength_mult={strength_multipliers.get(signal['strength'], 0.5)}, currency_mult={currency_multiplier}, final={result['recommended_size']}")
+        logger.info(f"Position calculation: base={base_position}, strength_mult={strength_multipliers.get(signal['strength'], 0.5)}, currency_mult={currency_multiplier}, confidence_mult={confidence_multiplier:.2f}, final={result['recommended_size']}")
         return result
     
     def _adjust_risk_levels(self, gram: Dict, currency: Dict) -> Dict[str, Any]:

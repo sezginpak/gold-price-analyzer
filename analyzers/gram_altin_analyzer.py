@@ -259,44 +259,74 @@ class GramAltinAnalyzer:
             signal = "HOLD"
             # HOLD durumunda daha hassas confidence hesapla
             total_signals = buy_signals + sell_signals
+            
+            # Temel güven bileşenleri
+            components = []
+            
+            # 1. Sinyal dengesi (0-1 arası, dengeli olduğunda yüksek)
             if total_signals > 0:
-                # Temel denge oranı
-                balance_ratio = 1 - abs(buy_signals - sell_signals) / total_signals
+                balance_ratio = 1 - abs(buy_signals - sell_signals) / total_weight
+                components.append(("balance", balance_ratio, 0.2))
+            
+            # 2. RSI değeri (30-70 arası normalize)
+            if rsi_value is not None:
+                rsi_normalized = 1 - abs(rsi_value - 50) / 50
+                components.append(("rsi", rsi_normalized, 0.15))
+            
+            # 3. Bollinger Band pozisyonu
+            bb_position = bb.get("position", "middle")
+            bb_width = bb.get("band_width", 0)
+            if bb_width > 0:
+                # Band genişliği volatiliteyi gösterir
+                volatility_factor = min(bb_width / 100, 1.0)  # Normalize et
+                components.append(("volatility", volatility_factor, 0.1))
+            
+            # 4. MACD momentum
+            macd_hist = macd.get("histogram", 0)
+            if macd_hist is not None:
+                # Histogram değerini normalize et (-1 ile 1 arası)
+                macd_normalized = 1 - min(abs(macd_hist) / 10, 1.0)
+                components.append(("momentum", macd_normalized, 0.15))
+            
+            # 5. Stochastic değeri
+            stoch_k = stoch.get("k", 50)
+            if stoch_k is not None:
+                stoch_normalized = 1 - abs(stoch_k - 50) / 50
+                components.append(("stochastic", stoch_normalized, 0.1))
+            
+            # 6. Trend gücü
+            trend_strength = kwargs.get("trend_strength", TrendStrength.WEAK)
+            strength_scores = {
+                TrendStrength.STRONG: 0.3,
+                TrendStrength.MODERATE: 0.6,
+                TrendStrength.WEAK: 0.9
+            }
+            components.append(("trend", strength_scores.get(trend_strength, 0.5), 0.15))
+            
+            # 7. Aktif gösterge oranı
+            active_count = sum([
+                1 if rsi_value is not None else 0,
+                1 if macd.get("signal") else 0,
+                1 if bb.get("position") else 0,
+                1 if stoch.get("signal") else 0,
+                1 if len(patterns) > 0 else 0
+            ])
+            indicator_ratio = active_count / 5
+            components.append(("indicators", indicator_ratio, 0.15))
+            
+            # Ağırlıklı ortalama hesapla
+            if components:
+                total_weight_sum = sum(weight for _, _, weight in components)
+                confidence = sum(value * weight for _, value, weight in components) / total_weight_sum
                 
-                # RSI etkisi (30-70 arası nötr)
-                rsi_value = kwargs.get("rsi", 50)
-                rsi_factor = 1 - abs(rsi_value - 50) / 50  # 0-1 arası
-                
-                # Trend gücü etkisi
-                trend_strength = kwargs.get("trend_strength", TrendStrength.WEAK)
-                strength_factor = {
-                    TrendStrength.STRONG: 0.3,
-                    TrendStrength.MODERATE: 0.5,
-                    TrendStrength.WEAK: 0.7
-                }.get(trend_strength, 0.5)
-                
-                # Gösterge sayısı (ne kadar çok gösterge aktifse o kadar güvenilir)
-                active_indicators = sum([
-                    1 if kwargs.get("rsi") else 0,
-                    1 if kwargs.get("macd", {}).get("signal") else 0,
-                    1 if kwargs.get("bollinger", {}).get("position") else 0,
-                    1 if kwargs.get("stochastic", {}).get("signal") else 0,
-                    1 if kwargs.get("patterns") else 0
-                ])
-                indicator_factor = active_indicators / 5
-                
-                # Toplam güven hesapla (ağırlıklı ortalama)
-                confidence = (
-                    balance_ratio * 0.3 +      # Denge etkisi %30
-                    rsi_factor * 0.2 +         # RSI etkisi %20
-                    strength_factor * 0.2 +    # Trend gücü %20
-                    indicator_factor * 0.3     # Aktif gösterge sayısı %30
-                )
-                
-                # 0.2 - 0.8 aralığına sınırla
-                confidence = max(0.2, min(0.8, confidence))
+                # Debug için bileşenleri logla
+                comp_details = ", ".join([f"{name}={value:.3f}*{weight}" for name, value, weight in components])
+                logger.debug(f"HOLD confidence components: {comp_details}")
             else:
                 confidence = 0.5
+            
+            # 0.3 - 0.7 aralığına sınırla (HOLD için daha dar aralık)
+            confidence = max(0.3, min(0.7, confidence))
         
         logger.info(f"Signal generation: buy={buy_signals}, sell={sell_signals}, total_weight={total_weight}, signal={signal}, confidence={confidence:.3f}")
         return signal, confidence
