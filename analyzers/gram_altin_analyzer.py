@@ -257,12 +257,44 @@ class GramAltinAnalyzer:
             confidence = sell_signals / total_weight
         else:
             signal = "HOLD"
-            # HOLD durumunda da dinamik confidence hesapla
-            # Alım ve satım sinyallerinin dengeye yakınlığına göre
+            # HOLD durumunda daha hassas confidence hesapla
             total_signals = buy_signals + sell_signals
             if total_signals > 0:
+                # Temel denge oranı
                 balance_ratio = 1 - abs(buy_signals - sell_signals) / total_signals
-                confidence = 0.3 + (balance_ratio * 0.4)  # 0.3 - 0.7 arası
+                
+                # RSI etkisi (30-70 arası nötr)
+                rsi_value = kwargs.get("rsi", 50)
+                rsi_factor = 1 - abs(rsi_value - 50) / 50  # 0-1 arası
+                
+                # Trend gücü etkisi
+                trend_strength = kwargs.get("trend_strength", TrendStrength.WEAK)
+                strength_factor = {
+                    TrendStrength.STRONG: 0.3,
+                    TrendStrength.MODERATE: 0.5,
+                    TrendStrength.WEAK: 0.7
+                }.get(trend_strength, 0.5)
+                
+                # Gösterge sayısı (ne kadar çok gösterge aktifse o kadar güvenilir)
+                active_indicators = sum([
+                    1 if kwargs.get("rsi") else 0,
+                    1 if kwargs.get("macd", {}).get("signal") else 0,
+                    1 if kwargs.get("bollinger", {}).get("position") else 0,
+                    1 if kwargs.get("stochastic", {}).get("signal") else 0,
+                    1 if kwargs.get("patterns") else 0
+                ])
+                indicator_factor = active_indicators / 5
+                
+                # Toplam güven hesapla (ağırlıklı ortalama)
+                confidence = (
+                    balance_ratio * 0.3 +      # Denge etkisi %30
+                    rsi_factor * 0.2 +         # RSI etkisi %20
+                    strength_factor * 0.2 +    # Trend gücü %20
+                    indicator_factor * 0.3     # Aktif gösterge sayısı %30
+                )
+                
+                # 0.2 - 0.8 aralığına sınırla
+                confidence = max(0.2, min(0.8, confidence))
             else:
                 confidence = 0.5
         
