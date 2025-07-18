@@ -268,7 +268,7 @@ class GramAltinAnalyzer:
             # 1. Sinyal dengesi (0-1 arası, dengeli olduğunda yüksek)
             if total_signals > 0:
                 balance_ratio = 1 - abs(buy_signals - sell_signals) / total_weight
-                components.append(("balance", balance_ratio, 0.2))
+                components.append(("balance", balance_ratio, 0.15))
             
             # 2. RSI değeri (30-70 arası normalize)
             if rsi_value is not None:
@@ -290,7 +290,7 @@ class GramAltinAnalyzer:
                 macd_normalized = 1 - min(abs(macd_hist) / 10, 1.0)
                 components.append(("momentum", macd_normalized, 0.15))
             
-            # 4.5 Fiyat değişim hızı (son 5 mum)
+            # 4.5 Fiyat değişim hızı ve volatilite
             prices = kwargs.get("prices", [])
             if len(prices) >= 5:
                 recent_prices = prices[-5:]
@@ -298,6 +298,16 @@ class GramAltinAnalyzer:
                 # Altın için %0.5'lik değişim bile önemli
                 volatility_score = min(abs(price_change) * 200, 1.0)  # %0.5 = 1.0 skor
                 components.append(("price_change", 1 - volatility_score, 0.1))
+                
+                # Son 10 mumun standart sapması (volatilite)
+                if len(prices) >= 10:
+                    last_10_prices = prices[-10:]
+                    std_dev = np.std(last_10_prices)
+                    avg_price = np.mean(last_10_prices)
+                    volatility_ratio = std_dev / avg_price if avg_price > 0 else 0
+                    # Düşük volatilite = yüksek güven
+                    volatility_conf = 1 - min(volatility_ratio * 100, 1.0)  # %1 volatilite = 0 güven
+                    components.append(("std_dev", volatility_conf, 0.1))
             
             # 5. Stochastic değeri
             stoch_k = stoch.get("k", 50)
@@ -323,7 +333,12 @@ class GramAltinAnalyzer:
                 1 if len(patterns) > 0 else 0
             ])
             indicator_ratio = active_count / 5
-            components.append(("indicators", indicator_ratio, 0.15))
+            components.append(("indicators", indicator_ratio, 0.1))
+            
+            # 8. Veri yeterliliği (mum sayısı)
+            prices = kwargs.get("prices", [])
+            data_sufficiency = min(len(prices) / 50, 1.0)  # 50 mum = %100 yeterlilik
+            components.append(("data_sufficiency", data_sufficiency, 0.1))
             
             # Ağırlıklı ortalama hesapla
             if components:
@@ -332,7 +347,7 @@ class GramAltinAnalyzer:
                 
                 # Debug için bileşenleri logla
                 comp_details = ", ".join([f"{name}={value:.3f}*{weight}" for name, value, weight in components])
-                logger.debug(f"HOLD confidence components: {comp_details}")
+                logger.info(f"HOLD confidence components: {comp_details}, final={confidence:.3f}")
             else:
                 confidence = 0.5
             
