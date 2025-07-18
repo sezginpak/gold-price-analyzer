@@ -351,9 +351,17 @@ class HybridStrategy:
         """Boş sonuç"""
         return {
             "timestamp": datetime.utcnow(),
+            "gram_price": 0,
             "signal": "HOLD",
+            "signal_strength": "WEAK",
             "confidence": 0,
             "position_size": {"recommended_size": 0},
+            "stop_loss": None,
+            "take_profit": None,
+            "risk_reward_ratio": None,
+            "gram_analysis": {},
+            "global_trend": {"trend_direction": "NEUTRAL"},
+            "currency_risk": {"risk_level": "UNKNOWN"},
             "summary": "Analiz yapılamadı",
             "recommendations": ["Veri bekleniyor"]
         }
