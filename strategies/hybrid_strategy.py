@@ -163,11 +163,23 @@ class HybridStrategy:
         logger.info(f"Signal scores: {signal_scores}")
         logger.info(f"Final signal: {final_signal}, max_score: {max_score}")
         
-        # Güven skorunu normalize et (0-1 aralığına)
-        # Maksimum olası skor: gram(0.5) + global(0.3) + currency(0.2) = 1.0
+        # Güven skorunu hesapla - gram analizörünün güven değerini de kullan
+        gram_confidence = gram_analysis.get("confidence", 0.5)
+        
+        # Hibrit güven hesaplaması:
+        # 1. Sinyal skoru bazlı güven
         total_possible_score = sum(self.weights.values())
-        normalized_confidence = min(signal_scores[final_signal] / total_possible_score, 1.0)
-        logger.info(f"Normalized confidence: {normalized_confidence}")
+        score_confidence = min(signal_scores[final_signal] / total_possible_score, 1.0)
+        
+        # 2. Final güven: Gram güveni ve skor güveninin ağırlıklı ortalaması
+        if final_signal == "HOLD":
+            # HOLD için gram analizörünün güveni daha önemli
+            normalized_confidence = (gram_confidence * 0.7) + (score_confidence * 0.3)
+        else:
+            # BUY/SELL için dengeli
+            normalized_confidence = (gram_confidence * 0.5) + (score_confidence * 0.5)
+        
+        logger.info(f"Confidence calculation: gram={gram_confidence:.3f}, score={score_confidence:.3f}, final={normalized_confidence:.3f}")
         
         # Sinyal gücü
         if final_signal != "HOLD":
