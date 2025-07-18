@@ -164,7 +164,7 @@ class HybridStrategy:
         logger.info(f"Final signal: {final_signal}, max_score: {max_score}")
         
         # Güven skorunu hesapla - gram analizörünün güven değerini de kullan
-        gram_confidence = gram_analysis.get("confidence", 0.5)
+        gram_confidence = gram.get("confidence", 0.5)
         
         # Hibrit güven hesaplaması:
         # 1. Sinyal skoru bazlı güven
