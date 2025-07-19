@@ -48,8 +48,15 @@ class HaremPriceCollector:
             usd_try_value = usd_data.get("satis", 0)
             gram_altin_value = altin_data.get("satis", 0)
             
-            # Değerlerin geçerliliğini kontrol et
-            if not all([ons_usd_value > 0, usd_try_value > 0, gram_altin_value > 0]):
+            # Değerlerin geçerliliğini kontrol et (önce float'a çevir)
+            try:
+                ons_usd_float = float(ons_usd_value) if ons_usd_value else 0
+                usd_try_float = float(usd_try_value) if usd_try_value else 0
+                gram_altin_float = float(gram_altin_value) if gram_altin_value else 0
+            except (ValueError, TypeError):
+                ons_usd_float = usd_try_float = gram_altin_float = 0
+                
+            if not all([ons_usd_float > 0, usd_try_float > 0, gram_altin_float > 0]):
                 logger.warning(f"Geçersiz fiyat verisi: ONS={ons_usd_value}, USD={usd_try_value}, Gram={gram_altin_value}")
                 # Son geçerli fiyatı kullan
                 last_price = self.storage.get_latest_price()
