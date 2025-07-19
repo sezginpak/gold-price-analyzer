@@ -292,7 +292,7 @@ class GramAltinAnalyzer:
             
             # 4.5 Fiyat değişim hızı ve volatilite
             prices = kwargs.get("prices", [])
-            if len(prices) >= 5:
+            if prices and len(prices) >= 5:
                 recent_prices = prices[-5:]
                 price_change = (recent_prices[-1] - recent_prices[0]) / recent_prices[0]
                 # Altın için %0.5'lik değişim bile önemli
@@ -337,8 +337,9 @@ class GramAltinAnalyzer:
             
             # 8. Veri yeterliliği (mum sayısı)
             prices = kwargs.get("prices", [])
-            data_sufficiency = min(len(prices) / 50, 1.0)  # 50 mum = %100 yeterlilik
-            components.append(("data_sufficiency", data_sufficiency, 0.1))
+            if prices:
+                data_sufficiency = min(len(prices) / 50, 1.0)  # 50 mum = %100 yeterlilik
+                components.append(("data_sufficiency", data_sufficiency, 0.1))
             
             # Ağırlıklı ortalama hesapla
             if components:
