@@ -131,13 +131,13 @@ class SimulationManager:
         try:
             with self.storage.get_connection() as conn:
                 cursor = conn.cursor()
-            
-            cursor.execute("""
-                SELECT id, config FROM simulations
-                WHERE status = ?
-            """, (SimulationStatus.ACTIVE.value,))
-            
-            for row in cursor.fetchall():
+                
+                cursor.execute("""
+                    SELECT id, config FROM simulations
+                    WHERE status = ?
+                """, (SimulationStatus.ACTIVE.value,))
+                
+                for row in cursor.fetchall():
                 sim_id, config_json = row
                 config_dict = json.loads(config_json)
                 
@@ -174,16 +174,16 @@ class SimulationManager:
         try:
             with self.storage.get_connection() as conn:
                 cursor = conn.cursor()
-            
-            cursor.execute("""
-                SELECT timeframe, allocated_capital, current_capital, in_position
-                FROM sim_timeframe_capital
-                WHERE simulation_id = ?
-            """, (simulation_id,))
-            
-            self.timeframe_capitals[simulation_id] = {}
-            
-            for row in cursor.fetchall():
+                
+                cursor.execute("""
+                    SELECT timeframe, allocated_capital, current_capital, in_position
+                    FROM sim_timeframe_capital
+                    WHERE simulation_id = ?
+                """, (simulation_id,))
+                
+                self.timeframe_capitals[simulation_id] = {}
+                
+                for row in cursor.fetchall():
                 timeframe, allocated, current, in_position = row
                 self.timeframe_capitals[simulation_id][timeframe] = TimeframeCapital(
                     timeframe=timeframe,
@@ -374,12 +374,27 @@ class SimulationManager:
     ):
         """Yeni pozisyon aç"""
         try:
+            # Günlük risk kontrolü
+            with self.storage.get_connection() as conn:
+                cursor = conn.cursor()
+                today = datetime.now().date()
+                
+                cursor.execute("""
+                    SELECT daily_pnl_pct FROM sim_daily_performance
+                    WHERE simulation_id = ? AND date = ?
+                """, (sim_id, today))
+                
+                row = cursor.fetchone()
+                if row and row[0] <= -2.0:  # %2 günlük kayıp
+                    logger.warning(f"Günlük kayıp limiti aşıldı: {row[0]:.2f}%, yeni pozisyon açılamaz")
+                    return
+            
             current_price = Decimal(str(signal_data['price']))
             
             # Risk hesaplama
             atr = signal_data['indicators'].get('atr')
-            if not atr:
-                logger.warning(f"ATR bulunamadı, pozisyon açılamıyor")
+            if not atr or not atr.get('value'):
+                logger.warning(f"ATR değeri bulunamadı {timeframe} için, pozisyon açılamıyor")
                 return
             
             # Stop loss hesapla (1.5 x ATR)
@@ -718,9 +733,9 @@ class SimulationManager:
         """Pozisyonu veritabanından al"""
         with self.storage.get_connection() as conn:
             cursor = conn.cursor()
-        
-        cursor.execute("SELECT * FROM sim_positions WHERE id = ?", (position_id,))
-        row = cursor.fetchone()
+            
+            cursor.execute("SELECT * FROM sim_positions WHERE id = ?", (position_id,))
+            row = cursor.fetchone()
         
         if row:
             # Row'dan SimulationPosition oluştur
@@ -761,29 +776,29 @@ class SimulationManager:
         """Trailing stop güncelle"""
         with self.storage.get_connection() as conn:
             cursor = conn.cursor()
-        
-        cursor.execute("""
-            UPDATE sim_positions
-            SET trailing_stop = ?, updated_at = ?
-            WHERE id = ?
-        """, (float(trailing_stop), datetime.now(), position_id))
-        
-        conn.commit()
+            
+            cursor.execute("""
+                UPDATE sim_positions
+                SET trailing_stop = ?, updated_at = ?
+                WHERE id = ?
+            """, (float(trailing_stop), datetime.now(), position_id))
+            
+            conn.commit()
     
     async def _update_position_close(self, position: SimulationPosition):
         """Pozisyon kapanışını güncelle"""
         with self.storage.get_connection() as conn:
             cursor = conn.cursor()
-        
-        cursor.execute("""
-            UPDATE sim_positions
-            SET status = ?, exit_time = ?, exit_price = ?,
-                exit_spread = ?, exit_commission = ?, exit_reason = ?,
-                gross_profit_loss = ?, net_profit_loss = ?,
-                profit_loss_pct = ?, holding_period_minutes = ?,
-                exit_indicators = ?, updated_at = ?
-            WHERE id = ?
-        """, (
+            
+            cursor.execute("""
+                UPDATE sim_positions
+                SET status = ?, exit_time = ?, exit_price = ?,
+                    exit_spread = ?, exit_commission = ?, exit_reason = ?,
+                    gross_profit_loss = ?, net_profit_loss = ?,
+                    profit_loss_pct = ?, holding_period_minutes = ?,
+                    exit_indicators = ?, updated_at = ?
+                WHERE id = ?
+            """, (
             position.status.value,
             position.exit_time,
             float(position.exit_price),
@@ -810,27 +825,27 @@ class SimulationManager:
         """Timeframe sermayesini güncelle"""
         with self.storage.get_connection() as conn:
             cursor = conn.cursor()
-        
-        cursor.execute("""
-            UPDATE sim_timeframe_capital
-            SET current_capital = ?, in_position = ?, last_update = ?
-            WHERE simulation_id = ? AND timeframe = ?
-        """, (
-            float(tf_capital.current_capital),
-            int(tf_capital.in_position),
-            datetime.now(),
-            sim_id,
-            timeframe
-        ))
-        
-        conn.commit()
+            
+            cursor.execute("""
+                UPDATE sim_timeframe_capital
+                SET current_capital = ?, in_position = ?, last_update = ?
+                WHERE simulation_id = ? AND timeframe = ?
+            """, (
+                float(tf_capital.current_capital),
+                int(tf_capital.in_position),
+                datetime.now(),
+                sim_id,
+                timeframe
+            ))
+            
+            conn.commit()
     
     async def _update_simulation_stats(self, sim_id: int):
         """Simülasyon istatistiklerini güncelle"""
         with self.storage.get_connection() as conn:
             cursor = conn.cursor()
-        
-        # Toplam sermayeyi hesapla
+            
+            # Toplam sermayeyi hesapla
         total_capital = sum(
             tf.current_capital 
             for tf in self.timeframe_capitals[sim_id].values()
@@ -889,8 +904,101 @@ class SimulationManager:
     
     async def _update_daily_performance(self, sim_id: int):
         """Günlük performansı güncelle"""
-        # TODO: Günlük performans kaydı
-        pass
+        try:
+            today = datetime.now().date()
+            
+            with self.storage.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Toplam sermayeyi hesapla
+                total_capital = sum(
+                    tf.current_capital 
+                    for tf in self.timeframe_capitals.get(sim_id, {}).values()
+                )
+                
+                # Günün başlangıç sermayesini al (veya varsayılan)
+                cursor.execute("""
+                    SELECT ending_capital FROM sim_daily_performance
+                    WHERE simulation_id = ? AND date < ?
+                    ORDER BY date DESC LIMIT 1
+                """, (sim_id, today))
+                
+                row = cursor.fetchone()
+                starting_capital = row[0] if row else 1000.0
+                
+                # Bugünkü işlemleri al - timeframe bazlı
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as wins,
+                        SUM(CASE WHEN net_profit_loss < 0 THEN 1 ELSE 0 END) as losses,
+                        SUM(net_profit_loss) as total_pnl,
+                        SUM(CASE WHEN timeframe = '15m' THEN 1 ELSE 0 END) as trades_15m,
+                        SUM(CASE WHEN timeframe = '1h' THEN 1 ELSE 0 END) as trades_1h,
+                        SUM(CASE WHEN timeframe = '4h' THEN 1 ELSE 0 END) as trades_4h,
+                        SUM(CASE WHEN timeframe = '1d' THEN 1 ELSE 0 END) as trades_1d,
+                        SUM(CASE WHEN timeframe = '15m' THEN net_profit_loss ELSE 0 END) as pnl_15m,
+                        SUM(CASE WHEN timeframe = '1h' THEN net_profit_loss ELSE 0 END) as pnl_1h,
+                        SUM(CASE WHEN timeframe = '4h' THEN net_profit_loss ELSE 0 END) as pnl_4h,
+                        SUM(CASE WHEN timeframe = '1d' THEN net_profit_loss ELSE 0 END) as pnl_1d
+                    FROM sim_positions
+                    WHERE simulation_id = ? 
+                    AND DATE(exit_time) = ?
+                    AND status = 'CLOSED'
+                """, (sim_id, today))
+                
+                stats = cursor.fetchone()
+                
+                # Değerleri al
+                total_trades = stats[0] or 0
+                winning_trades = stats[1] or 0
+                losing_trades = stats[2] or 0
+                daily_pnl = stats[3] or 0.0
+                
+                # Mevcut kaydı kontrol et
+                cursor.execute("""
+                    SELECT id FROM sim_daily_performance
+                    WHERE simulation_id = ? AND date = ?
+                """, (sim_id, today))
+                
+                if cursor.fetchone():
+                    # Güncelle
+                    cursor.execute("""
+                        UPDATE sim_daily_performance
+                        SET ending_capital = ?, daily_pnl = ?, daily_pnl_pct = ?,
+                            total_trades = ?, winning_trades = ?, losing_trades = ?,
+                            trades_15m = ?, trades_1h = ?, trades_4h = ?, trades_1d = ?,
+                            pnl_15m = ?, pnl_1h = ?, pnl_4h = ?, pnl_1d = ?
+                        WHERE simulation_id = ? AND date = ?
+                    """, (
+                        float(total_capital), float(daily_pnl), 
+                        float(daily_pnl / starting_capital * 100) if starting_capital > 0 else 0,
+                        total_trades, winning_trades, losing_trades,
+                        stats[4], stats[5], stats[6], stats[7],
+                        float(stats[8]), float(stats[9]), float(stats[10]), float(stats[11]),
+                        sim_id, today
+                    ))
+                else:
+                    # Yeni kayıt
+                    cursor.execute("""
+                        INSERT INTO sim_daily_performance (
+                            simulation_id, date, starting_capital, ending_capital,
+                            daily_pnl, daily_pnl_pct, total_trades, winning_trades, losing_trades,
+                            trades_15m, trades_1h, trades_4h, trades_1d,
+                            pnl_15m, pnl_1h, pnl_4h, pnl_1d
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        sim_id, today, float(starting_capital), float(total_capital),
+                        float(daily_pnl), float(daily_pnl / starting_capital * 100) if starting_capital > 0 else 0,
+                        total_trades, winning_trades, losing_trades,
+                        stats[4], stats[5], stats[6], stats[7],
+                        float(stats[8]), float(stats[9]), float(stats[10]), float(stats[11])
+                    ))
+                
+                conn.commit()
+                
+        except Exception as e:
+            logger.error(f"Günlük performans güncelleme hatası: {str(e)}")
     
     # Public metodlar
     async def get_simulation_status(self, sim_id: int) -> Optional[SimulationSummary]:
@@ -898,38 +1006,38 @@ class SimulationManager:
         try:
             with self.storage.get_connection() as conn:
                 cursor = conn.cursor()
-            
-            # Simülasyon bilgilerini al
-            cursor.execute("""
-                SELECT * FROM simulations WHERE id = ?
-            """, (sim_id,))
-            
-            sim_row = cursor.fetchone()
-            if not sim_row:
-                return None
-            
-            col_names = [desc[0] for desc in cursor.description]
-            sim_data = dict(zip(col_names, sim_row))
-            
-            # Timeframe sermayelerini al
-            tf_capitals = {}
-            for tf, capital in self.timeframe_capitals.get(sim_id, {}).items():
-                tf_capitals[tf] = {
-                    'allocated': float(capital.allocated_capital),
-                    'current': float(capital.current_capital),
-                    'in_position': capital.in_position
-                }
-            
-            # Açık pozisyonları say
-            cursor.execute("""
-                SELECT COUNT(*) FROM sim_positions
-                WHERE simulation_id = ? AND status = 'OPEN'
-            """, (sim_id,))
-            open_positions = cursor.fetchone()[0]
-            
-            # Günlük performans
-            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            cursor.execute("""
+                
+                # Simülasyon bilgilerini al
+                cursor.execute("""
+                    SELECT * FROM simulations WHERE id = ?
+                """, (sim_id,))
+                
+                sim_row = cursor.fetchone()
+                if not sim_row:
+                    return None
+                
+                col_names = [desc[0] for desc in cursor.description]
+                sim_data = dict(zip(col_names, sim_row))
+                
+                # Timeframe sermayelerini al
+                tf_capitals = {}
+                for tf, capital in self.timeframe_capitals.get(sim_id, {}).items():
+                    tf_capitals[tf] = {
+                        'allocated': float(capital.allocated_capital),
+                        'current': float(capital.current_capital),
+                        'in_position': capital.in_position
+                    }
+                
+                # Açık pozisyonları say
+                cursor.execute("""
+                    SELECT COUNT(*) FROM sim_positions
+                    WHERE simulation_id = ? AND status = 'OPEN'
+                """, (sim_id,))
+                open_positions = cursor.fetchone()[0]
+                
+                # Günlük performans
+                today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                cursor.execute("""
                 SELECT COUNT(*), SUM(net_profit_loss)
                 FROM sim_positions
                 WHERE simulation_id = ? AND exit_time >= ?

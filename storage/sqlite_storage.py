@@ -628,15 +628,24 @@ class SQLiteStorage:
             
             logger.info(f"Hybrid analysis saved: {analysis['signal']} - {analysis['signal_strength']} - Confidence: {analysis['confidence']:.2%}")
     
-    def get_latest_hybrid_analysis(self) -> Optional[Dict[str, Any]]:
+    def get_latest_hybrid_analysis(self, timeframe: str = None) -> Optional[Dict[str, Any]]:
         """En son hibrit analiz sonucunu getir"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM hybrid_analysis 
-                ORDER BY timestamp DESC 
-                LIMIT 1
-            """)
+            
+            if timeframe:
+                cursor.execute("""
+                    SELECT * FROM hybrid_analysis 
+                    WHERE timeframe = ?
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                """, (timeframe,))
+            else:
+                cursor.execute("""
+                    SELECT * FROM hybrid_analysis 
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                """)
             
             row = cursor.fetchone()
             if row:
