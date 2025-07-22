@@ -278,7 +278,7 @@ class GramAltinAnalyzer:
             # 3. Bollinger Band pozisyonu
             bb_position = bb.get("position", "middle")
             bb_width = bb.get("band_width", 0)
-            if bb_width > 0:
+            if bb_width is not None and bb_width > 0:
                 # Band genişliği volatiliteyi gösterir
                 volatility_factor = min(bb_width / 100, 1.0)  # Normalize et
                 components.append(("volatility", volatility_factor, 0.1))
