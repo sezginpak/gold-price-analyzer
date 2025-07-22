@@ -12,6 +12,7 @@ from models.analysis_result import AnalysisResult, TrendType, TrendStrength
 import json
 from dataclasses import asdict
 from utils.constants import INTERVAL_MINUTES_TO_STR
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -575,6 +576,10 @@ class SQLiteStorage:
             return obj.isoformat()
         elif isinstance(obj, Decimal):
             return float(obj)
+        elif isinstance(obj, (np.integer, np.floating)):
+            return float(obj)
+        elif isinstance(obj, (np.bool_)):
+            return bool(obj)
         elif hasattr(obj, '__dict__'):
             # Dataclass veya objeler için dict'e çevir
             return obj.__dict__
