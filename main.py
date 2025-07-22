@@ -20,6 +20,8 @@ from config import settings
 from analyzers.timeframe_analyzer import TimeframeAnalyzer
 from utils.logger import setup_logger
 from utils.constants import CANDLE_REQUIREMENTS, ANALYSIS_INTERVALS
+from simulation.simulation_manager import SimulationManager
+from models.simulation import StrategyType
 
 # Logging setup - dosya ve console'a yaz
 logger = setup_logger(
@@ -47,6 +49,9 @@ class HybridGoldAnalyzer:
         
         # Timeframe analyzer (farklı zaman dilimleri için)
         self.timeframe_analyzer = TimeframeAnalyzer(self.storage)
+        
+        # Simülasyon yöneticisi
+        self.simulation_manager = SimulationManager(self.storage)
         
         # Son analiz zamanları - dict comprehension ile optimize
         self.last_analysis_times = {tf: datetime.min for tf in ANALYSIS_INTERVALS.keys()}
@@ -219,6 +224,9 @@ class HybridGoldAnalyzer:
         # İstatistik gösterimi
         asyncio.create_task(self.show_statistics())
         
+        # Simülasyon sistemini başlat
+        asyncio.create_task(self.simulation_manager.start())
+        
         logger.info("System started successfully")
         
         # Başlangıç mesajı
@@ -237,6 +245,7 @@ class HybridGoldAnalyzer:
         logger.info("Stopping system...")
         await self.collector.stop()
         await self.harem_service.stop()
+        await self.simulation_manager.stop()
         logger.info("System stopped")
 
 
