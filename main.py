@@ -18,6 +18,7 @@ from strategies.hybrid_strategy import HybridStrategy
 from config import settings
 from analyzers.timeframe_analyzer import TimeframeAnalyzer
 from utils.logger import setup_logger
+from utils.constants import CANDLE_REQUIREMENTS, ANALYSIS_INTERVALS
 
 # Logging setup - dosya ve console'a yaz
 logger = setup_logger(
@@ -46,21 +47,11 @@ class HybridGoldAnalyzer:
         # Timeframe analyzer (farklı zaman dilimleri için)
         self.timeframe_analyzer = TimeframeAnalyzer(self.storage)
         
-        # Son analiz zamanları
-        self.last_analysis_times = {
-            "15m": datetime.min,
-            "1h": datetime.min,
-            "4h": datetime.min,
-            "1d": datetime.min
-        }
+        # Son analiz zamanları - dict comprehension ile optimize
+        self.last_analysis_times = {tf: datetime.min for tf in ANALYSIS_INTERVALS.keys()}
         
-        # Analiz aralıkları (dakika)
-        self.analysis_intervals = {
-            "15m": 15,
-            "1h": 60,
-            "4h": 240,
-            "1d": 1440
-        }
+        # Analiz aralıkları (dakika) - constants'tan al
+        self.analysis_intervals = ANALYSIS_INTERVALS
         
     async def analyze_price(self, price_data: PriceData):
         """Fiyat verisi geldiğinde analiz yap"""
@@ -81,15 +72,8 @@ class HybridGoldAnalyzer:
         try:
             logger.info(f"Running hybrid analysis for {timeframe}")
             
-            # Gerekli mum sayısı (başlangıç için düşük, zamanla artar)
-            candle_requirements = {
-                "15m": 35,   # 35 mum = 8.75 saat veri (MACD için yeterli)
-                "1h": 26,    # 26 mum = 26 saat veri
-                "4h": 20,    # 20 mum = 3.3 gün veri
-                "1d": 20     # 20 mum = 20 gün veri
-            }
-            
-            required_candles = candle_requirements.get(timeframe, 100)
+            # Gerekli mum sayısı ve aralık - constants'tan al
+            required_candles = CANDLE_REQUIREMENTS.get(timeframe, 100)
             interval_minutes = self.analysis_intervals.get(timeframe, 15)
             
             # Gram altın mumlarını oluştur
@@ -108,17 +92,18 @@ class HybridGoldAnalyzer:
                 logger.warning(f"Not enough market data: {len(market_data)}")
                 return
             
-            # Gram altın mumlarını model formatına çevir
-            gram_candle_models = []
-            for candle in gram_candles:
-                gram_candle_models.append(GramAltinCandle(
+            # Gram altın mumlarını model formatına çevir - list comprehension ile optimize
+            gram_candle_models = [
+                GramAltinCandle(
                     timestamp=candle.timestamp,
                     open=candle.open,
                     high=candle.high,
                     low=candle.low,
                     close=candle.close,
                     interval=candle.interval
-                ))
+                )
+                for candle in gram_candles
+            ]
             
             # Hibrit analiz
             analysis_result = self.strategy.analyze(gram_candle_models, market_data)
@@ -141,6 +126,8 @@ class HybridGoldAnalyzer:
         if signal == "HOLD":
             return  # HOLD sinyallerini gösterme
         
+        # Emoji mapping'leri class seviyesinde sabit olarak tanımlasaydık daha optimize olurdu
+        # ama şimdilik inline bırakalım
         signal_emoji = "🟢 ALIŞ" if signal == "BUY" else "🔴 SATIŞ"
         strength_emoji = {
             "STRONG": "💪",

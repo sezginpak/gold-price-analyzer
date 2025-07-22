@@ -5,11 +5,18 @@ from typing import Dict, Any, List, Tuple, Optional
 from decimal import Decimal
 from datetime import datetime
 import logging
+from collections import defaultdict
 
 from models.market_data import MarketData, GramAltinCandle
 from analyzers.gram_altin_analyzer import GramAltinAnalyzer
 from analyzers.global_trend_analyzer import GlobalTrendAnalyzer
 from analyzers.currency_risk_analyzer import CurrencyRiskAnalyzer
+from utils.constants import (
+    SignalType, RiskLevel, StrengthLevel,
+    SIGNAL_STRENGTH_MULTIPLIERS, 
+    RISK_POSITION_MULTIPLIERS,
+    CONFIDENCE_POSITION_MULTIPLIERS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -119,54 +126,42 @@ class HybridStrategy:
         global_direction = global_trend.get("trend_direction", "NEUTRAL")
         risk_level = currency.get("risk_level", "MEDIUM")
         
-        # Sinyal puanları
-        signal_scores = {
-            "BUY": 0,
-            "SELL": 0,
-            "HOLD": 0
-        }
+        # Sinyal puanları - defaultdict kullanarak optimize et
+        signal_scores = defaultdict(float)
         
         # 1. Gram altın sinyali (ana ağırlık)
-        if gram_signal == "BUY":
-            signal_scores["BUY"] += self.weights["gram_analysis"] * gram_confidence
-        elif gram_signal == "SELL":
-            signal_scores["SELL"] += self.weights["gram_analysis"] * gram_confidence
-        else:
-            signal_scores["HOLD"] += self.weights["gram_analysis"]
+        signal_scores[gram_signal] += self.weights["gram_analysis"] * (gram_confidence if gram_signal != "HOLD" else 1.0)
         
-        # 2. Global trend uyumu
+        # 2. Global trend uyumu - lookup table ile optimize et
         trend_weight = self.weights["global_trend"]
-        if global_direction == "BULLISH" and gram_signal == "BUY":
-            signal_scores["BUY"] += trend_weight
-        elif global_direction == "BEARISH" and gram_signal == "SELL":
-            signal_scores["SELL"] += trend_weight
-        elif global_direction == "BULLISH" and gram_signal == "SELL":
-            # Ters sinyal - güven azalt
-            signal_scores["HOLD"] += trend_weight * 0.5
-        elif global_direction == "BEARISH" and gram_signal == "BUY":
-            # Ters sinyal - güven azalt
-            signal_scores["HOLD"] += trend_weight * 0.5
-        else:
-            signal_scores["HOLD"] += trend_weight * 0.3
+        trend_signal_map = {
+            ("BULLISH", "BUY"): ("BUY", 1.0),
+            ("BEARISH", "SELL"): ("SELL", 1.0),
+            ("BULLISH", "SELL"): ("HOLD", 0.5),
+            ("BEARISH", "BUY"): ("HOLD", 0.5),
+        }
+        
+        signal_to_add, multiplier = trend_signal_map.get(
+            (global_direction, gram_signal), 
+            ("HOLD", 0.3)
+        )
+        signal_scores[signal_to_add] += trend_weight * multiplier
         
         # 3. Kur riski etkisi
         risk_weight = self.weights["currency_risk"]
-        if risk_level in ["HIGH", "EXTREME"]:
-            # Yüksek risk - pozisyon almayı zorlaştır
+        is_high_risk = risk_level in ["HIGH", "EXTREME"]
+        
+        if is_high_risk:
             signal_scores["HOLD"] += risk_weight * 0.7
             # Mevcut sinyalleri zayıflat
-            if gram_signal == "BUY":
-                signal_scores["BUY"] *= 0.7
-            elif gram_signal == "SELL":
-                signal_scores["SELL"] *= 0.7
-        else:
-            # Normal risk - gram sinyalini destekle
-            if gram_signal in ["BUY", "SELL"]:
-                signal_scores[gram_signal] += risk_weight * 0.5
+            for sig in ["BUY", "SELL"]:
+                signal_scores[sig] *= 0.7
+        elif gram_signal in ["BUY", "SELL"]:
+            signal_scores[gram_signal] += risk_weight * 0.5
         
-        # Nihai sinyal
+        # Nihai sinyal - daha optimize
         max_score = max(signal_scores.values())
-        final_signal = [k for k, v in signal_scores.items() if v == max_score][0]
+        final_signal = max(signal_scores.items(), key=lambda x: x[1])[0]
         
         # Debug log ekle
         logger.info(f"Signal scores: {signal_scores}")
@@ -251,14 +246,8 @@ class HybridStrategy:
         """Risk ayarlı pozisyon büyüklüğü hesapla"""
         base_position = 1.0  # %100 temel pozisyon
         
-        # Sinyal gücüne göre ayarla
-        strength_multipliers = {
-            "STRONG": 1.0,
-            "MODERATE": 0.7,
-            "WEAK": 0.4
-        }
-        
-        position = base_position * strength_multipliers.get(signal["strength"], 0.5)
+        # Sinyal gücüne göre ayarla - constants'tan al
+        position = base_position * SIGNAL_STRENGTH_MULTIPLIERS.get(signal["strength"], 0.5)
         
         # Kur riski çarpanı
         currency_multiplier = currency.get("position_size_multiplier", 0.8)
@@ -267,17 +256,12 @@ class HybridStrategy:
         # Güven skoruna göre dinamik ayarlama (doğrusal ölçekleme)
         confidence = signal.get("confidence", 0.5)
         
-        # Güven skoru bazlı çarpan (0.3-0.7 arası güven için 0.6-1.0 arası çarpan)
-        if confidence >= 0.7:
-            confidence_multiplier = 1.0
-        elif confidence >= 0.5:
-            # 0.5-0.7 arası güven için 0.8-1.0 arası çarpan
-            confidence_multiplier = 0.8 + (confidence - 0.5) * 1.0
-        elif confidence >= 0.3:
-            # 0.3-0.5 arası güven için 0.6-0.8 arası çarpan
-            confidence_multiplier = 0.6 + (confidence - 0.3) * 1.0
-        else:
-            confidence_multiplier = 0.5
+        # Güven skoru bazlı çarpan - lookup table kullan
+        confidence_multiplier = 0.5  # varsayılan
+        for (min_conf, max_conf), mult in CONFIDENCE_POSITION_MULTIPLIERS.items():
+            if min_conf <= confidence < max_conf:
+                confidence_multiplier = mult
+                break
         
         position *= confidence_multiplier
         

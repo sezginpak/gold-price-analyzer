@@ -11,6 +11,7 @@ from models.price_data import PriceData, PriceCandle
 from models.analysis_result import AnalysisResult, TrendType, TrendStrength
 import json
 from dataclasses import asdict
+from utils.constants import INTERVAL_MINUTES_TO_STR
 
 logger = logging.getLogger(__name__)
 
@@ -292,14 +293,7 @@ class SQLiteStorage:
     
     def generate_candles(self, interval_minutes: int, limit: int = 100) -> List[PriceCandle]:
         """Raw veriden OHLC mumları oluştur"""
-        interval_map = {
-            15: "15m",
-            60: "1h",
-            240: "4h",
-            1440: "1d"
-        }
-        
-        interval_str = interval_map.get(interval_minutes, f"{interval_minutes}m")
+        interval_str = INTERVAL_MINUTES_TO_STR.get(interval_minutes, f"{interval_minutes}m")
         
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -332,9 +326,9 @@ class SQLiteStorage:
                 LIMIT ?
             """, (limit,))
             
-            candles = []
-            for row in cursor.fetchall():
-                candle = PriceCandle(
+            # List comprehension ile optimize et
+            candles = [
+                PriceCandle(
                     timestamp=datetime.fromisoformat(row['candle_time']),
                     open=Decimal(str(row['open'])),
                     high=Decimal(str(row['high'])),
@@ -342,10 +336,11 @@ class SQLiteStorage:
                     close=Decimal(str(row['close'])),
                     interval=interval_str
                 )
-                candles.append(candle)
+                for row in cursor.fetchall()
+            ]
             
             # DESC ile aldık, ters çevirerek eski->yeni yapalım
-            return list(reversed(candles))
+            return candles[::-1]  # reversed() yerine slice notation daha hızlı
     
     def generate_gram_candles(self, interval_minutes: int, limit: int = 100) -> List[PriceCandle]:
         """Gram altın için OHLC mumları oluştur"""

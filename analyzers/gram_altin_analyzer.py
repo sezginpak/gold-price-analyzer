@@ -49,10 +49,10 @@ class GramAltinAnalyzer:
                 logger.warning(f"Yetersiz mum verisi: {len(candles)}, minimum 10 gerekli")
                 return self._empty_analysis()
             
-            # Fiyat dizisi hazırla
-            prices = [float(c.close) for c in candles]
-            high_prices = [float(c.high) for c in candles]
-            low_prices = [float(c.low) for c in candles]
+            # Fiyat dizisi hazırla - numpy array kullan (daha hızlı)
+            prices = np.array([float(c.close) for c in candles])
+            high_prices = np.array([float(c.high) for c in candles])
+            low_prices = np.array([float(c.low) for c in candles])
             
             current_price = Decimal(str(prices[-1]))
             logger.info(f"Mevcut gram altın fiyatı: {current_price}")
@@ -122,19 +122,14 @@ class GramAltinAnalyzer:
             logger.error(f"Gram altın analiz hatası: {e}", exc_info=True)
             return self._empty_analysis()
     
-    def _analyze_trend(self, prices: List[float], macd: Dict) -> Tuple[TrendType, TrendStrength]:
+    def _analyze_trend(self, prices: np.ndarray, macd: Dict) -> Tuple[TrendType, TrendStrength]:
         """Trend yönü ve gücünü belirle"""
-        current_price = prices[-1]
+        current_price = float(prices[-1])
         
         # Yeterli veri varsa MA20 kullan, yoksa daha kısa MA kullan
-        if len(prices) >= 20:
-            ma_period = 20
-        elif len(prices) >= 10:
-            ma_period = 10
-        else:
-            ma_period = len(prices) // 2 if len(prices) > 2 else 2
+        ma_period = min(20, len(prices) // 2 if len(prices) > 2 else 2)
         
-        ma = np.mean(prices[-ma_period:])
+        ma = float(np.mean(prices[-ma_period:]))
         
         # MACD durumu
         macd_histogram = macd.get("histogram")
@@ -164,30 +159,33 @@ class GramAltinAnalyzer:
     
     def _find_support_resistance(self, candles: List[GramAltinCandle]) -> Tuple[List[SupportResistanceLevel], List[SupportResistanceLevel]]:
         """Destek ve direnç seviyelerini bul"""
-        # Basit pivot noktaları
-        highs = [float(c.high) for c in candles]
-        lows = [float(c.low) for c in candles]
+        # Numpy array'e çevir - daha hızlı işlem
+        candle_count = len(candles)
+        look_back = min(50, candle_count)
         
-        # Son 50 mumun en yüksek ve en düşük noktaları
-        recent_highs = sorted(highs[-50:], reverse=True)[:5]
-        recent_lows = sorted(lows[-50:])[:5]
+        highs = np.array([float(c.high) for c in candles[-look_back:]])
+        lows = np.array([float(c.low) for c in candles[-look_back:]])
+        
+        # En yüksek ve en düşük 5 nokta
+        unique_highs = np.unique(highs)[-5:][::-1]  # Benzersiz ve sıralı
+        unique_lows = np.unique(lows)[:5]  # Benzersiz ve sıralı
         
         # Destek seviyeleri
         support_levels = []
-        for i, low in enumerate(recent_lows):
+        for i, low in enumerate(unique_lows):
             support_levels.append(SupportResistanceLevel(
                 level=Decimal(str(low)),
                 strength="strong" if i == 0 else "moderate" if i < 3 else "weak",
-                touches=highs.count(low) + lows.count(low)
+                touches=int(np.sum(np.isclose(highs, low, rtol=0.0001)) + np.sum(np.isclose(lows, low, rtol=0.0001)))
             ))
         
         # Direnç seviyeleri
         resistance_levels = []
-        for i, high in enumerate(recent_highs):
+        for i, high in enumerate(unique_highs):
             resistance_levels.append(SupportResistanceLevel(
                 level=Decimal(str(high)),
                 strength="strong" if i == 0 else "moderate" if i < 3 else "weak",
-                touches=highs.count(high) + lows.count(high)
+                touches=int(np.sum(np.isclose(highs, high, rtol=0.0001)) + np.sum(np.isclose(lows, high, rtol=0.0001)))
             ))
         
         return support_levels[:3], resistance_levels[:3]
@@ -307,10 +305,10 @@ class GramAltinAnalyzer:
                 components.append(("momentum", macd_normalized, 0.15))
             
             # 4.5 Fiyat değişim hızı ve volatilite
-            prices = kwargs.get("prices", [])
-            if prices and len(prices) >= 5:
+            prices = kwargs.get("prices", np.array([]))
+            if len(prices) >= 5:
                 recent_prices = prices[-5:]
-                price_change = (recent_prices[-1] - recent_prices[0]) / recent_prices[0]
+                price_change = (recent_prices[-1] - recent_prices[0]) / recent_prices[0] if recent_prices[0] != 0 else 0
                 # Altın için %0.5'lik değişim bile önemli
                 volatility_score = min(abs(price_change) * 200, 1.0)  # %0.5 = 1.0 skor
                 components.append(("price_change", 1 - volatility_score, 0.1))
@@ -318,8 +316,8 @@ class GramAltinAnalyzer:
                 # Son 10 mumun standart sapması (volatilite)
                 if len(prices) >= 10:
                     last_10_prices = prices[-10:]
-                    std_dev = np.std(last_10_prices)
-                    avg_price = np.mean(last_10_prices)
+                    std_dev = float(np.std(last_10_prices))
+                    avg_price = float(np.mean(last_10_prices))
                     volatility_ratio = std_dev / avg_price if avg_price > 0 else 0
                     # Düşük volatilite = yüksek güven
                     volatility_conf = 1 - min(volatility_ratio * 100, 1.0)  # %1 volatilite = 0 güven
@@ -352,9 +350,8 @@ class GramAltinAnalyzer:
             components.append(("indicators", indicator_ratio, 0.1))
             
             # 8. Veri yeterliliği (mum sayısı)
-            prices = kwargs.get("prices", [])
-            if prices:
-                data_sufficiency = min(len(prices) / 50, 1.0)  # 50 mum = %100 yeterlilik
+            if len(prices) > 0:
+                data_sufficiency = min(len(prices) / 35, 1.0)  # 35 mum = %100 yeterlilik (main.py'deki 15m requirement ile uyumlu)
                 components.append(("data_sufficiency", data_sufficiency, 0.1))
             
             # Ağırlıklı ortalama hesapla
