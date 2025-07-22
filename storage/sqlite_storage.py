@@ -328,7 +328,7 @@ class SQLiteStorage:
                     COUNT(*) as tick_count
                 FROM grouped_data
                 GROUP BY candle_time
-                ORDER BY candle_time ASC
+                ORDER BY candle_time DESC
                 LIMIT ?
             """, (limit,))
             
@@ -344,7 +344,8 @@ class SQLiteStorage:
                 )
                 candles.append(candle)
             
-            return candles  # Zaten eski->yeni sıralı
+            # DESC ile aldık, ters çevirerek eski->yeni yapalım
+            return list(reversed(candles))
     
     def generate_gram_candles(self, interval_minutes: int, limit: int = 100) -> List[PriceCandle]:
         """Gram altın için OHLC mumları oluştur"""
@@ -389,7 +390,7 @@ class SQLiteStorage:
                     COUNT(*) as tick_count
                 FROM grouped_data
                 GROUP BY candle_time
-                ORDER BY candle_time ASC
+                ORDER BY candle_time DESC
                 LIMIT ?
             """, (limit,))
             
@@ -422,7 +423,8 @@ class SQLiteStorage:
                     row['tick_count'] if 'tick_count' in locals() else 0
                 ))
             
-            result = candles  # Zaten eski->yeni sıralı
+            # DESC ile aldık, ters çevirerek eski->yeni yapalım
+            result = list(reversed(candles))
             
             if len(result) > 0:
                 logger.info(f"Generated {len(result)} gram candles for {interval_str} interval")
