@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
+import gc  # Garbage collection için
 
 from services.harem_altin_service import HaremAltinPriceService
 from collectors.harem_price_collector import HaremPriceCollector
@@ -183,6 +184,9 @@ class HybridGoldAnalyzer:
             await asyncio.sleep(300)  # 5 dakikada bir
             
             try:
+                # Garbage collection çalıştır
+                gc.collect()
+                
                 stats = self.storage.get_statistics()
                 latest_analysis = self.storage.get_latest_hybrid_analysis()
                 
@@ -252,9 +256,9 @@ async def main():
     try:
         await analyzer.start()
         
-        # Sonsuza kadar çalış
+        # Sonsuza kadar çalış - daha uzun sleep ile CPU/Memory tasarrufu
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(60)  # 1 dakika bekle, 1 saniye yerine
             
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
