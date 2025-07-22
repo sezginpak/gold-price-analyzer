@@ -83,10 +83,10 @@ class HybridGoldAnalyzer:
             
             # Gerekli mum sayısı (başlangıç için düşük, zamanla artar)
             candle_requirements = {
-                "15m": 50,   # 50 mum = 12.5 saat veri (MACD için yeterli)
-                "1h": 30,    # 30 mum = 30 saat veri
-                "4h": 26,    # 26 mum = 4.3 gün veri
-                "1d": 26     # 26 mum = 26 gün veri
+                "15m": 35,   # 35 mum = 8.75 saat veri (MACD için yeterli)
+                "1h": 26,    # 26 mum = 26 saat veri
+                "4h": 20,    # 20 mum = 3.3 gün veri
+                "1d": 20     # 20 mum = 20 gün veri
             }
             
             required_candles = candle_requirements.get(timeframe, 100)

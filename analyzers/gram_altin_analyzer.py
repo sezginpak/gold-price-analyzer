@@ -259,10 +259,20 @@ class GramAltinAnalyzer:
         # Sinyal kararı (altın için daha hassas)
         if buy_signals > sell_signals and buy_signals >= total_weight * 0.25:  # %25 eşik
             signal = "BUY"
-            confidence = buy_signals / total_weight
+            # BUY/SELL için basit güven hesabı
+            base_confidence = buy_signals / total_weight
+            # Trend uyumu bonusu
+            if trend == TrendType.BULLISH:
+                base_confidence = min(base_confidence * 1.2, 1.0)
+            confidence = base_confidence
         elif sell_signals > buy_signals and sell_signals >= total_weight * 0.25:  # %25 eşik
             signal = "SELL"
-            confidence = sell_signals / total_weight
+            # BUY/SELL için basit güven hesabı
+            base_confidence = sell_signals / total_weight
+            # Trend uyumu bonusu
+            if trend == TrendType.BEARISH:
+                base_confidence = min(base_confidence * 1.2, 1.0)
+            confidence = base_confidence
         else:
             signal = "HOLD"
             # HOLD durumunda daha hassas confidence hesapla
