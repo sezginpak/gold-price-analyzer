@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simülasyonlar - Gold Price Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f0f0f;
+            --bg-card: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --accent-gold: #ffd700;
+            --accent-green: #00ff88;
+            --accent-red: #ff4444;
+            --border-color: #333;
+        }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, var(--bg-card) 0%, #252525 100%);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .positive {
+            color: var(--accent-green);
+        }
+        
+        .negative {
+            color: var(--accent-red);
+        }
+        
+        .btn-strategy {
+            margin: 5px;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+        
+        .table-dark {
+            --bs-table-bg: var(--bg-card);
+        }
+        
+        .position-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .position-row:hover {
+            background-color: rgba(255, 215, 0, 0.1);
+        }
+        
+        .nav-tabs .nav-link {
+            color: var(--text-secondary);
+            background-color: transparent;
+            border: 1px solid transparent;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--accent-gold);
+            background-color: var(--bg-card);
+            border-color: var(--border-color) var(--border-color) var(--bg-card);
+        }
+        
+        .spinner-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+        
+        .badge-status {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+        
+        .badge-active {
+            background-color: rgba(0, 255, 136, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .badge-closed {
+            background-color: rgba(255, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid p-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="display-5">
+                    <i class="fas fa-chart-line text-warning"></i> 
+                    Trading Simülasyonları
+                </h1>
+                <p class="text-secondary">Gerçek zamanlı otomatik trading simülasyon sistemi</p>
+            </div>
+        </div>
+
+        <!-- Simülasyon Özet Kartları -->
+        <div class="row mb-4" id="simulationCards">
+            <div class="spinner-container">
+                <div class="spinner-border text-warning" role="status">
+                    <span class="visually-hidden">Yükleniyor...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detaylı Görünüm -->
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Performans Grafiği -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-area"></i> Sermaye Performansı
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="performanceChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <!-- Strateji Dağılımı -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-pie-chart"></i> İşlem Dağılımı
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="distributionChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pozisyonlar Tablosu -->
+        <div class="row mt-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-bs-toggle="tab" href="#openPositions">
+                                    Açık Pozisyonlar <span class="badge bg-success" id="openCount">0</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#closedPositions">
+                                    Kapalı Pozisyonlar <span class="badge bg-secondary" id="closedCount">0</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#allPositions">
+                                    Tüm İşlemler
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="openPositions">
+                                <div class="table-responsive">
+                                    <table class="table table-dark table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Simülasyon</th>
+                                                <th>Zaman</th>
+                                                <th>Timeframe</th>
+                                                <th>Tip</th>
+                                                <th>Boyut</th>
+                                                <th>Giriş</th>
+                                                <th>Mevcut PnL</th>
+                                                <th>Güven</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="openPositionsTable">
+                                            <tr>
+                                                <td colspan="8" class="text-center text-secondary">
+                                                    Veri yükleniyor...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="closedPositions">
+                                <div class="table-responsive">
+                                    <table class="table table-dark table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Simülasyon</th>
+                                                <th>Giriş</th>
+                                                <th>Çıkış</th>
+                                                <th>Süre</th>
+                                                <th>Timeframe</th>
+                                                <th>Net PnL</th>
+                                                <th>%</th>
+                                                <th>Çıkış Nedeni</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="closedPositionsTable">
+                                            <tr>
+                                                <td colspan="8" class="text-center text-secondary">
+                                                    Veri yükleniyor...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="allPositions">
+                                <div class="table-responsive">
+                                    <table class="table table-dark table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Simülasyon</th>
+                                                <th>Durum</th>
+                                                <th>Giriş</th>
+                                                <th>Timeframe</th>
+                                                <th>Boyut</th>
+                                                <th>PnL</th>
+                                                <th>Detay</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="allPositionsTable">
+                                            <tr>
+                                                <td colspan="8" class="text-center text-secondary">
+                                                    Veri yükleniyor...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menü -->
+    <div id="menuContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global değişkenler
+        let simulations = [];
+        let performanceChart = null;
+        let distributionChart = null;
+        let selectedSimId = null;
+        
+        // Menüyü yükle
+        fetch('/menu')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('menuContainer').innerHTML = html;
+            });
+        
+        // Simülasyonları yükle
+        async function loadSimulations() {
+            try {
+                const response = await fetch('/api/simulations/list');
+                const data = await response.json();
+                simulations = data.simulations || [];
+                displaySimulationCards();
+                if (simulations.length > 0) {
+                    loadPerformanceChart();
+                    loadPositions();
+                }
+            } catch (error) {
+                console.error('Simülasyon yükleme hatası:', error);
+            }
+        }
+        
+        // Simülasyon kartlarını göster
+        function displaySimulationCards() {
+            const container = document.getElementById('simulationCards');
+            
+            if (simulations.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12 text-center">
+                        <p class="text-secondary">Henüz simülasyon bulunmuyor.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            simulations.forEach(sim => {
+                const pnlClass = sim.total_profit_loss >= 0 ? 'positive' : 'negative';
+                const statusBadge = sim.status === 'ACTIVE' ? 'badge-active' : 'badge-closed';
+                
+                html += `
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="stat-card">
+                            <h6 class="text-secondary">${sim.name}</h6>
+                            <div class="stat-value">${sim.current_capital.toFixed(1)}g</div>
+                            <div class="${pnlClass}">
+                                ${sim.total_profit_loss >= 0 ? '+' : ''}${sim.total_profit_loss.toFixed(2)}g
+                                (${sim.total_profit_loss_pct.toFixed(2)}%)
+                            </div>
+                            <div class="mt-3">
+                                <small class="d-block">
+                                    Win Rate: ${(sim.win_rate * 100).toFixed(1)}%
+                                </small>
+                                <small class="d-block">
+                                    İşlemler: ${sim.total_trades} 
+                                    (W:${sim.winning_trades}/L:${sim.losing_trades})
+                                </small>
+                            </div>
+                            <div class="mt-2">
+                                <span class="badge-status ${statusBadge}">
+                                    ${sim.status}
+                                </span>
+                                <button class="btn btn-sm btn-outline-warning btn-strategy" 
+                                        onclick="selectSimulation(${sim.id})">
+                                    Detay
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Simülasyon seç
+        function selectSimulation(simId) {
+            selectedSimId = simId;
+            loadSimulationPerformance(simId);
+            loadSimulationPositions(simId);
+        }
+        
+        // Performans grafiği
+        function loadPerformanceChart() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            if (performanceChart) {
+                performanceChart.destroy();
+            }
+            
+            // Tüm simülasyonların toplam sermayesi
+            const datasets = simulations.map((sim, index) => {
+                const colors = ['#ffd700', '#00ff88', '#ff4444', '#00bfff'];
+                return {
+                    label: sim.name,
+                    data: [1000, sim.current_capital], // Başlangıç ve mevcut
+                    borderColor: colors[index % colors.length],
+                    backgroundColor: colors[index % colors.length] + '20',
+                    tension: 0.4
+                };
+            });
+            
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Başlangıç', 'Mevcut'],
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#b0b0b0'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                color: '#b0b0b0',
+                                callback: function(value) {
+                                    return value + 'g';
+                                }
+                            },
+                            grid: {
+                                color: '#333'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#b0b0b0'
+                            },
+                            grid: {
+                                color: '#333'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Simülasyon performansını yükle
+        async function loadSimulationPerformance(simId) {
+            try {
+                const response = await fetch(`/api/simulations/${simId}/performance?days=30`);
+                const data = await response.json();
+                
+                if (data.performance && data.performance.length > 0) {
+                    updatePerformanceChart(data.performance);
+                }
+            } catch (error) {
+                console.error('Performans yükleme hatası:', error);
+            }
+        }
+        
+        // Performans grafiğini güncelle
+        function updatePerformanceChart(performance) {
+            if (!performanceChart) return;
+            
+            const labels = performance.map(p => new Date(p.date).toLocaleDateString('tr-TR'));
+            const capitalData = performance.map(p => p.ending_capital);
+            const pnlData = performance.map(p => p.daily_pnl);
+            
+            performanceChart.data = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Sermaye',
+                        data: capitalData,
+                        borderColor: '#ffd700',
+                        backgroundColor: '#ffd70020',
+                        yAxisID: 'y',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Günlük PnL',
+                        data: pnlData,
+                        borderColor: '#00ff88',
+                        backgroundColor: '#00ff8820',
+                        yAxisID: 'y1',
+                        type: 'bar'
+                    }
+                ]
+            };
+            
+            performanceChart.options.scales = {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    ticks: {
+                        color: '#b0b0b0',
+                        callback: function(value) {
+                            return value.toFixed(0) + 'g';
+                        }
+                    },
+                    grid: {
+                        color: '#333'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    ticks: {
+                        color: '#b0b0b0',
+                        callback: function(value) {
+                            return value.toFixed(2) + 'g';
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#b0b0b0',
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: {
+                        color: '#333'
+                    }
+                }
+            };
+            
+            performanceChart.update();
+        }
+        
+        // İşlem dağılımı grafiği
+        function loadDistributionChart() {
+            const ctx = document.getElementById('distributionChart').getContext('2d');
+            
+            if (distributionChart) {
+                distributionChart.destroy();
+            }
+            
+            // Timeframe bazlı işlem sayıları (örnek veri)
+            distributionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['15m', '1h', '4h', '1d'],
+                    datasets: [{
+                        data: [30, 25, 20, 25],
+                        backgroundColor: [
+                            '#ffd700',
+                            '#00ff88',
+                            '#ff4444',
+                            '#00bfff'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#b0b0b0'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Pozisyonları yükle
+        async function loadPositions() {
+            // Tüm simülasyonların pozisyonlarını yükle
+            let allOpen = [];
+            let allClosed = [];
+            
+            for (const sim of simulations) {
+                try {
+                    // Açık pozisyonlar
+                    const openResp = await fetch(`/api/simulations/${sim.id}/positions?status=open`);
+                    const openData = await openResp.json();
+                    if (openData.positions) {
+                        allOpen = allOpen.concat(openData.positions.map(p => ({...p, sim_name: sim.name})));
+                    }
+                    
+                    // Kapalı pozisyonlar
+                    const closedResp = await fetch(`/api/simulations/${sim.id}/positions?status=closed`);
+                    const closedData = await closedResp.json();
+                    if (closedData.positions) {
+                        allClosed = allClosed.concat(closedData.positions.map(p => ({...p, sim_name: sim.name})));
+                    }
+                } catch (error) {
+                    console.error(`Pozisyon yükleme hatası (Sim ${sim.id}):`, error);
+                }
+            }
+            
+            displayOpenPositions(allOpen);
+            displayClosedPositions(allClosed);
+            
+            // Sayıları güncelle
+            document.getElementById('openCount').textContent = allOpen.length;
+            document.getElementById('closedCount').textContent = allClosed.length;
+        }
+        
+        // Açık pozisyonları göster
+        function displayOpenPositions(positions) {
+            const tbody = document.getElementById('openPositionsTable');
+            
+            if (positions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-secondary">
+                            Açık pozisyon bulunmuyor.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            positions.forEach(pos => {
+                const entryTime = new Date(pos.entry_time).toLocaleString('tr-TR');
+                
+                html += `
+                    <tr class="position-row">
+                        <td>${pos.sim_name}</td>
+                        <td>${entryTime}</td>
+                        <td>${pos.timeframe}</td>
+                        <td>${pos.position_type}</td>
+                        <td>${pos.position_size.toFixed(3)}g</td>
+                        <td>${pos.entry_price.toFixed(2)} TL</td>
+                        <td class="positive">Hesaplanıyor...</td>
+                        <td>${(pos.entry_confidence * 100).toFixed(0)}%</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        // Kapalı pozisyonları göster
+        function displayClosedPositions(positions) {
+            const tbody = document.getElementById('closedPositionsTable');
+            
+            if (positions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-secondary">
+                            Kapalı pozisyon bulunmuyor.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            positions.forEach(pos => {
+                const entryTime = new Date(pos.entry_time).toLocaleString('tr-TR');
+                const exitTime = new Date(pos.exit_time).toLocaleString('tr-TR');
+                const pnlClass = pos.net_profit_loss >= 0 ? 'positive' : 'negative';
+                
+                // Süre hesapla
+                const duration = pos.holding_period_minutes;
+                const hours = Math.floor(duration / 60);
+                const minutes = duration % 60;
+                const durationStr = hours > 0 ? `${hours}s ${minutes}d` : `${minutes}d`;
+                
+                html += `
+                    <tr class="position-row">
+                        <td>${pos.sim_name}</td>
+                        <td>${entryTime}</td>
+                        <td>${exitTime}</td>
+                        <td>${durationStr}</td>
+                        <td>${pos.timeframe}</td>
+                        <td class="${pnlClass}">${pos.net_profit_loss.toFixed(2)}g</td>
+                        <td class="${pnlClass}">${pos.profit_loss_pct.toFixed(2)}%</td>
+                        <td>${pos.exit_reason}</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        // Simülasyon pozisyonlarını yükle
+        async function loadSimulationPositions(simId) {
+            try {
+                const response = await fetch(`/api/simulations/${simId}/positions?status=all`);
+                const data = await response.json();
+                
+                if (data.positions) {
+                    displayAllPositions(data.positions);
+                }
+            } catch (error) {
+                console.error('Pozisyon yükleme hatası:', error);
+            }
+        }
+        
+        // Tüm pozisyonları göster
+        function displayAllPositions(positions) {
+            const tbody = document.getElementById('allPositionsTable');
+            
+            if (positions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-secondary">
+                            İşlem bulunmuyor.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            positions.forEach(pos => {
+                const entryTime = new Date(pos.entry_time).toLocaleString('tr-TR');
+                const statusBadge = pos.status === 'OPEN' ? 'badge-active' : 'badge-closed';
+                const pnl = pos.net_profit_loss || 0;
+                const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+                
+                html += `
+                    <tr class="position-row">
+                        <td>${pos.id}</td>
+                        <td>Sim #${pos.simulation_id}</td>
+                        <td><span class="badge-status ${statusBadge}">${pos.status}</span></td>
+                        <td>${entryTime}</td>
+                        <td>${pos.timeframe}</td>
+                        <td>${pos.position_size.toFixed(3)}g</td>
+                        <td class="${pnlClass}">${pnl.toFixed(2)}g</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" 
+                                    onclick="showPositionDetails(${pos.id})">
+                                <i class="fas fa-info-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        // Pozisyon detaylarını göster
+        function showPositionDetails(posId) {
+            // TODO: Modal ile detaylı pozisyon bilgisi göster
+            console.log('Pozisyon detayı:', posId);
+        }
+        
+        // Sayfa yüklendiğinde
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSimulations();
+            loadDistributionChart();
+            
+            // Her 30 saniyede bir güncelle
+            setInterval(() => {
+                loadSimulations();
+                if (selectedSimId) {
+                    loadSimulationPerformance(selectedSimId);
+                    loadSimulationPositions(selectedSimId);
+                }
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

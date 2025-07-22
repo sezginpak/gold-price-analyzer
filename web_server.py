@@ -18,6 +18,8 @@ from services.harem_altin_service import HaremAltinPriceService
 from config import settings
 from utils.log_manager import LogManager
 from utils.logger import setup_logger
+from simulation.simulation_manager import SimulationManager
+from models.simulation import SimulationStatus, StrategyType
 
 # Web server için ayrı logger
 logger = setup_logger(
@@ -34,6 +36,7 @@ templates = Jinja2Templates(directory="templates")
 # Storage
 storage = SQLiteStorage()
 log_manager = LogManager()
+simulation_manager = SimulationManager(storage)
 
 # WebSocket clients
 active_connections: List[WebSocket] = []
@@ -299,6 +302,12 @@ async def logs_page(request: Request):
     return templates.TemplateResponse("logs.html", {"request": request})
 
 
+@app.get("/simulations")
+async def simulations_page(request: Request):
+    """Simülasyon sayfası"""
+    return templates.TemplateResponse("simulations.html", {"request": request})
+
+
 @app.get("/api/analysis/config")
 async def get_analysis_config():
     """Analiz konfigürasyonunu döndür"""
@@ -336,6 +345,134 @@ async def get_recent_errors(count: int = 10):
         return {"errors": errors, "count": len(errors)}
     except Exception as e:
         logger.error(f"Error getting recent errors: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/simulations/list")
+async def get_simulations():
+    """Tüm simülasyonları listele"""
+    try:
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, name, strategy_type, status, current_capital, 
+                       total_profit_loss, total_profit_loss_pct, win_rate,
+                       total_trades, winning_trades, losing_trades,
+                       created_at
+                FROM simulations
+                ORDER BY id
+            """)
+            
+            simulations = []
+            for row in cursor.fetchall():
+                simulations.append({
+                    "id": row[0],
+                    "name": row[1],
+                    "strategy_type": row[2],
+                    "status": row[3],
+                    "current_capital": row[4],
+                    "total_profit_loss": row[5],
+                    "total_profit_loss_pct": row[6],
+                    "win_rate": row[7],
+                    "total_trades": row[8],
+                    "winning_trades": row[9],
+                    "losing_trades": row[10],
+                    "created_at": row[11]
+                })
+            
+            return {"simulations": simulations}
+    except Exception as e:
+        logger.error(f"Error getting simulations: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/simulations/{sim_id}/positions")
+async def get_simulation_positions(sim_id: int, status: str = "all"):
+    """Simülasyon pozisyonlarını getir"""
+    try:
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            if status == "all":
+                query = """
+                    SELECT * FROM sim_positions 
+                    WHERE simulation_id = ?
+                    ORDER BY entry_time DESC
+                    LIMIT 50
+                """
+                params = (sim_id,)
+            else:
+                query = """
+                    SELECT * FROM sim_positions 
+                    WHERE simulation_id = ? AND status = ?
+                    ORDER BY entry_time DESC
+                    LIMIT 50
+                """
+                params = (sim_id, status.upper())
+            
+            cursor.execute(query, params)
+            columns = [desc[0] for desc in cursor.description]
+            
+            positions = []
+            for row in cursor.fetchall():
+                pos = dict(zip(columns, row))
+                positions.append(pos)
+            
+            return {"positions": positions}
+    except Exception as e:
+        logger.error(f"Error getting positions: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/simulations/{sim_id}/performance")
+async def get_simulation_performance(sim_id: int, days: int = 30):
+    """Simülasyon performans grafiği verisi"""
+    try:
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Son N günlük performans
+            cursor.execute("""
+                SELECT date, starting_capital, ending_capital, daily_pnl, daily_pnl_pct,
+                       total_trades, winning_trades, losing_trades
+                FROM sim_daily_performance
+                WHERE simulation_id = ?
+                ORDER BY date DESC
+                LIMIT ?
+            """, (sim_id, days))
+            
+            performance = []
+            for row in cursor.fetchall():
+                performance.append({
+                    "date": row[0],
+                    "starting_capital": row[1],
+                    "ending_capital": row[2],
+                    "daily_pnl": row[3],
+                    "daily_pnl_pct": row[4],
+                    "total_trades": row[5],
+                    "winning_trades": row[6],
+                    "losing_trades": row[7]
+                })
+            
+            # Sırayı düzelt (eskiden yeniye)
+            performance.reverse()
+            
+            return {"performance": performance}
+    except Exception as e:
+        logger.error(f"Error getting performance: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/simulations/{sim_id}/summary")
+async def get_simulation_summary(sim_id: int):
+    """Simülasyon özeti"""
+    try:
+        summary = await simulation_manager.get_simulation_status(sim_id)
+        if summary:
+            return summary.dict()
+        return {"error": "Simulation not found"}
+    except Exception as e:
+        logger.error(f"Error getting simulation summary: {e}")
         return {"error": str(e)}
 
 
