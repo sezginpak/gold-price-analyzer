@@ -218,10 +218,15 @@ class GramAltinAnalyzer:
         
         # Bollinger Bands
         bb = kwargs["bollinger"]
-        if bb.get("position") == "below_lower":
+        bb_position = bb.get("position", "middle")
+        if bb_position == "below_lower":
             buy_signals += 2
-        elif bb.get("position") == "above_upper":
+        elif bb_position == "above_upper":
             sell_signals += 2
+        elif bb_position == "near_lower":  # Alt banda yakın
+            buy_signals += 1
+        elif bb_position == "near_upper":  # Üst banda yakın
+            sell_signals += 1
         total_weight += 2
         
         # Stochastic
@@ -250,11 +255,11 @@ class GramAltinAnalyzer:
         elif trend == TrendType.BEARISH and sell_signals > buy_signals:
             sell_signals += 1
         
-        # Sinyal kararı
-        if buy_signals > sell_signals and buy_signals >= total_weight * 0.3:
+        # Sinyal kararı (altın için daha hassas)
+        if buy_signals > sell_signals and buy_signals >= total_weight * 0.25:  # %25 eşik
             signal = "BUY"
             confidence = buy_signals / total_weight
-        elif sell_signals > buy_signals and sell_signals >= total_weight * 0.3:
+        elif sell_signals > buy_signals and sell_signals >= total_weight * 0.25:  # %25 eşik
             signal = "SELL"
             confidence = sell_signals / total_weight
         else:

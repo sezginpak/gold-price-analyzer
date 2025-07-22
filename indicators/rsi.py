@@ -17,8 +17,9 @@ class RSIIndicator:
             period: RSI periyodu (varsayılan 14)
         """
         self.period = period
-        self.oversold_level = 30
-        self.overbought_level = 70
+        # Altın için daha hassas RSI eşikleri
+        self.oversold_level = 40  # Normalde 30
+        self.overbought_level = 60  # Normalde 70
         
     def calculate(self, prices: List[float]) -> Tuple[Optional[float], Optional[str]]:
         """

@@ -90,11 +90,16 @@ class BollingerBandsIndicator:
             historical_widths = self._calculate_historical_widths(candles)
             squeeze = self._detect_squeeze(band_width, historical_widths)
             
-            # Pozisyon belirleme
-            if current_price < lower_band:
+            # Pozisyon belirleme (altın için daha hassas)
+            # %B değerini kullanarak daha detaylı pozisyon
+            if percent_b < 0.2:  # Alt bandın altında veya çok yakın
                 position = "below_lower"
-            elif current_price > upper_band:
+            elif percent_b > 0.8:  # Üst bandın üstünde veya çok yakın
                 position = "above_upper"
+            elif percent_b < 0.35:  # Alt banda yakın
+                position = "near_lower"
+            elif percent_b > 0.65:  # Üst banda yakın
+                position = "near_upper"
             else:
                 position = "middle"
             
