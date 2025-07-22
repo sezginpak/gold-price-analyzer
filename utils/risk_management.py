@@ -136,14 +136,14 @@ class KellyRiskManager:
             # Risk miktarı (para birimi)
             risk_amount = capital * final_risk
             
-            # Pozisyon boyutu
-            position_size = risk_amount / price_risk
+            # Pozisyon boyutu (TL cinsinden)
+            position_value = risk_amount / price_risk
             
-            # Lot hesaplama (gram altın için)
-            lots = position_size / entry_price
+            # Lot hesaplama (gram cinsinden)
+            lots = position_value / entry_price
             
             return {
-                'position_size': round(position_size, 2),
+                'position_size': round(position_value, 2),
                 'lots': round(lots, 3),
                 'risk_amount': round(risk_amount, 2),
                 'risk_percentage': round(final_risk * 100, 2),
@@ -151,7 +151,7 @@ class KellyRiskManager:
                 'confidence_adjusted': round(adjusted_risk * 100, 2),
                 'price_risk': round(price_risk * 100, 2),
                 'max_loss': round(risk_amount, 2),
-                'position_value': round(lots * entry_price, 2)
+                'position_value': round(position_value, 2)
             }
             
         except Exception as e:

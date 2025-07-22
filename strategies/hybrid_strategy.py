@@ -542,8 +542,8 @@ class HybridStrategy:
     def _calculate_kelly_position(self, signal: Dict, gram: Dict, currency: Dict) -> Dict[str, Any]:
         """Kelly Criterion ile pozisyon boyutu hesapla"""
         try:
-            # Varsayılan sermaye (kullanıcı tarafından ayarlanabilir)
-            capital = 100000  # 100K TL varsayılan
+            # Varsayılan sermaye (gram altın ticareti için makul miktar)
+            capital = 10000  # 10K TL varsayılan (daha makul)
             
             # Fiyat ve stop loss
             current_price = float(gram.get('price', 0))

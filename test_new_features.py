@@ -190,7 +190,7 @@ def test_kelly_risk():
     risk_manager = KellyRiskManager()
     
     # Test parametreleri
-    capital = 100000  # 100K TL
+    capital = 10000  # 10K TL (daha makul)
     entry_price = 4400
     stop_loss_price = 4350  # ~%1.1 risk
     
