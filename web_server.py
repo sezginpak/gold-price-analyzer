@@ -349,6 +349,11 @@ async def get_analysis_history(timeframe: str = None):
         # API formatına dönüştür
         formatted_analyses = []
         for analysis in analyses:
+            # Details kontrolü
+            gram_details = analysis.get("details", {}).get("gram", {})
+            global_details = analysis.get("details", {}).get("global", {})
+            currency_details = analysis.get("details", {}).get("currency", {})
+            
             formatted_analyses.append({
                 "timestamp": analysis["timestamp"].isoformat(),
                 "timeframe": analysis["timeframe"],
@@ -366,9 +371,35 @@ async def get_analysis_history(timeframe: str = None):
                 "recommendations": analysis["recommendations"],
                 "summary": analysis["summary"],
                 "details": {
-                    "gram": analysis["details"]["gram"],
-                    "global": analysis["details"]["global"],
-                    "currency": analysis["details"]["currency"]
+                    "gram": {
+                        "trend": gram_details.get("trend", "NEUTRAL"),
+                        "rsi": gram_details.get("indicators", {}).get("rsi"),
+                        "signal": gram_details.get("signal", "HOLD"),
+                        "stop_loss": float(gram_details.get("stop_loss")) if gram_details.get("stop_loss") else None,
+                        "take_profit": float(gram_details.get("take_profit")) if gram_details.get("take_profit") else None
+                    },
+                    "global": {
+                        "trend_direction": global_details.get("trend_direction", "NEUTRAL"),
+                        "trend_strength": global_details.get("trend_strength", "WEAK"),
+                        "momentum": {
+                            "signal": global_details.get("momentum", {}).get("signal", "-")
+                        },
+                        "volatility": {
+                            "level": global_details.get("volatility", {}).get("level", "-")
+                        },
+                        "supportive": global_details.get("supportive_of_signal", False)
+                    },
+                    "currency": {
+                        "risk_level": currency_details.get("risk_level", "MEDIUM"),
+                        "volatility": {
+                            "level": currency_details.get("volatility", {}).get("level", "-")
+                        },
+                        "position_size_multiplier": currency_details.get("position_size_multiplier", 1.0),
+                        "intervention_risk": {
+                            "has_risk": currency_details.get("intervention_risk", {}).get("has_risk", False)
+                        },
+                        "trend_alignment": currency_details.get("trend_alignment", False)
+                    }
                 }
             })
         
