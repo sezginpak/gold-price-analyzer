@@ -3,6 +3,7 @@ Gram Altın Analiz Motoru - Ana analiz sistemi
 """
 from typing import List, Dict, Any, Optional, Tuple
 from decimal import Decimal
+import decimal
 from datetime import datetime, timedelta
 import logging
 import numpy as np
@@ -370,10 +371,14 @@ class GramAltinAnalyzer:
             return None, None
         
         # ATR None veya geçersizse varsayılan değer kullan
-        if atr is None or atr == 0:
-            atr_decimal = Decimal("10")  # Varsayılan ATR
-        else:
-            atr_decimal = Decimal(str(atr))
+        try:
+            if atr is None or atr == 0 or not isinstance(atr, (int, float)):
+                atr_decimal = Decimal("10")  # Varsayılan ATR
+            else:
+                atr_decimal = Decimal(str(float(atr)))
+        except (TypeError, ValueError, decimal.InvalidOperation) as e:
+            logger.warning(f"ATR conversion error: {e}, using default value")
+            atr_decimal = Decimal("10")
         
         if signal == "BUY":
             # En yakın desteğin biraz altı veya ATR bazlı
