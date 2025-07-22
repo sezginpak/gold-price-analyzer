@@ -176,17 +176,31 @@ class HybridStrategy:
         gram_confidence = gram.get("confidence", 0.5)
         
         # Hibrit güven hesaplaması:
-        # 1. Sinyal skoru bazlı güven
-        total_possible_score = sum(self.weights.values())
-        score_confidence = min(signal_scores[final_signal] / total_possible_score, 1.0)
+        # 1. Sinyal skoru bazlı güven - sadece o sinyali destekleyen analizörlerin ağırlıklarını kullan
+        supporting_analyzers_weight = 0
+        if gram.get("signal") == final_signal:
+            supporting_analyzers_weight += self.weights["gram"]
+        if global_trend.get("signal") == final_signal:
+            supporting_analyzers_weight += self.weights["global"]
+        if currency_risk.get("signal") == final_signal:
+            supporting_analyzers_weight += self.weights["currency"]
+        
+        # En az bir analizör destekliyorsa, destekleyen analizörlerin toplam ağırlığına göre hesapla
+        if supporting_analyzers_weight > 0:
+            score_confidence = min(signal_scores[final_signal] / supporting_analyzers_weight, 1.0)
+        else:
+            score_confidence = 0.3  # Hiçbir analizör desteklemiyorsa düşük güven
         
         # 2. Final güven: Gram güveni ve skor güveninin ağırlıklı ortalaması
         if final_signal == "HOLD":
             # HOLD için gram analizörünün güveni daha önemli
             normalized_confidence = (gram_confidence * 0.7) + (score_confidence * 0.3)
         else:
-            # BUY/SELL için dengeli
-            normalized_confidence = (gram_confidence * 0.5) + (score_confidence * 0.5)
+            # BUY/SELL için gram güveni ve skor güveni daha dengeli
+            # Ayrıca minimum güven seviyesi belirle
+            normalized_confidence = (gram_confidence * 0.6) + (score_confidence * 0.4)
+            # BUY/SELL sinyalleri için minimum %40 güven
+            normalized_confidence = max(normalized_confidence, 0.4)
         
         logger.info(f"Confidence calculation: gram={gram_confidence:.3f}, score={score_confidence:.3f}, final={normalized_confidence:.3f}")
         
