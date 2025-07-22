@@ -410,7 +410,7 @@ class GramAltinAnalyzer:
         """Boş analiz sonucu"""
         return {
             "timestamp": datetime.utcnow(),
-            "price": None,
+            "price": Decimal("0"),
             "trend": TrendType.NEUTRAL,
             "trend_strength": TrendStrength.WEAK,
             "indicators": {},

@@ -47,6 +47,15 @@ class HybridStrategy:
             gram_analysis = self.gram_analyzer.analyze(gram_candles)
             logger.info(f"Gram analizi tamamlandı. Fiyat: {gram_analysis.get('price')}")
             
+            # Fiyat kontrolü - eğer None veya 0 ise son mum fiyatını kullan
+            if not gram_analysis.get('price') or gram_analysis.get('price') == 0:
+                if gram_candles and len(gram_candles) > 0:
+                    gram_analysis['price'] = gram_candles[-1].close
+                    logger.warning(f"Gram price was None/0, using last candle close price: {gram_analysis['price']}")
+                else:
+                    logger.error("No gram price and no candles available")
+                    return self._empty_result()
+            
             # 2. Global trend analizi
             global_analysis = self.global_analyzer.analyze(market_data)
             

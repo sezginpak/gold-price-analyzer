@@ -1,0 +1,43 @@
+#!/usr/bin/expect -f
+
+# SSH bağlantı bilgileri
+set host "152.42.143.169"
+set user "root"
+set password "sezgin64.Pak"
+
+# Timeout süresi
+set timeout 30
+
+# SSH bağlantısını başlat
+spawn ssh $user@$host
+
+# Bağlantı yanıtlarını bekle ve işle
+expect {
+    "yes/no" {
+        send "yes\r"
+        expect "*assword:"
+        send "$password\r"
+    }
+    "*assword:" {
+        send "$password\r"
+    }
+}
+
+# Login sonrası komutları çalıştır
+expect "~]#"
+send "cd /root/gold-price-analyzer\r"
+expect "gold-price-analyzer]#"
+send "python3 main.py\r"
+
+# Programın çıktısını bekle
+expect {
+    timeout {
+        puts "\n--- TIMEOUT: Program yanıt vermedi ---"
+    }
+    eof {
+        puts "\n--- Program sonlandı ---"
+    }
+}
+
+# Etkileşimi kullanıcıya bırak
+interact

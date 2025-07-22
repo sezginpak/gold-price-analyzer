@@ -312,7 +312,7 @@ class SQLiteStorage:
                             strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 
                             'unixepoch'
                         ) as candle_time,
-                        ons_try,
+                        gram_altin,
                         timestamp,
                         ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp ASC) as rn_first,
                         ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp DESC) as rn_last
@@ -320,10 +320,10 @@ class SQLiteStorage:
                 )
                 SELECT 
                     candle_time,
-                    MIN(ons_try) as low,
-                    MAX(ons_try) as high,
-                    MAX(CASE WHEN rn_first = 1 THEN ons_try END) as open,
-                    MAX(CASE WHEN rn_last = 1 THEN ons_try END) as close,
+                    MIN(gram_altin) as low,
+                    MAX(gram_altin) as high,
+                    MAX(CASE WHEN rn_first = 1 THEN gram_altin END) as open,
+                    MAX(CASE WHEN rn_last = 1 THEN gram_altin END) as close,
                     COUNT(*) as tick_count
                 FROM grouped_data
                 GROUP BY candle_time
@@ -601,7 +601,7 @@ class SQLiteStorage:
             """, (
                 analysis["timestamp"].isoformat() if isinstance(analysis["timestamp"], datetime) else analysis["timestamp"],
                 analysis.get("timeframe", "15m"),
-                float(analysis["gram_price"]) if analysis["gram_price"] else 0,
+                float(analysis.get("gram_price", 0)) if analysis.get("gram_price") else 0,
                 analysis["signal"],
                 analysis["signal_strength"],
                 analysis["confidence"],
