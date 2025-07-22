@@ -179,11 +179,14 @@ class HybridStrategy:
         # 1. Sinyal skoru bazlı güven - sadece o sinyali destekleyen analizörlerin ağırlıklarını kullan
         supporting_analyzers_weight = 0
         if gram.get("signal") == final_signal:
-            supporting_analyzers_weight += self.weights["gram"]
-        if global_trend.get("signal") == final_signal:
-            supporting_analyzers_weight += self.weights["global"]
-        if currency_risk.get("signal") == final_signal:
-            supporting_analyzers_weight += self.weights["currency"]
+            supporting_analyzers_weight += self.weights["gram_analysis"]
+        # Global trend'in doğrudan sinyali yok, yön kontrolü yap
+        if (final_signal == "BUY" and global_trend.get("trend_direction") == "BULLISH") or \
+           (final_signal == "SELL" and global_trend.get("trend_direction") == "BEARISH"):
+            supporting_analyzers_weight += self.weights["global_trend"]
+        # Currency risk'in de doğrudan sinyali yok, risk seviyesi kontrolü yap
+        if final_signal == "HOLD" and currency.get("risk_level") in ["HIGH", "EXTREME"]:
+            supporting_analyzers_weight += self.weights["currency_risk"]
         
         # En az bir analizör destekliyorsa, destekleyen analizörlerin toplam ağırlığına göre hesapla
         if supporting_analyzers_weight > 0:
