@@ -462,7 +462,7 @@ class HybridStrategy:
                     'low': float(candle.low),
                     'close': float(candle.close),
                     'open': float(candle.open),
-                    'volume': float(candle.volume) if hasattr(candle, 'volume') else 0
+                    'volume': float(candle.volume) if hasattr(candle, 'volume') and candle.volume is not None else 0
                 })
             
             df = pd.DataFrame(data)
