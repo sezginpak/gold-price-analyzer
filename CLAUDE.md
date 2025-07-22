@@ -130,6 +130,18 @@ sudo journalctl -u gold-web -f
 3. **CI/CD Pipeline Yok**: Otomatik test ve deployment pipeline'ı kurulmamış
 4. **MongoDB/Redis**: Config'de tanımlı ama kullanılmıyor, sadece SQLite aktif
 
+## Aktif Geliştirmeler
+
+### 🎯 Simülasyon Sistemi (Yeni)
+- **Amaç**: Sinyal performansını ölçmek için otomatik trading simülasyonu
+- **Sermaye**: 1000 gram altın (4 timeframe'e eşit dağıtılmış)
+- **Özellikler**: 
+  - 8 farklı çıkış stratejisi
+  - 7 simülasyon senaryosu
+  - Gram bazlı kar/zarar takibi
+  - Detaylı raporlama
+- **Dokümantasyon**: `SIMULATION_SYSTEM.md`
+
 ## Geliştirme İpuçları
 
 - Yeni bir analyzer eklerken `analyzers/` klasörüne ekle ve `hybrid_strategy.py`'de entegre et
