@@ -1,0 +1,71 @@
+#!/usr/bin/expect -f
+
+# SSH bağlantı bilgileri
+set hostname "152.42.143.169"
+set username "root"
+set password "sezgin64.Pak"
+
+# Timeout süresini artır
+set timeout 60
+
+# SSH bağlantısını başlat
+spawn ssh $username@$hostname
+
+# Parola istemi için bekle ve parolayı gir
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    "yes/no" {
+        send "yes\r"
+        expect "password:"
+        send "$password\r"
+    }
+}
+
+# Komut istemi için bekle
+expect "# "
+
+# Proje dizinine git
+send "cd /root/gold-price-analyzer\r"
+expect "# "
+
+# Mevcut prosesleri durdur
+puts "=== Sistem durduruluyor... ===\n"
+send "pkill -f main.py\r"
+expect "# "
+sleep 2
+
+# Kodu güncelle
+puts "=== Kod güncelleniyor... ===\n"
+send "git pull\r"
+expect "# "
+
+# Sistemi yeniden başlat
+puts "=== Sistem başlatılıyor... ===\n"
+send "./venv/bin/python main.py &\r"
+expect "# "
+sleep 10
+
+# Process kontrolü
+puts "=== Process durumu: ===\n"
+send "ps aux | grep main.py | grep -v grep\r"
+expect "# "
+
+# İlk analiz tamamlansın
+puts "=== 20 saniye analiz bekleniyor... ===\n"
+sleep 20
+
+# Son kayıt kontrolü
+puts "=== Son Kayıt (Advanced Indicators Kontrolü): ===\n"
+send "sqlite3 gold_prices.db \"SELECT datetime(timestamp), signal, substr(advanced_indicators, 1, 100), substr(pattern_analysis, 1, 100) FROM hybrid_analysis ORDER BY timestamp DESC LIMIT 1;\"\r"
+expect "# "
+
+# Web API test
+puts "=== Web API Test (Advanced Indicators): ===\n"
+send "curl -s http://localhost:8000/api/analysis/history | python3 -m json.tool | grep -A 10 'advanced_indicators' | head -20\r"
+expect "# "
+
+# Çıkış
+send "exit\r"
+expect eof
