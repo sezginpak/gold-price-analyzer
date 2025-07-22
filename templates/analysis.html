@@ -230,6 +230,95 @@
             </div>
         </div>
 
+        <!-- Gelişmiş Göstergeler -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6">
+            <!-- CCI & MFI Göstergeleri -->
+            <div class="glass-card rounded-lg p-4 lg:p-6">
+                <h3 class="text-base lg:text-lg font-bold mb-4 text-indigo-400 flex items-center">
+                    <i class="fas fa-chart-line mr-2"></i>
+                    Gelişmiş Göstergeler
+                </h3>
+                <div class="space-y-2 lg:space-y-3">
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">CCI:</span>
+                        <span class="font-bold" id="cci-value">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">CCI Sinyal:</span>
+                        <span class="font-bold" id="cci-signal">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">MFI:</span>
+                        <span class="font-bold" id="mfi-value">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">MFI Sinyal:</span>
+                        <span class="font-bold" id="mfi-signal">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">Birleşik Sinyal:</span>
+                        <span class="font-bold" id="advanced-signal">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">Diverjans:</span>
+                        <span class="font-bold" id="divergence">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pattern Analizi -->
+            <div class="glass-card rounded-lg p-4 lg:p-6">
+                <h3 class="text-base lg:text-lg font-bold mb-4 text-purple-400 flex items-center">
+                    <i class="fas fa-shapes mr-2"></i>
+                    Pattern Tanıma
+                </h3>
+                <div class="space-y-2 lg:space-y-3">
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">Pattern Bulundu:</span>
+                        <span class="font-bold" id="pattern-found">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">Pattern Adı:</span>
+                        <span class="font-bold" id="pattern-name">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">Pattern Sinyal:</span>
+                        <span class="font-bold" id="pattern-signal">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm lg:text-base">
+                        <span class="text-gray-400">Pattern Güven:</span>
+                        <span class="font-bold" id="pattern-confidence">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Yönetimi -->
+        <div class="glass-card rounded-lg p-4 lg:p-6 mb-6">
+            <h3 class="text-base lg:text-lg font-bold mb-4 text-orange-400 flex items-center">
+                <i class="fas fa-shield-alt mr-2"></i>
+                Kelly Criterion Risk Yönetimi
+            </h3>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+                <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                    <p class="text-gray-400 text-xs lg:text-sm">Lot Sayısı</p>
+                    <p class="text-base lg:text-xl font-bold" id="kelly-lots">-</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                    <p class="text-gray-400 text-xs lg:text-sm">Risk %</p>
+                    <p class="text-base lg:text-xl font-bold" id="kelly-risk">-</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                    <p class="text-gray-400 text-xs lg:text-sm">Ayarlı Güven</p>
+                    <p class="text-base lg:text-xl font-bold" id="adjusted-confidence">-</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                    <p class="text-gray-400 text-xs lg:text-sm">Volatilite %</p>
+                    <p class="text-base lg:text-xl font-bold" id="market-volatility">-</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Hibrit Analiz Geçmişi -->
         <div class="glass-card rounded-lg p-4 lg:p-6">
             <div class="flex flex-wrap items-center justify-between mb-4">
@@ -425,6 +514,39 @@
             
             // Gram altın fiyatı
             document.getElementById('gram-price').textContent = `₺${analysis.price.toFixed(2)}`;
+            
+            // Yeni göstergeler - Advanced Indicators
+            if (analysis.details && analysis.details.advanced_indicators) {
+                const adv = analysis.details.advanced_indicators;
+                document.getElementById('cci-value').textContent = adv.cci !== null ? adv.cci.toFixed(2) : '-';
+                document.getElementById('cci-signal').textContent = adv.cci_signal || '-';
+                document.getElementById('mfi-value').textContent = adv.mfi !== null ? adv.mfi.toFixed(2) : '-';
+                document.getElementById('mfi-signal').textContent = adv.mfi_signal || '-';
+                document.getElementById('advanced-signal').textContent = adv.combined_signal || '-';
+                document.getElementById('divergence').textContent = adv.divergence ? 'Var' : 'Yok';
+            }
+            
+            // Pattern tanıma
+            if (analysis.details && analysis.details.pattern) {
+                const pattern = analysis.details.pattern;
+                document.getElementById('pattern-found').textContent = pattern.found ? 'Evet' : 'Hayır';
+                document.getElementById('pattern-name').textContent = pattern.name || '-';
+                document.getElementById('pattern-signal').textContent = pattern.signal || '-';
+                document.getElementById('pattern-confidence').textContent = 
+                    pattern.confidence ? `%${(pattern.confidence * 100).toFixed(0)}` : '-';
+            }
+            
+            // Kelly Criterion Risk Yönetimi
+            if (analysis.position_details) {
+                const pos = analysis.position_details;
+                document.getElementById('kelly-lots').textContent = pos.lots || '-';
+                document.getElementById('kelly-risk').textContent = 
+                    pos.risk_percentage ? `%${pos.risk_percentage.toFixed(1)}` : '-';
+                document.getElementById('adjusted-confidence').textContent = 
+                    pos.adjusted_confidence ? `%${(pos.adjusted_confidence * 100).toFixed(0)}` : '-';
+                document.getElementById('market-volatility').textContent = 
+                    pos.market_volatility ? `%${pos.market_volatility.toFixed(1)}` : '-';
+            }
         }
 
         // Detaylı analiz bileşenlerini güncelle
