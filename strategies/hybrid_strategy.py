@@ -282,7 +282,7 @@ class HybridStrategy:
             "confidence_multiplier": round(confidence_multiplier, 2)
         }
         
-        logger.info(f"Position calculation: base={base_position}, strength_mult={strength_multipliers.get(signal['strength'], 0.5)}, currency_mult={currency_multiplier}, confidence_mult={confidence_multiplier:.2f}, final={result['recommended_size']}")
+        logger.info(f"Position calculation: base={base_position}, strength_mult={SIGNAL_STRENGTH_MULTIPLIERS.get(signal['strength'], 0.5)}, currency_mult={currency_multiplier}, confidence_mult={confidence_multiplier:.2f}, final={result['recommended_size']}")
         return result
     
     def _adjust_risk_levels(self, gram: Dict, currency: Dict) -> Dict[str, Any]:
