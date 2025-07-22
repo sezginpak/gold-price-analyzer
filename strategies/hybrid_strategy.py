@@ -219,22 +219,18 @@ class HybridStrategy:
         }
     
     def _calculate_signal_strength(self, score: float, trend: str, risk: str) -> str:
-        """Sinyal gücünü hesapla"""
-        # Temel güç
-        if score >= 0.7:
+        """Sinyal gücünü hesapla - güven skoruna dayalı"""
+        # Güven skoruna göre temel güç
+        if score >= 0.75:
             base_strength = "STRONG"
-        elif score >= 0.5:
+        elif score >= 0.55:
             base_strength = "MODERATE"
         else:
             base_strength = "WEAK"
         
-        # Trend ve risk ayarlaması
-        if trend in ["BULLISH", "BEARISH"] and risk in ["LOW", "MEDIUM"]:
-            # İdeal koşullar
-            if base_strength == "MODERATE":
-                return "STRONG"
-        elif risk in ["HIGH", "EXTREME"]:
-            # Riskli koşullar
+        # Risk seviyesine göre ayarlama (trend uyumu bonusu kaldırıldı)
+        if risk in ["HIGH", "EXTREME"]:
+            # Yüksek risk durumunda güç seviyesini düşür
             if base_strength == "STRONG":
                 return "MODERATE"
             elif base_strength == "MODERATE":
