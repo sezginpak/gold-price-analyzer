@@ -44,44 +44,44 @@
             Anlık Fiyatlar
         </h2>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-slate-800/50 rounded-lg p-3 relative overflow-hidden">
+            <div class="bg-gradient-to-br from-amber-500/10 to-yellow-500/10 rounded-lg p-3 relative overflow-hidden border border-amber-500/20">
                 <span class="text-gray-400 text-xs lg:text-sm">Gram Altın</span>
-                <div class="text-xl lg:text-2xl font-bold text-yellow-400" id="gram-altin">-</div>
+                <div class="text-xl lg:text-2xl font-bold text-amber-400" id="gram-altin">-</div>
                 <div class="text-xs mt-1 flex items-center" id="gram-change">
                     <span class="mr-1">-</span>
                 </div>
-                <div class="absolute top-0 right-0 opacity-10">
-                    <i class="fas fa-coins text-4xl text-yellow-400"></i>
+                <div class="absolute top-0 right-0 opacity-20">
+                    <i class="fas fa-coins text-4xl text-amber-400"></i>
                 </div>
             </div>
-            <div class="bg-slate-800/50 rounded-lg p-3 relative overflow-hidden">
+            <div class="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-lg p-3 relative overflow-hidden border border-blue-500/20">
                 <span class="text-gray-400 text-xs lg:text-sm">ONS/USD</span>
                 <div class="text-xl lg:text-2xl font-bold text-blue-400" id="ons-usd">-</div>
                 <div class="text-xs mt-1 flex items-center" id="ons-change">
                     <span class="mr-1">-</span>
                 </div>
-                <div class="absolute top-0 right-0 opacity-10">
+                <div class="absolute top-0 right-0 opacity-20">
                     <i class="fas fa-globe text-4xl text-blue-400"></i>
                 </div>
             </div>
-            <div class="bg-slate-800/50 rounded-lg p-3 relative overflow-hidden">
+            <div class="bg-gradient-to-br from-emerald-500/10 to-green-500/10 rounded-lg p-3 relative overflow-hidden border border-emerald-500/20">
                 <span class="text-gray-400 text-xs lg:text-sm">USD/TRY</span>
-                <div class="text-xl lg:text-2xl font-bold text-green-400" id="usd-try">-</div>
+                <div class="text-xl lg:text-2xl font-bold text-emerald-400" id="usd-try">-</div>
                 <div class="text-xs mt-1 flex items-center" id="usd-change">
                     <span class="mr-1">-</span>
                 </div>
-                <div class="absolute top-0 right-0 opacity-10">
-                    <i class="fas fa-dollar-sign text-4xl text-green-400"></i>
+                <div class="absolute top-0 right-0 opacity-20">
+                    <i class="fas fa-dollar-sign text-4xl text-emerald-400"></i>
                 </div>
             </div>
-            <div class="bg-slate-800/50 rounded-lg p-3 relative overflow-hidden">
+            <div class="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-lg p-3 relative overflow-hidden border border-purple-500/20">
                 <span class="text-gray-400 text-xs lg:text-sm">ONS/TRY</span>
-                <div class="text-xl lg:text-2xl font-bold" id="ons-try">-</div>
+                <div class="text-xl lg:text-2xl font-bold text-purple-400" id="ons-try">-</div>
                 <div class="text-xs mt-1 flex items-center" id="ons-try-change">
                     <span class="mr-1">-</span>
                 </div>
-                <div class="absolute top-0 right-0 opacity-10">
-                    <i class="fas fa-lira-sign text-4xl"></i>
+                <div class="absolute top-0 right-0 opacity-20">
+                    <i class="fas fa-lira-sign text-4xl text-purple-400"></i>
                 </div>
             </div>
         </div>
@@ -148,16 +148,16 @@
                 Hızlı İşlemler
             </h2>
             <div class="space-y-2">
-                <button onclick="runQuickAnalysis('15m')" class="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
+                <button onclick="runQuickAnalysis('15m')" class="w-full px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg text-sm transition-all duration-200 hover:scale-105 shadow-lg">
                     <i class="fas fa-sync-alt mr-1"></i> 15D Analiz Yenile
                 </button>
-                <button onclick="runQuickAnalysis('1h')" class="w-full px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm transition-colors">
+                <button onclick="runQuickAnalysis('1h')" class="w-full px-3 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 rounded-lg text-sm transition-all duration-200 hover:scale-105 shadow-lg">
                     <i class="fas fa-sync-alt mr-1"></i> 1S Analiz Yenile
                 </button>
-                <button onclick="exportData()" class="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-colors">
+                <button onclick="exportData()" class="w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-sm transition-all duration-200 hover:scale-105 shadow-lg">
                     <i class="fas fa-download mr-1"></i> Veri İndir
                 </button>
-                <a href="/analysis" class="block w-full px-3 py-2 bg-orange-600 hover:bg-orange-700 rounded text-sm transition-colors text-center">
+                <a href="/analysis" class="block w-full px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-lg text-sm transition-all duration-200 hover:scale-105 shadow-lg text-center">
                     <i class="fas fa-chart-bar mr-1"></i> Detaylı Analiz
                 </a>
             </div>
@@ -291,8 +291,8 @@
             };
         }
 
-        // Önceki fiyatları sakla
-        let previousPrices = {
+        // Günlük açılış fiyatları - gerçek API'den gelecek
+        let dailyOpenPrices = {
             gram_altin: null,
             ons_usd: null,
             usd_try: null,
@@ -304,42 +304,73 @@
             // Gram Altın
             if (price.gram_altin) {
                 document.getElementById('gram-altin').textContent = `₺${price.gram_altin.toFixed(2)}`;
-                updatePriceChange('gram-change', previousPrices.gram_altin, price.gram_altin);
-                previousPrices.gram_altin = price.gram_altin;
+                if (dailyOpenPrices.gram_altin) {
+                    updatePriceChange('gram-change', dailyOpenPrices.gram_altin, price.gram_altin);
+                }
             }
             
             // ONS/USD
             document.getElementById('ons-usd').textContent = `$${price.ons_usd.toFixed(2)}`;
-            updatePriceChange('ons-change', previousPrices.ons_usd, price.ons_usd);
-            previousPrices.ons_usd = price.ons_usd;
+            if (dailyOpenPrices.ons_usd) {
+                updatePriceChange('ons-change', dailyOpenPrices.ons_usd, price.ons_usd);
+            }
             
             // USD/TRY
             document.getElementById('usd-try').textContent = price.usd_try.toFixed(4);
-            updatePriceChange('usd-change', previousPrices.usd_try, price.usd_try);
-            previousPrices.usd_try = price.usd_try;
+            if (dailyOpenPrices.usd_try) {
+                updatePriceChange('usd-change', dailyOpenPrices.usd_try, price.usd_try);
+            }
             
             // ONS/TRY
             document.getElementById('ons-try').textContent = `₺${price.ons_try.toFixed(2)}`;
-            updatePriceChange('ons-try-change', previousPrices.ons_try, price.ons_try);
-            previousPrices.ons_try = price.ons_try;
+            if (dailyOpenPrices.ons_try) {
+                updatePriceChange('ons-try-change', dailyOpenPrices.ons_try, price.ons_try);
+            }
         }
 
         // Fiyat değişimini göster
-        function updatePriceChange(elementId, oldPrice, newPrice) {
+        function updatePriceChange(elementId, openPrice, currentPrice) {
             const element = document.getElementById(elementId);
-            if (!element || !oldPrice || !newPrice) return;
+            if (!element) return;
 
-            const change = ((newPrice - oldPrice) / oldPrice) * 100;
+            const change = ((currentPrice - openPrice) / openPrice) * 100;
             const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
-            const arrow = change >= 0 ? '↑' : '↓';
-            const colorClass = change >= 0 ? 'text-green-400' : 'text-red-400';
+            const colorClass = change >= 0 ? 'text-emerald-500' : 'text-rose-500';
 
             element.innerHTML = `
                 <span class="${colorClass}">
-                    <i class="fas fa-arrow-${change >= 0 ? 'up' : 'down'} mr-1"></i>
+                    <i class="fas fa-arrow-${change >= 0 ? 'up' : 'down'} mr-1 text-xs"></i>
                     ${changeText}
                 </span>
             `;
+        }
+
+        // Günlük açılış fiyatlarını yükle
+        async function loadDailyOpenPrices() {
+            try {
+                // Mock data - gerçek API endpoint eklenecek
+                // API'den bugünün açılış fiyatları veya 24 saat önceki fiyatlar gelecek
+                const response = await fetch('/api/prices/daily-open');
+                const data = await response.json();
+                
+                if (data.prices) {
+                    dailyOpenPrices = data.prices;
+                }
+            } catch (error) {
+                console.error('Günlük açılış fiyatları yüklenemedi:', error);
+                // Fallback olarak şu anki fiyatları kullan
+                const currentPrices = await fetch('/api/prices/latest');
+                const data = await currentPrices.json();
+                if (data.prices && data.prices.length > 0) {
+                    const latest = data.prices[0];
+                    dailyOpenPrices = {
+                        gram_altin: latest.gram_altin,
+                        ons_usd: latest.ons_usd,
+                        usd_try: latest.usd_try,
+                        ons_try: latest.ons_try
+                    };
+                }
+            }
         }
 
         // İstatistikleri yükle
@@ -786,6 +817,7 @@
             initPriceChart();
             initCandleChart();
             loadStats();
+            loadDailyOpenPrices();
             loadInitialPrices();
             loadHybridAnalysis();
             loadSignals();
