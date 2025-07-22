@@ -144,7 +144,8 @@ class MACDIndicator:
             # Divergence tespiti
             divergence = self._detect_divergence(closes[-50:], macd_line[-50:]) if len(macd_line) >= 50 else None
             
-            return {
+            # Sinyal hesapla
+            signal_type, signal_confidence = self._calculate_signal_weight({
                 "macd_line": float(macd_line[-1]) if macd_line else None,
                 "signal_line": float(signal_line[-1]) if signal_line else None,
                 "histogram": float(histogram[-1]) if histogram else None,
@@ -153,6 +154,19 @@ class MACDIndicator:
                 "divergence": divergence,
                 "trend": self._determine_trend(histogram),
                 "strength": self._calculate_strength(histogram)
+            })
+            
+            return {
+                "macd_line": float(macd_line[-1]) if macd_line else None,
+                "signal_line": float(signal_line[-1]) if signal_line else None,
+                "histogram": float(histogram[-1]) if histogram else None,
+                "histogram_prev": float(histogram[-2]) if len(histogram) > 1 else None,
+                "crossover": crossover,
+                "divergence": divergence,
+                "trend": self._determine_trend(histogram),
+                "strength": self._calculate_strength(histogram),
+                "signal": signal_type,
+                "signal_confidence": signal_confidence
             }
             
         except Exception as e:

@@ -251,10 +251,10 @@ class GramAltinAnalyzer:
             sell_signals += 1
         
         # Sinyal kararı
-        if buy_signals > sell_signals and buy_signals >= total_weight * 0.4:
+        if buy_signals > sell_signals and buy_signals >= total_weight * 0.3:
             signal = "BUY"
             confidence = buy_signals / total_weight
-        elif sell_signals > buy_signals and sell_signals >= total_weight * 0.4:
+        elif sell_signals > buy_signals and sell_signals >= total_weight * 0.3:
             signal = "SELL"
             confidence = sell_signals / total_weight
         else:

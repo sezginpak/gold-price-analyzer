@@ -83,10 +83,10 @@
                 Gram Altın OHLC
             </h2>
             <div class="mb-2 flex flex-wrap gap-2">
-                <button onclick="loadGramCandles('15m')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">15D</button>
-                <button onclick="loadGramCandles('1h')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">1S</button>
-                <button onclick="loadGramCandles('4h')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">4S</button>
-                <button onclick="loadGramCandles('1d')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">1G</button>
+                <button onclick="loadGramCandles('15m', this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors candle-btn">15D</button>
+                <button onclick="loadGramCandles('1h', this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors candle-btn">1S</button>
+                <button onclick="loadGramCandles('4h', this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors candle-btn">4S</button>
+                <button onclick="loadGramCandles('1d', this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors candle-btn">1G</button>
             </div>
             <div id="candleChart" class="h-80 lg:h-96"></div>
         </div>
@@ -320,7 +320,7 @@
         }
         
         // Gram altın mum verilerini yükle
-        async function loadGramCandles(interval) {
+        async function loadGramCandles(interval, btnElement) {
             try {
                 const response = await fetch(`/api/gram-candles/${interval}`);
                 const data = await response.json();
@@ -338,15 +338,16 @@
                 }
                 
                 // Buton stillerini güncelle
-                document.querySelectorAll('button').forEach(btn => {
-                    if (btn.onclick && btn.onclick.toString().includes('loadGramCandles')) {
-                        btn.classList.remove('bg-blue-800');
-                        btn.classList.add('bg-blue-600');
-                    }
+                document.querySelectorAll('.candle-btn').forEach(btn => {
+                    btn.classList.remove('bg-blue-800');
+                    btn.classList.add('bg-blue-600');
                 });
                 
-                event.target.classList.remove('bg-blue-600');
-                event.target.classList.add('bg-blue-800');
+                // Aktif butonu vurgula
+                if (btnElement) {
+                    btnElement.classList.remove('bg-blue-600');
+                    btnElement.classList.add('bg-blue-800');
+                }
             } catch (error) {
                 console.error('Mum verileri yüklenemedi:', error);
             }
