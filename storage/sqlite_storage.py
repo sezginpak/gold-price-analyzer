@@ -594,8 +594,9 @@ class SQLiteStorage:
                     confidence, position_size, stop_loss, take_profit,
                     risk_reward_ratio, global_trend, global_trend_strength,
                     currency_risk_level, position_multiplier, recommendations,
-                    analysis_summary, gram_analysis, global_analysis, currency_analysis
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    analysis_summary, gram_analysis, global_analysis, currency_analysis,
+                    advanced_indicators, pattern_analysis
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 analysis["timestamp"].isoformat() if isinstance(analysis["timestamp"], datetime) else analysis["timestamp"],
                 analysis.get("timeframe", "15m"),
@@ -615,7 +616,9 @@ class SQLiteStorage:
                 analysis["summary"],
                 json.dumps(analysis["gram_analysis"], default=self._json_serializer),
                 json.dumps(analysis["global_trend"], default=self._json_serializer),
-                json.dumps(analysis["currency_risk"], default=self._json_serializer)
+                json.dumps(analysis["currency_risk"], default=self._json_serializer),
+                json.dumps(analysis.get("advanced_indicators", {}), default=self._json_serializer),
+                json.dumps(analysis.get("pattern_analysis", {}), default=self._json_serializer)
             ))
             
             logger.info(f"Hybrid analysis saved: {analysis['signal']} - {analysis['signal_strength']} - Confidence: {analysis['confidence']:.2%}")
