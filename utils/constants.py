@@ -31,17 +31,17 @@ class TrendDirection(Enum):
 
 # Sinyal güç çarpanları
 SIGNAL_STRENGTH_MULTIPLIERS: Dict[str, float] = {
-    StrengthLevel.STRONG.value: 1.0,
-    StrengthLevel.MODERATE.value: 0.7,
-    StrengthLevel.WEAK.value: 0.5
+    "STRONG": 1.0,
+    "MODERATE": 0.7,
+    "WEAK": 0.5
 }
 
 # Risk seviyesi pozisyon çarpanları
 RISK_POSITION_MULTIPLIERS: Dict[str, float] = {
-    RiskLevel.LOW.value: 1.0,
-    RiskLevel.MEDIUM.value: 0.8,
-    RiskLevel.HIGH.value: 0.5,
-    RiskLevel.EXTREME.value: 0.3
+    "LOW": 1.0,
+    "MEDIUM": 0.8,
+    "HIGH": 0.5,
+    "EXTREME": 0.3
 }
 
 # Güven seviyesi pozisyon çarpanları

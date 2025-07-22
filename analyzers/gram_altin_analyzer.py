@@ -58,7 +58,7 @@ class GramAltinAnalyzer:
             logger.info(f"Mevcut gram altın fiyatı: {current_price}")
             
             # Teknik göstergeler
-            rsi_value, rsi_signal = self.rsi.calculate(prices)
+            rsi_value, rsi_signal = self.rsi.calculate(prices.tolist())  # RSI List[float] bekliyor
             macd_result = self.macd.calculate(candles)
             bb_result = self.bollinger.calculate(candles)
             stoch_result = self.stochastic.calculate(candles)
