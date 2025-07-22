@@ -317,6 +317,7 @@ class SQLiteStorage:
                         ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp ASC) as rn_first,
                         ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp DESC) as rn_last
                     FROM price_data
+                    WHERE gram_altin IS NOT NULL
                 )
                 SELECT 
                     candle_time,
@@ -327,7 +328,7 @@ class SQLiteStorage:
                     COUNT(*) as tick_count
                 FROM grouped_data
                 GROUP BY candle_time
-                ORDER BY candle_time DESC
+                ORDER BY candle_time ASC
                 LIMIT ?
             """, (limit,))
             
@@ -343,7 +344,7 @@ class SQLiteStorage:
                 )
                 candles.append(candle)
             
-            return list(reversed(candles))  # Eski->Yeni sıralama
+            return candles  # Zaten eski->yeni sıralı
     
     def generate_gram_candles(self, interval_minutes: int, limit: int = 100) -> List[PriceCandle]:
         """Gram altın için OHLC mumları oluştur"""
@@ -388,7 +389,7 @@ class SQLiteStorage:
                     COUNT(*) as tick_count
                 FROM grouped_data
                 GROUP BY candle_time
-                ORDER BY candle_time DESC
+                ORDER BY candle_time ASC
                 LIMIT ?
             """, (limit,))
             
@@ -421,7 +422,7 @@ class SQLiteStorage:
                     row['tick_count'] if 'tick_count' in locals() else 0
                 ))
             
-            result = list(reversed(candles))  # Eski->Yeni sıralama
+            result = candles  # Zaten eski->yeni sıralı
             
             if len(result) > 0:
                 logger.info(f"Generated {len(result)} gram candles for {interval_str} interval")
