@@ -366,7 +366,7 @@ async def get_analysis_history(timeframe: str = None):
                 "signal": analysis["signal"],
                 "signal_strength": analysis["signal_strength"],
                 "confidence": analysis["confidence"],
-                "position_size": analysis.get("position_size", {}).get("recommended_size", analysis.get("position_size", 0)),
+                "position_size": analysis.get("position_size", 0) if isinstance(analysis.get("position_size"), (int, float)) else analysis.get("position_details", {}).get("lots", 0),
                 "stop_loss": float(analysis["stop_loss"]) if analysis["stop_loss"] else None,
                 "take_profit": float(analysis["take_profit"]) if analysis["take_profit"] else None,
                 "risk_reward_ratio": analysis["risk_reward_ratio"],

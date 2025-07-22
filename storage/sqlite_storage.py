@@ -603,7 +603,7 @@ class SQLiteStorage:
                 analysis["signal"],
                 analysis["signal_strength"],
                 analysis["confidence"],
-                analysis["position_size"]["recommended_size"],
+                float(analysis.get("position_size", 0)) if isinstance(analysis.get("position_size"), (int, float)) else analysis.get("position_details", {}).get("lots", 0),
                 float(analysis["stop_loss"]) if analysis.get("stop_loss") else None,
                 float(analysis["take_profit"]) if analysis.get("take_profit") else None,
                 analysis.get("risk_reward_ratio"),
@@ -728,7 +728,7 @@ class SQLiteStorage:
             "signal_strength": row["signal_strength"],
             "confidence": row["confidence"],
             "position_size": {
-                "recommended_size": row["position_size"],
+                "lots": row["position_size"],
                 "multiplier": row["position_multiplier"]
             },
             "stop_loss": Decimal(str(row["stop_loss"])) if row["stop_loss"] else None,

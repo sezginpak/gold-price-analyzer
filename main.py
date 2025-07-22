@@ -141,7 +141,12 @@ class HybridGoldAnalyzer:
         print(f"📅 Zaman: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"💰 Gram Altın: {analysis['gram_price']:.2f} TRY")
         print(f"📊 Güven: %{analysis['confidence']*100:.0f}")
-        print(f"📈 Pozisyon: %{analysis['position_size']['recommended_size']*100:.0f}")
+        position_size = analysis.get('position_size', 0)
+        if isinstance(position_size, dict):
+            position_value = position_size.get('lots', 0)
+        else:
+            position_value = position_size
+        print(f"📈 Pozisyon: {position_value:.3f} lot")
         
         if analysis.get("stop_loss"):
             print(f"🛑 Stop Loss: {analysis['stop_loss']:.2f} TRY")
