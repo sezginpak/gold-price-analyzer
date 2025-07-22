@@ -412,13 +412,14 @@ class HybridStrategy:
             recommendations.append("Yeni pozisyon açmayın")
         
         # Pozisyon büyüklüğü
-        size = position["recommended_size"]
-        if size < 0.5:
-            recommendations.append(f"Düşük pozisyon büyüklüğü önerilir (%{int(size*100)})")
-        elif size < 0.8:
-            recommendations.append(f"Orta pozisyon büyüklüğü önerilir (%{int(size*100)})")
-        else:
-            recommendations.append(f"Normal pozisyon büyüklüğü uygun (%{int(size*100)})")
+        risk_pct = position.get("risk_percentage", 0)
+        if risk_pct > 0:
+            if risk_pct < 1.0:
+                recommendations.append(f"Düşük pozisyon büyüklüğü önerilir (%{risk_pct:.1f} risk)")
+            elif risk_pct < 1.5:
+                recommendations.append(f"Orta pozisyon büyüklüğü önerilir (%{risk_pct:.1f} risk)")
+            else:
+                recommendations.append(f"Normal pozisyon büyüklüğü uygun (%{risk_pct:.1f} risk)")
         
         # Risk uyarıları
         if currency.get("intervention_risk", {}).get("has_risk"):
@@ -437,7 +438,8 @@ class HybridStrategy:
             "signal": "HOLD",
             "signal_strength": "WEAK",
             "confidence": 0,
-            "position_size": {"recommended_size": 0},
+            "position_size": 0,
+            "position_details": {"lots": 0, "risk_percentage": 0},
             "stop_loss": None,
             "take_profit": None,
             "risk_reward_ratio": None,

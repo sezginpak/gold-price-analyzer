@@ -354,6 +354,11 @@ async def get_analysis_history(timeframe: str = None):
             global_details = analysis.get("details", {}).get("global", {})
             currency_details = analysis.get("details", {}).get("currency", {})
             
+            # Yeni göstergeler için veri hazırlığı
+            advanced_indicators = analysis.get("advanced_indicators", {})
+            pattern_analysis = analysis.get("pattern_analysis", {})
+            position_details = analysis.get("position_details", {})
+            
             formatted_analyses.append({
                 "timestamp": analysis["timestamp"].isoformat(),
                 "timeframe": analysis["timeframe"],
@@ -361,7 +366,7 @@ async def get_analysis_history(timeframe: str = None):
                 "signal": analysis["signal"],
                 "signal_strength": analysis["signal_strength"],
                 "confidence": analysis["confidence"],
-                "position_size": analysis["position_size"]["recommended_size"],
+                "position_size": analysis.get("position_size", {}).get("recommended_size", analysis.get("position_size", 0)),
                 "stop_loss": float(analysis["stop_loss"]) if analysis["stop_loss"] else None,
                 "take_profit": float(analysis["take_profit"]) if analysis["take_profit"] else None,
                 "risk_reward_ratio": analysis["risk_reward_ratio"],
@@ -399,8 +404,23 @@ async def get_analysis_history(timeframe: str = None):
                             "has_risk": currency_details.get("intervention_risk", {}).get("has_risk", False)
                         },
                         "trend_alignment": currency_details.get("trend_alignment", False)
+                    },
+                    "advanced_indicators": {
+                        "cci": advanced_indicators.get("cci", {}).get("value", None),
+                        "cci_signal": advanced_indicators.get("cci", {}).get("signal", "NEUTRAL"),
+                        "mfi": advanced_indicators.get("mfi", {}).get("value", None),
+                        "mfi_signal": advanced_indicators.get("mfi", {}).get("signal", "NEUTRAL"),
+                        "combined_signal": advanced_indicators.get("combined_signal", "NEUTRAL"),
+                        "divergence": advanced_indicators.get("divergence", False)
+                    },
+                    "pattern": {
+                        "found": pattern_analysis.get("pattern_found", False),
+                        "name": pattern_analysis.get("best_pattern", {}).get("pattern", "None"),
+                        "signal": pattern_analysis.get("signal", "NEUTRAL"),
+                        "confidence": pattern_analysis.get("confidence", 0)
                     }
-                }
+                },
+                "position_details": position_details
             })
         
         return {"analyses": formatted_analyses}
