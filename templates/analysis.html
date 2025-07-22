@@ -14,6 +14,32 @@
         .strength-strong { color: #10b981; }
         .strength-moderate { color: #f59e0b; }
         .strength-weak { color: #6b7280; }
+        
+        /* Timeframe renkleri */
+        .timeframe-15m {
+            background-color: rgba(59, 130, 246, 0.1); /* Mavi */
+        }
+        .timeframe-1h {
+            background-color: rgba(34, 197, 94, 0.1); /* Yeşil */
+        }
+        .timeframe-4h {
+            background-color: rgba(168, 85, 247, 0.1); /* Mor */
+        }
+        .timeframe-1d {
+            background-color: rgba(251, 146, 60, 0.1); /* Turuncu */
+        }
+        .timeframe-15m:hover {
+            background-color: rgba(59, 130, 246, 0.2);
+        }
+        .timeframe-1h:hover {
+            background-color: rgba(34, 197, 94, 0.2);
+        }
+        .timeframe-4h:hover {
+            background-color: rgba(168, 85, 247, 0.2);
+        }
+        .timeframe-1d:hover {
+            background-color: rgba(251, 146, 60, 0.2);
+        }
     </style>
 {% endblock %}
 
@@ -29,8 +55,8 @@
         <div class="glass-card rounded-lg p-4">
             <label class="text-xs lg:text-sm text-gray-400 mr-2 lg:mr-4">Zaman Dilimi:</label>
             <select id="timeframe-selector" class="bg-slate-700 text-white px-3 py-1 lg:px-4 lg:py-2 rounded text-sm lg:text-base">
-                <option value="">Tümü</option>
-                <option value="15m" selected>15 Dakika</option>
+                <option value="" selected>Tümü</option>
+                <option value="15m">15 Dakika</option>
                 <option value="1h">1 Saat</option>
                 <option value="4h">4 Saat</option>
                 <option value="1d">Günlük</option>
@@ -206,10 +232,19 @@
 
         <!-- Hibrit Analiz Geçmişi -->
         <div class="glass-card rounded-lg p-4 lg:p-6">
-            <h3 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-                <i class="fas fa-history mr-2 text-purple-400"></i>
-                Hibrit Analiz Geçmişi
-            </h3>
+            <div class="flex flex-wrap items-center justify-between mb-4">
+                <h3 class="text-lg lg:text-xl font-bold flex items-center">
+                    <i class="fas fa-history mr-2 text-purple-400"></i>
+                    Hibrit Analiz Geçmişi
+                </h3>
+                <div class="flex items-center gap-2 text-xs mt-2 lg:mt-0">
+                    <span class="text-gray-400">Renk kodları:</span>
+                    <span class="px-2 py-1 rounded timeframe-15m">15D</span>
+                    <span class="px-2 py-1 rounded timeframe-1h">1S</span>
+                    <span class="px-2 py-1 rounded timeframe-4h">4S</span>
+                    <span class="px-2 py-1 rounded timeframe-1d">1G</span>
+                </div>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs lg:text-sm">
                     <thead>
@@ -264,10 +299,11 @@
                         const date = new Date(analysis.timestamp);
                         const trDate = new Date(date.getTime() + (3 * 60 * 60 * 1000)); // UTC+3
                         
+                        const timeframeClass = `timeframe-${analysis.timeframe}`;
                         return `
-                            <tr class="border-b border-gray-700">
+                            <tr class="border-b border-gray-700 ${timeframeClass} transition-colors">
                                 <td class="py-1 lg:py-2 text-xs lg:text-sm hidden lg:table-cell">${trDate.toLocaleTimeString('tr-TR')}</td>
-                                <td class="py-1 lg:py-2 text-xs lg:text-sm">${analysis.timeframe}</td>
+                                <td class="py-1 lg:py-2 text-xs lg:text-sm font-semibold">${analysis.timeframe}</td>
                                 <td class="py-1 lg:py-2 text-xs lg:text-sm">₺${analysis.price.toFixed(2)}</td>
                                 <td class="py-1 lg:py-2">
                                     <span class="${analysis.signal === 'BUY' ? 'signal-buy' : 
