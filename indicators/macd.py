@@ -144,17 +144,17 @@ class MACDIndicator:
             # Divergence tespiti
             divergence = self._detect_divergence(closes[-50:], macd_line[-50:]) if len(macd_line) >= 50 else None
             
-            # Sinyal hesapla
-            signal_type, signal_confidence = self._calculate_signal_weight({
-                "macd_line": float(macd_line[-1]) if macd_line else None,
-                "signal_line": float(signal_line[-1]) if signal_line else None,
-                "histogram": float(histogram[-1]) if histogram else None,
-                "histogram_prev": float(histogram[-2]) if len(histogram) > 1 else None,
-                "crossover": crossover,
-                "divergence": divergence,
-                "trend": self._determine_trend(histogram),
-                "strength": self._calculate_strength(histogram)
-            })
+            # Sinyal tipi belirleme
+            signal_type = None
+            if crossover == "BULLISH_CROSSOVER":
+                signal_type = "BUY"
+            elif crossover == "BEARISH_CROSSOVER":
+                signal_type = "SELL"
+            elif histogram and len(histogram) > 0:
+                if histogram[-1] > 0:
+                    signal_type = "BUY" if divergence != "BEARISH_DIVERGENCE" else None
+                else:
+                    signal_type = "SELL" if divergence != "BULLISH_DIVERGENCE" else None
             
             return {
                 "macd_line": float(macd_line[-1]) if macd_line else None,
@@ -165,8 +165,7 @@ class MACDIndicator:
                 "divergence": divergence,
                 "trend": self._determine_trend(histogram),
                 "strength": self._calculate_strength(histogram),
-                "signal": signal_type,
-                "signal_confidence": signal_confidence
+                "signal": signal_type
             }
             
         except Exception as e:
