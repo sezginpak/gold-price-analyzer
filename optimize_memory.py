@@ -92,7 +92,7 @@ def check_disk_space():
     
     # Bytes to GB
     total = (stat.f_blocks * stat.f_frsize) / (1024**3)
-    free = (stat.f_avail * stat.f_frsize) / (1024**3)
+    free = (stat.f_bavail * stat.f_frsize) / (1024**3)
     used = total - free
     percent = (used / total) * 100
     
