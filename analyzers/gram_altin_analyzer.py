@@ -369,7 +369,11 @@ class GramAltinAnalyzer:
         if signal == "HOLD":
             return None, None
         
-        atr_decimal = Decimal(str(atr))
+        # ATR None veya geçersizse varsayılan değer kullan
+        if atr is None or atr == 0:
+            atr_decimal = Decimal("10")  # Varsayılan ATR
+        else:
+            atr_decimal = Decimal(str(atr))
         
         if signal == "BUY":
             # En yakın desteğin biraz altı veya ATR bazlı
