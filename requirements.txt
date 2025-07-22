@@ -4,6 +4,7 @@ pydantic-settings
 python-dotenv
 numpy
 pandas
+scipy
 fastapi
 uvicorn
 jinja2

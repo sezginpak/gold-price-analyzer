@@ -394,9 +394,9 @@ class GramAltinAnalyzer:
             else:
                 stop_loss = current_price - (atr_decimal * 2)
             
-            # En yakın direncin biraz altı veya ATR bazlı
+            # BUY için: En yakın direncin biraz altı veya ATR bazlı
             if resistance_levels:
-                take_profit = resistance_levels[0].level * Decimal("0.995")
+                take_profit = resistance_levels[0].level * Decimal("0.995")  # Dirence yaklaşınca kar al
             else:
                 take_profit = current_price + (atr_decimal * 3)
                 
@@ -407,9 +407,9 @@ class GramAltinAnalyzer:
             else:
                 stop_loss = current_price + (atr_decimal * 2)
             
-            # En yakın desteğin biraz üstü veya ATR bazlı
+            # SELL için: En yakın desteğin biraz altı veya ATR bazlı
             if support_levels:
-                take_profit = support_levels[0].level * Decimal("1.005")
+                take_profit = support_levels[0].level * Decimal("0.995")  # SELL için altında olmalı
             else:
                 take_profit = current_price - (atr_decimal * 3)
         

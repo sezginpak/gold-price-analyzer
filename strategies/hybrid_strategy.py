@@ -11,6 +11,10 @@ from models.market_data import MarketData, GramAltinCandle
 from analyzers.gram_altin_analyzer import GramAltinAnalyzer
 from analyzers.global_trend_analyzer import GlobalTrendAnalyzer
 from analyzers.currency_risk_analyzer import CurrencyRiskAnalyzer
+from indicators.cci import CCI
+from indicators.mfi import MFI
+from indicators.advanced_patterns import AdvancedPatternRecognition
+from utils.risk_management import KellyRiskManager
 from utils.constants import (
     SignalType, RiskLevel, StrengthLevel,
     SIGNAL_STRENGTH_MULTIPLIERS, 
@@ -29,11 +33,19 @@ class HybridStrategy:
         self.global_analyzer = GlobalTrendAnalyzer()
         self.currency_analyzer = CurrencyRiskAnalyzer()
         
-        # Ağırlıklar
+        # Yeni göstergeler
+        self.cci = CCI(period=20)
+        self.mfi = MFI(period=14)
+        self.pattern_recognizer = AdvancedPatternRecognition()
+        self.risk_manager = KellyRiskManager()
+        
+        # Güncellenmiş ağırlıklar
         self.weights = {
-            "gram_analysis": 0.5,    # %50 - Ana sinyal
-            "global_trend": 0.3,     # %30 - Trend doğrulama
-            "currency_risk": 0.2     # %20 - Risk ayarlama
+            "gram_analysis": 0.35,      # %35 - Ana sinyal
+            "global_trend": 0.20,       # %20 - Trend doğrulama
+            "currency_risk": 0.15,      # %15 - Risk ayarlama
+            "advanced_indicators": 0.20, # %20 - CCI + MFI
+            "pattern_recognition": 0.10  # %10 - Pattern bonus
         }
     
     def analyze(self, gram_candles: List[GramAltinCandle], 
@@ -69,17 +81,24 @@ class HybridStrategy:
             # 3. Kur riski analizi
             currency_analysis = self.currency_analyzer.analyze(market_data)
             
-            # 4. Sinyalleri birleştir
+            # 4. Gelişmiş göstergeler (CCI ve MFI)
+            advanced_indicators = self._analyze_advanced_indicators(gram_candles)
+            
+            # 5. Pattern tanıma
+            pattern_analysis = self._analyze_patterns(gram_candles)
+            
+            # 6. Sinyalleri birleştir
             combined_signal = self._combine_signals(
-                gram_analysis, global_analysis, currency_analysis
+                gram_analysis, global_analysis, currency_analysis,
+                advanced_indicators, pattern_analysis
             )
             
-            # 5. Risk ayarlı pozisyon hesapla
-            position_size = self._calculate_position_size(
-                combined_signal, currency_analysis
+            # 7. Kelly Criterion ile pozisyon boyutu hesapla
+            position_details = self._calculate_kelly_position(
+                combined_signal, gram_analysis, currency_analysis
             )
             
-            # 6. Stop-loss ve take-profit ayarla
+            # 8. Stop-loss ve take-profit ayarla
             risk_levels = self._adjust_risk_levels(
                 gram_analysis, currency_analysis
             )
@@ -94,7 +113,8 @@ class HybridStrategy:
                 "signal_strength": combined_signal["strength"],
                 
                 # Risk yönetimi
-                "position_size": position_size,
+                "position_size": position_details.get("lots", 0),
+                "position_details": position_details,
                 "stop_loss": risk_levels["stop_loss"],
                 "take_profit": risk_levels["take_profit"],
                 "risk_reward_ratio": risk_levels["risk_reward_ratio"],
@@ -103,13 +123,15 @@ class HybridStrategy:
                 "gram_analysis": gram_analysis,
                 "global_trend": global_analysis,
                 "currency_risk": currency_analysis,
+                "advanced_indicators": advanced_indicators,
+                "pattern_analysis": pattern_analysis,
                 
                 # Özet ve öneriler
                 "summary": self._create_summary(
                     combined_signal, gram_analysis, global_analysis, currency_analysis
                 ),
                 "recommendations": self._get_recommendations(
-                    combined_signal, position_size, currency_analysis
+                    combined_signal, position_details, currency_analysis
                 )
             }
             
@@ -118,8 +140,8 @@ class HybridStrategy:
             return self._empty_result()
     
     def _combine_signals(self, gram: Dict, global_trend: Dict, 
-                        currency: Dict) -> Dict[str, Any]:
-        """Sinyalleri birleştir"""
+                        currency: Dict, advanced: Dict, patterns: Dict) -> Dict[str, Any]:
+        """Sinyalleri birleştir - Gelişmiş göstergeler ve pattern'ler dahil"""
         # Temel sinyaller
         gram_signal = gram.get("signal", "HOLD")
         gram_confidence = gram.get("confidence", 0)
@@ -158,6 +180,32 @@ class HybridStrategy:
                 signal_scores[sig] *= 0.7
         elif gram_signal in ["BUY", "SELL"]:
             signal_scores[gram_signal] += risk_weight * 0.5
+        
+        # 4. Gelişmiş göstergeler (CCI + MFI)
+        advanced_weight = self.weights["advanced_indicators"]
+        advanced_signal = advanced.get("combined_signal", "NEUTRAL")
+        advanced_confidence = advanced.get("combined_confidence", 0)
+        
+        if advanced_signal != "NEUTRAL":
+            signal_scores[advanced_signal] += advanced_weight * advanced_confidence
+            
+            # Divergence varsa ekstra güç
+            if advanced.get("divergence"):
+                signal_scores[advanced_signal] += advanced_weight * 0.3
+        
+        # 5. Pattern tanıma bonusu
+        pattern_weight = self.weights["pattern_recognition"]
+        if patterns.get("pattern_found"):
+            pattern_signal = patterns.get("signal", "NEUTRAL")
+            pattern_confidence = patterns.get("confidence", 0)
+            
+            if pattern_signal != "NEUTRAL":
+                signal_scores[pattern_signal] += pattern_weight * pattern_confidence
+                
+                # Head & Shoulders gibi güçlü pattern'ler için ekstra bonus
+                best_pattern = patterns.get("best_pattern", {})
+                if best_pattern.get("pattern") in ["HEAD_AND_SHOULDERS", "INVERSE_HEAD_AND_SHOULDERS"]:
+                    signal_scores[pattern_signal] += pattern_weight * 0.5
         
         # Nihai sinyal - daha optimize
         max_score = max(signal_scores.values())
@@ -399,3 +447,145 @@ class HybridStrategy:
             "summary": "Analiz yapılamadı",
             "recommendations": ["Veri bekleniyor"]
         }
+    
+    def _analyze_advanced_indicators(self, gram_candles: List[GramAltinCandle]) -> Dict[str, Any]:
+        """CCI ve MFI göstergelerini analiz et"""
+        try:
+            # DataFrame'e çevir
+            import pandas as pd
+            data = []
+            for candle in gram_candles:
+                data.append({
+                    'high': float(candle.high),
+                    'low': float(candle.low),
+                    'close': float(candle.close),
+                    'open': float(candle.open),
+                    'volume': float(candle.volume) if hasattr(candle, 'volume') else 0
+                })
+            
+            df = pd.DataFrame(data)
+            
+            # CCI analizi
+            cci_analysis = self.cci.get_analysis(df)
+            
+            # MFI analizi
+            mfi_analysis = self.mfi.get_analysis(df)
+            
+            # Birleşik sinyal
+            combined_signal = "NEUTRAL"
+            combined_confidence = 0.5
+            
+            # CCI ve MFI sinyallerini birleştir
+            if cci_analysis['signal'] == mfi_analysis['signal'] and cci_analysis['signal'] != "NEUTRAL":
+                combined_signal = cci_analysis['signal']
+                combined_confidence = (cci_analysis['confidence'] + mfi_analysis['confidence']) / 2
+            elif cci_analysis['extreme'] or mfi_analysis['extreme']:
+                # Ekstrem durumlar
+                if cci_analysis['extreme']:
+                    combined_signal = cci_analysis['signal']
+                    combined_confidence = cci_analysis['confidence']
+                else:
+                    combined_signal = mfi_analysis['signal']
+                    combined_confidence = mfi_analysis['confidence']
+            
+            return {
+                'cci': cci_analysis,
+                'mfi': mfi_analysis,
+                'combined_signal': combined_signal,
+                'combined_confidence': combined_confidence,
+                'divergence': cci_analysis.get('divergence') or mfi_analysis.get('divergence')
+            }
+            
+        except Exception as e:
+            logger.error(f"Advanced indicators analiz hatası: {str(e)}")
+            return {
+                'cci': {'signal': 'NEUTRAL', 'confidence': 0},
+                'mfi': {'signal': 'NEUTRAL', 'confidence': 0},
+                'combined_signal': 'NEUTRAL',
+                'combined_confidence': 0
+            }
+    
+    def _analyze_patterns(self, gram_candles: List[GramAltinCandle]) -> Dict[str, Any]:
+        """Pattern tanıma analizi"""
+        try:
+            # DataFrame'e çevir
+            import pandas as pd
+            data = []
+            for candle in gram_candles:
+                data.append({
+                    'high': float(candle.high),
+                    'low': float(candle.low),
+                    'close': float(candle.close),
+                    'open': float(candle.open)
+                })
+            
+            df = pd.DataFrame(data)
+            
+            # Pattern analizi
+            pattern_result = self.pattern_recognizer.analyze_all_patterns(df)
+            
+            # Son pattern'i sakla (Kelly hesaplaması için)
+            self._last_pattern_analysis = pattern_result
+            
+            return pattern_result
+            
+        except Exception as e:
+            logger.error(f"Pattern analiz hatası: {str(e)}")
+            return {
+                'pattern_found': False,
+                'signal': 'NEUTRAL',
+                'confidence': 0
+            }
+    
+    def _calculate_kelly_position(self, signal: Dict, gram: Dict, currency: Dict) -> Dict[str, Any]:
+        """Kelly Criterion ile pozisyon boyutu hesapla"""
+        try:
+            # Varsayılan sermaye (kullanıcı tarafından ayarlanabilir)
+            capital = 100000  # 100K TL varsayılan
+            
+            # Fiyat ve stop loss
+            current_price = float(gram.get('price', 0))
+            stop_loss = float(gram.get('stop_loss', current_price * 0.98))
+            
+            # Volatilite bazlı güven ayarlaması
+            atr_value = gram.get('atr', {}).get('value', 1.0)
+            market_volatility = atr_value / current_price * 100  # Yüzde olarak
+            
+            # Pattern gücü
+            pattern_strength = 0.0
+            if hasattr(self, '_last_pattern_analysis'):
+                if self._last_pattern_analysis.get('pattern_found'):
+                    pattern_strength = self._last_pattern_analysis.get('confidence', 0)
+            
+            # Risk ayarlı güven skoru
+            adjusted_confidence = self.risk_manager.get_risk_adjusted_confidence(
+                signal.get('confidence', 0.5),
+                market_volatility,
+                pattern_strength
+            )
+            
+            # Pozisyon hesapla
+            position = self.risk_manager.calculate_position_size(
+                capital,
+                current_price,
+                stop_loss,
+                adjusted_confidence
+            )
+            
+            # Trading istatistikleri
+            stats = self.risk_manager.calculate_trading_stats()
+            
+            return {
+                **position,
+                'trading_stats': stats,
+                'adjusted_confidence': adjusted_confidence,
+                'market_volatility': round(market_volatility, 2)
+            }
+            
+        except Exception as e:
+            logger.error(f"Kelly position hesaplama hatası: {str(e)}")
+            return {
+                'lots': 0.01,  # Minimum pozisyon
+                'risk_percentage': 0.5,
+                'error': str(e)
+            }

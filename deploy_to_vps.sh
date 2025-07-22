@@ -10,10 +10,35 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# VPS bilgileri
-read -p "VPS IP Adresi: " VPS_IP
-read -p "VPS Kullanıcı (default: root): " VPS_USER
-VPS_USER=${VPS_USER:-root}
+# .env dosyasını kontrol et
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# VPS bilgileri - önce .env'den oku, yoksa kullanıcıdan al
+if [ -z "$VPS_HOST" ]; then
+    read -p "VPS IP Adresi: " VPS_HOST
+fi
+
+if [ -z "$VPS_USER" ]; then
+    read -p "VPS Kullanıcı (default: root): " VPS_USER
+    VPS_USER=${VPS_USER:-root}
+fi
+
+# SSH key kullanımını kontrol et
+echo -e "\n${YELLOW}SSH Key kullanmak ister misiniz? (önerilen) [E/h]:${NC} "
+read -p "" USE_SSH_KEY
+USE_SSH_KEY=${USE_SSH_KEY:-E}
+
+if [[ "$USE_SSH_KEY" =~ ^[Ee]$ ]]; then
+    SSH_OPTS="-o StrictHostKeyChecking=no"
+else
+    echo -e "${RED}⚠️  Uyarı: Şifre kullanımı güvenli değil! SSH key kullanmanızı öneririz.${NC}"
+    if [ -z "$VPS_PASSWORD" ]; then
+        read -s -p "VPS Şifresi: " VPS_PASSWORD
+        echo
+    fi
+fi
 
 echo -e "\n${YELLOW}1. VPS'e bağlanılıyor...${NC}"
 
@@ -125,11 +150,17 @@ EOF
 
 # Script'i VPS'e kopyala ve çalıştır
 echo -e "\n${YELLOW}2. Kurulum script'i VPS'e kopyalanıyor...${NC}"
-scp /tmp/vps_setup.sh ${VPS_USER}@${VPS_IP}:/tmp/
 
-echo -e "\n${YELLOW}3. Kurulum başlatılıyor...${NC}"
-ssh ${VPS_USER}@${VPS_IP} "chmod +x /tmp/vps_setup.sh && /tmp/vps_setup.sh"
+if [[ "$USE_SSH_KEY" =~ ^[Ee]$ ]]; then
+    scp ${SSH_OPTS} /tmp/vps_setup.sh ${VPS_USER}@${VPS_HOST}:/tmp/
+    echo -e "\n${YELLOW}3. Kurulum başlatılıyor...${NC}"
+    ssh ${SSH_OPTS} ${VPS_USER}@${VPS_HOST} "chmod +x /tmp/vps_setup.sh && /tmp/vps_setup.sh"
+else
+    sshpass -p "${VPS_PASSWORD}" scp -o StrictHostKeyChecking=no /tmp/vps_setup.sh ${VPS_USER}@${VPS_HOST}:/tmp/
+    echo -e "\n${YELLOW}3. Kurulum başlatılıyor...${NC}"
+    sshpass -p "${VPS_PASSWORD}" ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "chmod +x /tmp/vps_setup.sh && /tmp/vps_setup.sh"
+fi
 
 echo -e "\n${GREEN}✅ Deployment tamamlandı!${NC}"
-echo -e "${GREEN}🌐 Web arayüzü: http://${VPS_IP}${NC}"
-echo -e "${YELLOW}📊 Durumu kontrol et: ssh ${VPS_USER}@${VPS_IP} 'systemctl status gold-analyzer'${NC}"
+echo -e "${GREEN}🌐 Web arayüzü: http://${VPS_HOST}${NC}"
+echo -e "${YELLOW}📊 Durumu kontrol et: ssh ${VPS_USER}@${VPS_HOST} 'systemctl status gold-analyzer'${NC}"

@@ -1,9 +1,0 @@
-[Unit]
-Description=Gold Price Analyzer Git Updater
-After=network.target
-
-[Service]
-Type=oneshot
-WorkingDirectory=/root/gold-price-analyzer
-ExecStart=/bin/bash -c 'git pull && systemctl restart gold-analyzer && systemctl restart gold-web'
-User=root

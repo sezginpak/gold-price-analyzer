@@ -1,9 +1,27 @@
 #!/usr/bin/expect -f
 
-# SSH bağlantı bilgileri
-set hostname "152.42.143.169"
-set username "root"
-set password "sezgin64.Pak"
+# Çevre değişkenlerini oku
+if {[info exists env(VPS_HOST)]} {
+    set hostname $env(VPS_HOST)
+} else {
+    puts "VPS_HOST çevre değişkeni bulunamadı!"
+    puts "Kullanım: VPS_HOST=ip VPS_USER=user VPS_PASSWORD=pass ./deploy_and_check.exp"
+    exit 1
+}
+
+if {[info exists env(VPS_USER)]} {
+    set username $env(VPS_USER)
+} else {
+    set username "root"
+}
+
+if {[info exists env(VPS_PASSWORD)]} {
+    set password $env(VPS_PASSWORD)
+} else {
+    puts "VPS_PASSWORD çevre değişkeni bulunamadı!"
+    puts "Kullanım: VPS_HOST=ip VPS_USER=user VPS_PASSWORD=pass ./deploy_and_check.exp"
+    exit 1
+}
 
 # Timeout süresini artır
 set timeout 300

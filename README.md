@@ -185,9 +185,31 @@ docker-compose up -d
 
 ## 🔒 Güvenlik
 
+### Önemli Güvenlik Notları
+
+⚠️ **UYARI**: Deploy scriptlerinde şifre kullanmayın! 
+
+- **SSH Key Authentication kullanın** (önerilen)
+- VPS bilgilerini `.env` dosyasında saklayın
+- `.env` dosyasını asla Git'e eklemeyin
+- Production'da güçlü şifreler kullanın
+
+### Güvenlik Önlemleri
+
 - API anahtarları `.env` dosyasında saklanır
 - Hassas veriler loglanmaz
 - WebSocket bağlantıları rate-limited
+- Tüm deployment bilgileri environment variable'lardan okunur
+
+### SSH Key Kurulumu
+
+```bash
+# SSH key oluştur (eğer yoksa)
+ssh-keygen -t rsa -b 4096
+
+# Public key'i VPS'e kopyala
+ssh-copy-id user@your-vps-ip
+```
 
 ## ⚠️ Uyarılar
 
