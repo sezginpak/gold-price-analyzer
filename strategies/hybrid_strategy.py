@@ -547,7 +547,14 @@ class HybridStrategy:
             
             # Fiyat ve stop loss
             current_price = float(gram.get('price', 0))
-            stop_loss = float(gram.get('stop_loss', current_price * 0.98))
+            
+            # Stop loss kontrolü - HOLD durumunda da geçerli bir değer olmalı
+            stop_loss_value = gram.get('stop_loss')
+            if stop_loss_value is None or stop_loss_value == 0:
+                # HOLD veya None durumunda varsayılan %2 risk kullan
+                stop_loss = current_price * 0.98  # BUY için
+            else:
+                stop_loss = float(stop_loss_value)
             
             # Volatilite bazlı güven ayarlaması
             atr_value = gram.get('atr', {}).get('value', 1.0)
@@ -566,13 +573,27 @@ class HybridStrategy:
                 pattern_strength
             )
             
-            # Pozisyon hesapla
-            position = self.risk_manager.calculate_position_size(
-                capital,
-                current_price,
-                stop_loss,
-                adjusted_confidence
-            )
+            # HOLD sinyali için özel durum
+            if signal.get('signal') == 'HOLD':
+                # HOLD durumunda minimal pozisyon boyutu dön
+                position = {
+                    'lots': 0.01,  # Minimal lot
+                    'position_size': capital * 0.0001,  # %0.01 pozisyon
+                    'risk_percentage': 0.01,
+                    'risk_amount': capital * 0.0001,
+                    'kelly_percentage': 0.0,
+                    'confidence_adjusted': adjusted_confidence * 100,
+                    'price_risk': 2.0,  # %2 varsayılan risk
+                    'max_loss': capital * 0.0001
+                }
+            else:
+                # Normal BUY/SELL pozisyon hesapla
+                position = self.risk_manager.calculate_position_size(
+                    capital,
+                    current_price,
+                    stop_loss,
+                    adjusted_confidence
+                )
             
             # Trading istatistikleri
             stats = self.risk_manager.calculate_trading_stats()

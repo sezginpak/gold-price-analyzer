@@ -1,0 +1,69 @@
+#!/usr/bin/expect -f
+
+# SSH bağlantı bilgileri
+set hostname "152.42.143.169"
+set username "root"
+set password "sezgin64.Pak"
+
+# Timeout süresini artır
+set timeout 120
+
+puts "=== Sunucuya bağlanmaya çalışıyor... ===\n"
+
+# SSH bağlantısını başlat
+spawn ssh $username@$hostname
+
+# Parola istemi için bekle ve parolayı gir
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    "yes/no" {
+        send "yes\r"
+        expect "password:"
+        send "$password\r"
+    }
+    timeout {
+        puts "Sunucu henüz hazır değil, tekrar deneniyor..."
+        exit 1
+    }
+}
+
+# Komut istemi için bekle
+expect "# "
+
+puts "=== Sunucu hazır! Sistem durumu kontrol ediliyor... ===\n"
+
+# Proje dizinine git
+send "cd /root/gold-price-analyzer\r"
+expect "# "
+
+# Sistem durumunu kontrol et
+send "free -h\r"
+expect "# "
+
+send "df -h | head -3\r"
+expect "# "
+
+puts "=== Gold Analyzer başlatılıyor... ===\n"
+
+# Ana sistemi başlat
+send "./venv/bin/python main.py &\r"
+expect "# "
+
+sleep 10
+
+# Process kontrolü
+send "ps aux | grep main.py | grep -v grep\r"
+expect "# "
+
+# Kısa log kontrolü
+puts "=== İlk loglar: ===\n"
+send "timeout 10 tail -f logs/gold_analyzer.log | head -15\r"
+expect "# "
+
+puts "\n=== Sistem başarıyla başlatıldı! ===\n"
+
+# Çıkış
+send "exit\r"
+expect eof

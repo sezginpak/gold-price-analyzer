@@ -1,0 +1,50 @@
+#!/usr/bin/expect -f
+
+# SSH bağlantı bilgileri
+set hostname "152.42.143.169"
+set username "root"
+set password "sezgin64.Pak"
+
+# Timeout süresini artır
+set timeout 30
+
+# SSH bağlantısını başlat
+spawn ssh $username@$hostname
+
+# Parola istemi için bekle ve parolayı gir
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    "yes/no" {
+        send "yes\r"
+        expect "password:"
+        send "$password\r"
+    }
+}
+
+# Komut istemi için bekle
+expect "# "
+
+# Proje dizinine git
+send "cd /root/gold-price-analyzer\r"
+expect "# "
+
+# Sıfır pozisyon boyutlu kayıtları incele
+puts "\n=== Sıfır Pozisyon Boyutlu Son 5 Kayıt ===\n"
+send "sqlite3 gold_prices.db \"SELECT datetime(timestamp), signal, confidence, position_size, stop_loss, take_profit FROM hybrid_analysis WHERE position_size = 0 ORDER BY timestamp DESC LIMIT 5;\"\r"
+expect "# "
+
+# HOLD sinyallerinin pozisyon boyutlarını kontrol et
+puts "\n=== HOLD Sinyallerinin Pozisyon Boyutları ===\n"  
+send "sqlite3 gold_prices.db \"SELECT signal, AVG(position_size) as ort_pozisyon, MIN(position_size) as min_pozisyon, MAX(position_size) as max_pozisyon, COUNT(*) as adet FROM hybrid_analysis GROUP BY signal;\"\r"
+expect "# "
+
+# Risk management loglarını kontrol et
+puts "\n=== Son Risk Management Logları ===\n"
+send "tail -30 logs/gold_analyzer.log | grep -i 'kelly\\|position\\|risk'\r"
+expect "# "
+
+# Çıkış
+send "exit\r"
+expect eof

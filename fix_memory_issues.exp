@@ -1,0 +1,74 @@
+#!/usr/bin/expect -f
+
+# SSH bağlantı bilgileri
+set hostname "152.42.143.169"
+set username "root"
+set password "sezgin64.Pak"
+
+# Timeout süresini artır
+set timeout 60
+
+# SSH bağlantısını başlat
+spawn ssh $username@$hostname
+
+# Parola istemi için bekle ve parolayı gir
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    "yes/no" {
+        send "yes\r"
+        expect "password:"
+        send "$password\r"
+    }
+}
+
+# Komut istemi için bekle
+expect "# "
+
+# Proje dizinine git
+send "cd /root/gold-price-analyzer\r"
+expect "# "
+
+# 1. Mevcut prosesleri durdur
+puts "=== Prosesleri durduruyor... ===\n"
+send "pkill -f main.py\r"
+expect "# "
+sleep 2
+
+# 2. Sistem cache'i temizle
+puts "=== Sistem cache temizleniyor... ===\n"
+send "sync && echo 3 > /proc/sys/vm/drop_caches\r"
+expect "# "
+
+# 3. Database tablolarını kontrol et ve düzelt
+puts "=== Database kontrol ediliyor... ===\n"
+send "sqlite3 gold_prices.db \".tables\"\r"
+expect "# "
+
+# 4. Log dosyasını küçült (çok büyükse)
+puts "=== Log dosyası boyutu kontrol ediliyor... ===\n"
+send "ls -lh logs/gold_analyzer.log\r"
+expect "# "
+send "tail -1000 logs/gold_analyzer.log > logs/temp.log && mv logs/temp.log logs/gold_analyzer.log\r"
+expect "# "
+
+# 5. Memory durumunu tekrar kontrol et
+puts "=== Bellek durumu (temizlik sonrası): ===\n"
+send "free -h\r"
+expect "# "
+
+# 6. Sistemi tekrar başlat (memory optimized)
+puts "=== Sistem tekrar başlatılıyor... ===\n"
+send "./venv/bin/python main.py > /dev/null 2>&1 &\r"
+expect "# "
+sleep 5
+
+# 7. Process kontrolü
+puts "=== Process durumu: ===\n"
+send "ps aux | grep main.py | grep -v grep\r"
+expect "# "
+
+# Çıkış
+send "exit\r"
+expect eof
