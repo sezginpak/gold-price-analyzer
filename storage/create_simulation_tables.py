@@ -7,7 +7,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-def create_simulation_tables(db_path: str = "gold_analyzer.db"):
+def create_simulation_tables(db_path: str = "gold_prices.db"):
     """Simülasyon tablolarını oluştur"""
     try:
         conn = sqlite3.connect(db_path)
