@@ -1,0 +1,56 @@
+#!/usr/bin/expect -f
+
+# SSH bağlantı bilgileri
+set host "152.42.143.169"
+set user "root"
+set password "sezgin64.Pak"
+
+# Timeout süresini artır
+set timeout 300
+
+# SSH bağlantısını başlat
+spawn ssh $user@$host
+
+# Şifre istenmesini bekle ve şifreyi gönder
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    "yes/no" {
+        send "yes\r"
+        expect "password:"
+        send "$password\r"
+    }
+}
+
+# Komut satırını bekle
+expect "# "
+
+# Komutları sırayla çalıştır
+send "cd /root/gold-price-analyzer\r"
+expect "# "
+
+send "git stash\r"
+expect "# "
+
+send "git pull\r"
+expect "# "
+
+send "pkill -f main.py\r"
+expect "# "
+
+send "./venv/bin/python main.py &\r"
+expect "# "
+
+send "sleep 120\r"
+expect "# "
+
+send "sqlite3 gold_prices.db \"SELECT signal, COUNT(*) as count FROM hybrid_analysis WHERE datetime(timestamp) > datetime('now', '-3 minutes') GROUP BY signal;\"\r"
+expect "# "
+
+send "tail -20 logs/gold_analyzer.log\r"
+expect "# "
+
+# Çıkış yap
+send "exit\r"
+expect eof

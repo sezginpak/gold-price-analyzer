@@ -93,7 +93,7 @@ class HybridGoldAnalyzer:
             interval_minutes = self.analysis_intervals.get(timeframe, 15)
             
             # Gram altın mumlarını oluştur
-            gram_candles = self.storage.generate_gram_candles(interval_minutes, required_candles)
+            gram_candles = self.storage.generate_candles(interval_minutes, required_candles)
             
             if len(gram_candles) < required_candles * 0.7:  # %70'i varsa analiz yap
                 logger.warning(f"Not enough gram candles for {timeframe}: {len(gram_candles)}/{required_candles}")

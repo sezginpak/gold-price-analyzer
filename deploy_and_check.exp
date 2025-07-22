@@ -1,0 +1,71 @@
+#!/usr/bin/expect -f
+
+# SSH bağlantı bilgileri
+set hostname "152.42.143.169"
+set username "root"
+set password "sezgin64.Pak"
+
+# Timeout süresini artır
+set timeout 300
+
+# SSH bağlantısını başlat
+spawn ssh $username@$hostname
+
+# Parola istemi için bekle ve parolayı gir
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    "yes/no" {
+        send "yes\r"
+        expect "password:"
+        send "$password\r"
+    }
+}
+
+# Komut istemi için bekle
+expect "# "
+
+# 1. Proje dizinine git
+send "cd /root/gold-price-analyzer\r"
+expect "# "
+
+# 2. Git pull yap
+send "git pull\r"
+expect "# "
+
+# 3. Mevcut main.py prosesini öldür
+send "pkill -f main.py\r"
+expect "# "
+sleep 2
+
+# 4. Yeni main.py prosesini başlat
+send "./venv/bin/python main.py &\r"
+expect "# "
+sleep 2
+
+# 5. 3 dakika bekle
+puts "\n=== 3 dakika bekleniyor... ===\n"
+send "echo 'Waiting 180 seconds...'\r"
+expect "# "
+send "sleep 180\r"
+expect "# "
+
+# 6. Son 5 dakikadaki sinyalleri kontrol et
+puts "\n=== Son 5 dakikadaki sinyal sayıları ===\n"
+send "sqlite3 gold_prices.db \"SELECT signal, COUNT(*) as count FROM hybrid_analysis WHERE datetime(timestamp) > datetime('now', '-5 minutes') GROUP BY signal;\"\r"
+expect "# "
+
+# 7. Son 10 kaydı göster
+puts "\n=== Son 10 hibrit analiz kaydı ===\n"
+send "sqlite3 gold_prices.db \"SELECT datetime(timestamp), gram_price, signal, confidence, signal_strength FROM hybrid_analysis ORDER BY timestamp DESC LIMIT 10;\"\r"
+expect "# "
+
+# 8. Log dosyasından sinyal bilgilerini filtrele
+puts "\n=== Son 50 log satırından sinyal bilgileri ===\n"
+send "tail -50 logs/gold_analyzer.log | grep -E \"(Signal generation:|BUY|SELL|buy_signals|sell_signals)\"\r"
+expect "# "
+
+# Çıkış
+send "exit\r"
+expect eof
