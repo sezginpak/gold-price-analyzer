@@ -1,0 +1,64 @@
+#!/usr/bin/expect -f
+
+# SSH bağlantı bilgileri
+set hostname "152.42.143.169"
+set username "root"
+set password "sezgin64.Pak"
+
+# Timeout süresini artır
+set timeout 120
+
+# SSH bağlantısını başlat
+spawn ssh $username@$hostname
+
+# Parola istemi için bekle ve parolayı gir
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    "yes/no" {
+        send "yes\r"
+        expect "password:"
+        send "$password\r"
+    }
+}
+
+# Komut istemi için bekle
+expect "# "
+
+# 1. Proje dizinine git
+send "cd /root/gold-price-analyzer\r"
+expect "# "
+
+# 2. Git pull yap
+send "git pull\r"
+expect "# "
+
+# 3. Mevcut main.py prosesini öldür
+send "pkill -f main.py\r"
+expect "# "
+sleep 2
+
+# 4. Yeni main.py prosesini başlat
+send "./venv/bin/python main.py &\r"
+expect "# "
+sleep 10
+
+# 5. 1 dakika log izle
+puts "\n=== Sistem 1 dakika izleniyor... ===\n"
+send "timeout 60 tail -f logs/gold_analyzer.log\r"
+expect "# "
+
+# 6. Son sinyalleri kontrol et
+puts "\n=== Son 3 sinyal ===\n"
+send "sqlite3 gold_prices.db \"SELECT datetime(timestamp), gram_price, signal, confidence FROM hybrid_analysis WHERE signal != 'HOLD' ORDER BY timestamp DESC LIMIT 3;\"\r"
+expect "# "
+
+# 7. Process durumu
+puts "\n=== Sistem Durumu ===\n"
+send "ps aux | grep main.py | grep -v grep\r"
+expect "# "
+
+# Çıkış
+send "exit\r"
+expect eof

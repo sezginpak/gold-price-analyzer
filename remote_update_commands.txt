@@ -1,0 +1,9 @@
+VPS'te çalıştırılacak komutlar (SSH ile root@152.42.143.169):
+
+cd /opt/gold_price_analyzer
+git pull origin main
+pip install -r requirements.txt
+sudo systemctl restart gold-analyzer
+sudo systemctl restart gold-web
+systemctl status gold-analyzer
+systemctl status gold-web
