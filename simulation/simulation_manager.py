@@ -138,33 +138,33 @@ class SimulationManager:
                 """, (SimulationStatus.ACTIVE.value,))
                 
                 for row in cursor.fetchall():
-                sim_id, config_json = row
-                config_dict = json.loads(config_json)
+                    sim_id, config_json = row
+                    config_dict = json.loads(config_json)
+                    
+                    # Config nesnesini oluştur
+                    config = SimulationConfig(
+                        name=config_dict['name'],
+                        strategy_type=StrategyType(config_dict['strategy_type']),
+                        initial_capital=Decimal(str(config_dict['initial_capital'])),
+                        min_confidence=config_dict['min_confidence'],
+                        max_risk=config_dict['max_risk'],
+                        spread=Decimal(str(config_dict['spread'])),
+                        commission_rate=config_dict['commission_rate']
+                    )
+                    
+                    # Capital distribution
+                    if 'capital_distribution' in config_dict:
+                        config.capital_distribution = {
+                            k: Decimal(str(v)) 
+                            for k, v in config_dict['capital_distribution'].items()
+                        }
+                    
+                    self.active_simulations[sim_id] = config
+                    
+                    # Timeframe sermayelerini yükle
+                    await self._load_timeframe_capitals(sim_id)
                 
-                # Config nesnesini oluştur
-                config = SimulationConfig(
-                    name=config_dict['name'],
-                    strategy_type=StrategyType(config_dict['strategy_type']),
-                    initial_capital=Decimal(str(config_dict['initial_capital'])),
-                    min_confidence=config_dict['min_confidence'],
-                    max_risk=config_dict['max_risk'],
-                    spread=Decimal(str(config_dict['spread'])),
-                    commission_rate=config_dict['commission_rate']
-                )
-                
-                # Capital distribution
-                if 'capital_distribution' in config_dict:
-                    config.capital_distribution = {
-                        k: Decimal(str(v)) 
-                        for k, v in config_dict['capital_distribution'].items()
-                    }
-                
-                self.active_simulations[sim_id] = config
-                
-                # Timeframe sermayelerini yükle
-                await self._load_timeframe_capitals(sim_id)
-                
-            logger.info(f"{len(self.active_simulations)} aktif simülasyon yüklendi")
+                logger.info(f"{len(self.active_simulations)} aktif simülasyon yüklendi")
             
         except Exception as e:
             logger.error(f"Simülasyon yükleme hatası: {str(e)}")
@@ -184,13 +184,13 @@ class SimulationManager:
                 self.timeframe_capitals[simulation_id] = {}
                 
                 for row in cursor.fetchall():
-                timeframe, allocated, current, in_position = row
-                self.timeframe_capitals[simulation_id][timeframe] = TimeframeCapital(
-                    timeframe=timeframe,
-                    allocated_capital=Decimal(str(allocated)),
-                    current_capital=Decimal(str(current)),
-                    in_position=bool(in_position)
-                )
+                    timeframe, allocated, current, in_position = row
+                    self.timeframe_capitals[simulation_id][timeframe] = TimeframeCapital(
+                        timeframe=timeframe,
+                        allocated_capital=Decimal(str(allocated)),
+                        current_capital=Decimal(str(current)),
+                        in_position=bool(in_position)
+                    )
                 
         except Exception as e:
             logger.error(f"Timeframe sermaye yükleme hatası: {str(e)}")
