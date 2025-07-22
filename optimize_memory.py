@@ -43,17 +43,19 @@ def optimize_database():
         # İndeksleri yeniden oluştur
         cursor.execute("REINDEX")
         
-        # VACUUM
-        conn.execute("VACUUM")
-        
         conn.commit()
         
         print(f"✅ {deleted_price} eski fiyat kaydı silindi")
         print(f"✅ {deleted_analysis} eski analiz kaydı silindi")
-        print("✅ Veritabanı optimize edildi")
         
     finally:
         conn.close()
+    
+    # VACUUM ayrı connection'da çalıştır
+    conn2 = sqlite3.connect(db_path)
+    conn2.execute("VACUUM")
+    conn2.close()
+    print("✅ Veritabanı optimize edildi")
 
 def set_memory_limits():
     """Python process memory limitlerini ayarla"""
