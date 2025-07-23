@@ -263,16 +263,21 @@ class SimulationManager:
                 # Son hybrid analizi al
                 analysis = self.storage.get_latest_hybrid_analysis(timeframe)
                 if analysis:
+                    # gram_analysis details.gram içinde olabilir
+                    gram_analysis = analysis.get('gram_analysis', {})
+                    if not gram_analysis and 'details' in analysis:
+                        gram_analysis = analysis['details'].get('gram', {})
+                    
                     signals[timeframe] = {
                         'signal': analysis.get('signal'),
                         'confidence': analysis.get('confidence', 0),
                         'price': analysis.get('gram_price'),
                         'indicators': {
-                            'rsi': analysis.get('gram_analysis', {}).get('indicators', {}).get('rsi'),
-                            'macd': analysis.get('gram_analysis', {}).get('indicators', {}).get('macd'),
-                            'bb': analysis.get('gram_analysis', {}).get('indicators', {}).get('bollinger'),
-                            'atr': analysis.get('gram_analysis', {}).get('indicators', {}).get('atr'),
-                            'patterns': analysis.get('gram_analysis', {}).get('patterns', [])
+                            'rsi': gram_analysis.get('indicators', {}).get('rsi'),
+                            'macd': gram_analysis.get('indicators', {}).get('macd'),
+                            'bb': gram_analysis.get('indicators', {}).get('bollinger'),
+                            'atr': gram_analysis.get('indicators', {}).get('atr'),
+                            'patterns': gram_analysis.get('patterns', [])
                         },
                         'stop_loss': analysis.get('stop_loss'),
                         'take_profit': analysis.get('take_profit'),
