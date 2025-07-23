@@ -166,6 +166,18 @@ class SimulationManager:
                             for k, v in config_dict['capital_distribution'].items()
                         }
                     
+                    # Time limits
+                    if 'time_limits' in config_dict:
+                        config.time_limits = config_dict['time_limits']
+                    
+                    # Other config parameters
+                    if 'trading_hours' in config_dict:
+                        config.trading_hours = config_dict['trading_hours']
+                    if 'atr_multiplier_sl' in config_dict:
+                        config.atr_multiplier_sl = config_dict['atr_multiplier_sl']
+                    if 'risk_reward_ratio' in config_dict:
+                        config.risk_reward_ratio = config_dict['risk_reward_ratio']
+                    
                     self.active_simulations[sim_id] = config
                     
                     # Timeframe sermayelerini yükle
@@ -653,8 +665,10 @@ class SimulationManager:
                 config = self.active_simulations[sim_id]
                 time_limit = config.time_limits.get(position.timeframe, 168)
                 holding_hours = (datetime.now() - position.entry_time).total_seconds() / 3600
+                logger.debug(f"Time limit check: {position.timeframe} position held for {holding_hours:.1f}h, limit is {time_limit}h")
                 if holding_hours >= time_limit:
                     exit_reason = ExitReason.TIME_LIMIT
+                    logger.info(f"Time limit reached for position {position_id}: {holding_hours:.1f}h >= {time_limit}h")
             
             # Pozisyonu kapat
             if exit_reason:
