@@ -396,12 +396,22 @@ class SimulationManager:
             
             # Risk hesaplama
             atr = signal_data['indicators'].get('atr')
-            if not atr or not atr.get('value'):
+            if not atr:
+                logger.warning(f"ATR değeri bulunamadı {timeframe} için, pozisyon açılamıyor")
+                return
+            
+            # ATR değerini al - eğer dict ise 'atr' key'inden al, değilse direkt kullan
+            if isinstance(atr, dict):
+                atr_value = atr.get('atr') or atr.get('value')
+            else:
+                atr_value = atr
+                
+            if not atr_value:
                 logger.warning(f"ATR değeri bulunamadı {timeframe} için, pozisyon açılamıyor")
                 return
             
             # Stop loss hesapla (1.5 x ATR)
-            atr_value = Decimal(str(atr['value']))
+            atr_value = Decimal(str(atr_value))
             atr_pct = atr_value / current_price
             stop_distance = atr_pct * config.atr_multiplier_sl
             
