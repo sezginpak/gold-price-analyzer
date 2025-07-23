@@ -169,18 +169,23 @@ class PositionManager:
                 logger.warning("ATR değeri 0 veya negatif, varsayılan risk kullanılıyor")
                 atr_value = current_price * Decimal("0.01")  # %1
             
-            # Risk miktarını hesapla
-            risk_capital = available_capital * Decimal(str(config.max_risk))
+            # Risk miktarını hesapla (gram cinsinden)
+            risk_amount_gram = available_capital * Decimal(str(config.max_risk))
             
-            # ATR bazlı stop distance
-            stop_distance = atr_value * Decimal(str(config.atr_multiplier_sl))
+            # ATR bazlı stop distance (fiyatın yüzdesi olarak)
+            stop_distance_ratio = (atr_value * Decimal(str(config.atr_multiplier_sl))) / current_price
             
-            # Pozisyon büyüklüğü = Risk Capital / Stop Distance
-            position_size = risk_capital / stop_distance
+            # Pozisyon büyüklüğü = Risk miktarı / Stop yüzdesi
+            # Örnek: 5 gram risk / 0.015 (%1.5 stop) = 333 gram pozisyon
+            position_size = risk_amount_gram / stop_distance_ratio
             
-            # Maksimum pozisyon kontrolü (sermayenin %50'si)
-            max_position = available_capital * Decimal("0.5") / current_price
+            # Maksimum pozisyon kontrolü (sermayenin %20'si) - daha konservatif
+            max_position = available_capital * Decimal("0.2")
             position_size = min(position_size, max_position)
+            
+            logger.debug(f"Position size calculation: capital={available_capital}, risk={risk_amount_gram}g, "
+                        f"stop_ratio={stop_distance_ratio:.4f}, raw_size={risk_amount_gram/stop_distance_ratio:.2f}g, "
+                        f"final_size={position_size:.2f}g")
             
             return position_size
             
