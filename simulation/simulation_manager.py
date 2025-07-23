@@ -202,11 +202,16 @@ class SimulationManager:
         # Türkiye saatine çevir (UTC+3)
         tr_time = current_time.replace(hour=(current_time.hour + 3) % 24)
         
+        logger.info(f"Processing simulations - Current time: {current_time}, TR time: {tr_time}, Trading hours: {self._is_trading_hours(tr_time)}")
+        
         # İşlem saatleri kontrolü
         if not self._is_trading_hours(tr_time):
             # Sadece açık pozisyonları kontrol et
+            logger.debug("Outside trading hours, checking open positions only")
             await self._check_open_positions()
             return
+        
+        logger.info(f"Processing {len(self.active_simulations)} active simulations")
         
         # Her simülasyon için
         for sim_id, config in self.active_simulations.items():
@@ -228,27 +233,40 @@ class SimulationManager:
         current_time: datetime
     ):
         """Tek bir simülasyonu işle"""
+        logger.debug(f"Processing simulation {sim_id}: {config.name}")
+        logger.debug(f"Config - Strategy: {config.strategy_type.value}, Min confidence: {config.min_confidence}")
+        
         # Son sinyalleri al
         signals = await self._get_latest_signals()
+        logger.debug(f"Got signals for timeframes: {list(signals.keys())}")
         
         # Her timeframe için
         for timeframe, signal_data in signals.items():
             if timeframe not in self.timeframe_capitals[sim_id]:
+                logger.debug(f"Timeframe {timeframe} not in capitals for sim {sim_id}")
                 continue
             
             tf_capital = self.timeframe_capitals[sim_id][timeframe]
+            logger.debug(f"\n=== Sim {sim_id} - {timeframe} ===")
+            logger.debug(f"In position: {tf_capital.in_position}, Capital: {tf_capital.current_capital}")
+            logger.debug(f"Signal: {signal_data.get('signal')}, Confidence: {signal_data.get('confidence')}")
             
             # Açık pozisyon varsa kontrol et
             if tf_capital.in_position and tf_capital.open_position_id:
+                logger.debug(f"Checking open position {tf_capital.open_position_id} for exit")
                 await self._check_position_exit(
                     sim_id, tf_capital.open_position_id, signal_data
                 )
             else:
                 # Yeni pozisyon açma kontrolü
+                logger.debug(f"Checking if should open position for {timeframe}")
                 if self._should_open_position(config, signal_data, timeframe):
+                    logger.info(f"✅ Opening position for sim {sim_id} - {timeframe}")
                     await self._open_position(
                         sim_id, config, timeframe, signal_data, tf_capital
                     )
+                else:
+                    logger.debug(f"❌ Not opening position for {timeframe} - conditions not met")
         
         # Günlük performansı güncelle
         await self._update_daily_performance(sim_id)
@@ -257,12 +275,15 @@ class SimulationManager:
         """Son sinyalleri al"""
         try:
             signals = {}
-            timeframes = ['15m', '1h', '4h', '1d']
+            # Geçici olarak 1d'yi kaldır - yeterli veri yok
+            timeframes = ['15m', '1h', '4h']  # '1d' removed temporarily
             
             for timeframe in timeframes:
                 # Son hybrid analizi al
                 analysis = self.storage.get_latest_hybrid_analysis(timeframe)
                 if analysis:
+                    logger.debug(f"Found analysis for {timeframe} - Signal: {analysis.get('signal')}, Confidence: {analysis.get('confidence')}")
+                    
                     # gram_analysis details.gram içinde olabilir
                     gram_analysis = analysis.get('gram_analysis', {})
                     if not gram_analysis and 'details' in analysis:
@@ -283,7 +304,10 @@ class SimulationManager:
                         'take_profit': analysis.get('take_profit'),
                         'position_size': analysis.get('position_size')
                     }
+                else:
+                    logger.debug(f"No analysis found for {timeframe}")
             
+            logger.info(f"Total signals found: {len(signals)} - Timeframes: {list(signals.keys())}")
             return signals
             
         except Exception as e:
@@ -297,22 +321,41 @@ class SimulationManager:
         timeframe: str
     ) -> bool:
         """Pozisyon açılmalı mı?"""
-        if not signal_data or not signal_data.get('signal'):
+        logger.debug(f"\n=== Should open position check for {timeframe} ===")
+        logger.debug(f"Config: {config.name} ({config.strategy_type.value})")
+        logger.debug(f"Min confidence required: {config.min_confidence}")
+        
+        if not signal_data:
+            logger.debug(f"❌ No signal data for {timeframe}")
+            return False
+            
+        signal = signal_data.get('signal')
+        confidence = signal_data.get('confidence', 0)
+        
+        logger.debug(f"Signal: {signal}, Confidence: {confidence}")
+        
+        if not signal:
+            logger.debug(f"❌ No signal field in data")
             return False
         
         # Sadece BUY/SELL sinyalleri
-        if signal_data['signal'] not in ['BUY', 'SELL']:
+        if signal not in ['BUY', 'SELL']:
+            logger.debug(f"❌ Signal is not BUY/SELL: {signal}")
             return False
         
         # Güven skoru kontrolü
-        confidence = signal_data.get('confidence', 0)
         if confidence < config.min_confidence:
+            logger.debug(f"❌ Confidence too low: {confidence} < {config.min_confidence}")
             return False
+        
+        logger.debug(f"✅ Basic checks passed, applying strategy filter...")
         
         # Strateji tipine göre ek filtreler
         if not self._apply_strategy_filter(config, signal_data, timeframe):
+            logger.debug(f"❌ Strategy filter failed for {config.strategy_type.value}")
             return False
         
+        logger.info(f"✅ Position CAN BE OPENED for {timeframe} - {signal} signal with confidence {confidence}")
         return True
     
     def _apply_strategy_filter(
@@ -325,13 +368,19 @@ class SimulationManager:
         strategy = config.strategy_type
         indicators = signal_data.get('indicators', {})
         
+        logger.debug(f"Applying {strategy.value} filter for {timeframe}")
+        
         if strategy == StrategyType.MAIN:
             # Ana strateji - ek filtre yok
+            logger.debug(f"{timeframe} - MAIN strategy: No additional filter")
             return True
         
         elif strategy == StrategyType.CONSERVATIVE:
             # Sadece yüksek güvenli sinyaller
-            return signal_data.get('confidence', 0) >= 0.7
+            confidence = signal_data.get('confidence', 0)
+            result = confidence >= 0.7
+            logger.debug(f"{timeframe} - CONSERVATIVE: confidence {confidence} >= 0.7 ? {result}")
+            return result
         
         elif strategy == StrategyType.MOMENTUM:
             # RSI 30-70 dışında
