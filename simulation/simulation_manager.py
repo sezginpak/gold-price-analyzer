@@ -392,19 +392,33 @@ class SimulationManager:
         elif strategy == StrategyType.MOMENTUM:
             # RSI 30-70 dışında
             rsi = indicators.get('rsi')
+            logger.debug(f"{timeframe} - MOMENTUM: RSI={rsi}")
             if rsi:
-                return rsi < 30 or rsi > 70
+                result = rsi < 30 or rsi > 70
+                logger.debug(f"{timeframe} - MOMENTUM: RSI {rsi} outside 30-70? {result}")
+                return result
+            logger.debug(f"{timeframe} - MOMENTUM: No RSI data")
             return False
         
         elif strategy == StrategyType.MEAN_REVERSION:
             # Bollinger band dışında
             bb = indicators.get('bb', {})
-            if bb and signal_data.get('price'):
+            price = signal_data.get('price')
+            logger.debug(f"{timeframe} - MEAN_REVERSION: BB={bb}, Price={price}")
+            
+            if bb and price:
                 upper = bb.get('upper')
                 lower = bb.get('lower')
-                price = signal_data['price']
+                logger.debug(f"{timeframe} - MEAN_REVERSION: Upper={upper}, Lower={lower}, Price={price}")
+                
                 if upper and lower:
-                    return price > upper or price < lower
+                    result = price > upper or price < lower
+                    logger.debug(f"{timeframe} - MEAN_REVERSION: Price outside bands? {result}")
+                    return result
+                else:
+                    logger.debug(f"{timeframe} - MEAN_REVERSION: Missing upper/lower bands")
+            else:
+                logger.debug(f"{timeframe} - MEAN_REVERSION: Missing BB or price data")
             return False
         
         elif strategy == StrategyType.CONSENSUS:

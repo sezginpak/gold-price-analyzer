@@ -98,14 +98,21 @@ commit da9a87e: Fix logger issue in SimulationManager
 - **Çözüm**: `logger = logging.getLogger("gold_analyzer")` olarak değiştirildi
 - **Sonuç**: Artık tüm debug logları görünüyor
 
-### Confidence Değerleri Sorunu
+### Confidence Değerleri Sorunu ✅ ÇÖZÜLDÜ
 - **Bulgu**: Confidence değerleri hala yüksek (0.6-0.7)
 - **Sinyaller**: 0.4 civarında
 - **Çözüm**: `init_simulations.py` scripti oluşturuldu:
   - Ana Strateji: 0.35
-  - Konservatif: 0.45
+  - Konservatif: 0.45  
   - Momentum: 0.40
   - Mean Reversion: 0.38
+- **Sonuç**: Confidence eşikleri düşürüldü, sinyaller artık eşiği geçiyor
+
+### Strategy Filter Sorunu 🔴 YENİ
+- **Bulgu**: Basic checks passed ama strategy filter'lar fail oluyor
+- **Momentum**: RSI 30-70 dışında olmalı
+- **Mean Reversion**: Bollinger band dışında olmalı
+- **Debug log eklendi**: Hangi değerlerin kontrol edildiğini görmek için
 
 ## Çözüm Önerisi
 
