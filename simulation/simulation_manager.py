@@ -19,7 +19,7 @@ from models.trading_signal import SignalType
 from storage.sqlite_storage import SQLiteStorage
 from utils.risk_management import KellyRiskManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("gold_analyzer")
 
 
 class SimulationManager:

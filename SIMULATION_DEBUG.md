@@ -41,6 +41,17 @@ stop_distance = atr_pct * Decimal(str(config.atr_multiplier_sl))
 - **Düzeltme**: `tf.current_capital if tf.current_capital is not None else 0` şeklinde güncellendi
 - **Durum**: Hala devam ediyor, başka bir yerde de sorun olabilir
 
+### 6. Logger Sorunu ✅ ÇÖZÜLDÜ!
+- **Sorun**: simulation.simulation_manager logları görünmüyordu
+- **Sebep**: `logger = logging.getLogger(__name__)` kullanımı "simulation.simulation_manager" adında bağımsız logger oluşturuyordu
+- **Çözüm**: `logger = logging.getLogger("gold_analyzer")` olarak değiştirildi
+- **Sonuç**: Tüm SimulationManager logları artık görünüyor
+
+### 7. Simülasyon Tabloları Eksik
+- **Sorun**: "no such table: simulations" hatası
+- **Sebep**: Simülasyon tabloları henüz oluşturulmamış
+- **Çözüm**: `python storage/create_simulation_tables.py` çalıştırılmalı
+
 ## Mevcut Durum
 
 ### Çalışan Kısımlar
@@ -56,10 +67,11 @@ stop_distance = atr_pct * Decimal(str(config.atr_multiplier_sl))
 - 4h: SELL 0.484 (Momentum ve Mean Reversion için yeterli)
 
 ### Sorunlar
-1. **Pozisyon açılmıyor** - 0 pozisyon
+1. **Pozisyon açılmıyor** - 0 pozisyon (artık debug loglarıyla araştırılabilir)
 2. **1d timeframe için yeterli mum yok** - "Not enough gram candles for 1d: 7/20"
 3. **Günlük performans güncelleme hatası devam ediyor** - başka bir yerde NoneType sorunu var
-4. **SimulationManager logları görünmüyor** - start(), load_active_simulations() vs. logları yok
+4. ~~**SimulationManager logları görünmüyor**~~ ✅ ÇÖZÜLDÜ - Logger ismi düzeltildi
+5. **Simülasyon tabloları eksik** - "no such table: simulations" hatası
 
 ## Debug İçin Kontrol Edilecekler
 
@@ -76,8 +88,21 @@ stop_distance = atr_pct * Decimal(str(config.atr_multiplier_sl))
 
 ## Son Commit
 ```
-commit 00a1b4c: Fix: Decimal type compatibility in position calculations
+commit ee66ed8: Add SimulationManager startup logging
 ```
+
+## Çözüm Önerisi
+
+SimulationManager çalışıyor ve her dakika günlük performans güncellemeye çalışıyor. Bu da _process_simulations'ın çalıştığını gösteriyor. Ancak:
+
+1. "SimulationManager initialized" logu görünmüyor - logger problemi olabilir
+2. "Loading active simulations..." logu görünmüyor
+3. NoneType hatası hala devam ediyor
+
+**Muhtemel Sebepler:**
+- Logger __name__ kullanıyor ("simulation.simulation_manager") ama main logger "gold_analyzer"
+- Farklı logger instance'ları olabilir
+- NoneType hatası başka bir yerde olabilir (total_capital hesaplaması değil)
 
 ## Sonraki Adımlar
 1. ~~Detaylı debug log ekleme~~ ✅ Eklendi ama görünmüyor

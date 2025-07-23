@@ -32,6 +32,10 @@ def setup_logger(
     logger = logging.getLogger(name)
     logger.setLevel(getattr(logging, level.upper()))
     
+    # Eğer logger'ın zaten handler'ları varsa, yenilerini ekleme
+    if logger.handlers:
+        return logger
+    
     # Formatter
     detailed_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s',
