@@ -418,14 +418,14 @@ class SimulationManager:
             # Stop loss hesapla (1.5 x ATR)
             atr_value = Decimal(str(atr_value))
             atr_pct = atr_value / current_price
-            stop_distance = atr_pct * config.atr_multiplier_sl
+            stop_distance = atr_pct * Decimal(str(config.atr_multiplier_sl))
             
             if signal_data['signal'] == 'BUY':
                 stop_loss = current_price * (1 - stop_distance)
-                take_profit = current_price * (1 + stop_distance * config.risk_reward_ratio)
+                take_profit = current_price * (1 + stop_distance * Decimal(str(config.risk_reward_ratio)))
             else:
                 stop_loss = current_price * (1 + stop_distance)
-                take_profit = current_price * (1 - stop_distance * config.risk_reward_ratio)
+                take_profit = current_price * (1 - stop_distance * Decimal(str(config.risk_reward_ratio)))
             
             # Pozisyon boyutu hesapla
             risk_amount = tf_capital.current_capital * Decimal(str(config.max_risk))
