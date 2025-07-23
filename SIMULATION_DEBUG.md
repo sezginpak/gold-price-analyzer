@@ -88,8 +88,24 @@ stop_distance = atr_pct * Decimal(str(config.atr_multiplier_sl))
 
 ## Son Commit
 ```
-commit ee66ed8: Add SimulationManager startup logging
+commit da9a87e: Fix logger issue in SimulationManager
 ```
+
+## Yeni Bulgular (23.07.2025 Update)
+
+### Logger Sorunu Çözüldü ✅
+- **Sorun**: `logger = logging.getLogger(__name__)` kullanımı
+- **Çözüm**: `logger = logging.getLogger("gold_analyzer")` olarak değiştirildi
+- **Sonuç**: Artık tüm debug logları görünüyor
+
+### Confidence Değerleri Sorunu
+- **Bulgu**: Confidence değerleri hala yüksek (0.6-0.7)
+- **Sinyaller**: 0.4 civarında
+- **Çözüm**: `init_simulations.py` scripti oluşturuldu:
+  - Ana Strateji: 0.35
+  - Konservatif: 0.45
+  - Momentum: 0.40
+  - Mean Reversion: 0.38
 
 ## Çözüm Önerisi
 
