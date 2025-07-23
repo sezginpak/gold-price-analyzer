@@ -192,12 +192,27 @@ class SimulationManager:
                 
                 for row in cursor.fetchall():
                     timeframe, allocated, current, in_position = row
-                    self.timeframe_capitals[simulation_id][timeframe] = TimeframeCapital(
+                    tf_capital = TimeframeCapital(
                         timeframe=timeframe,
                         allocated_capital=Decimal(str(allocated)),
                         current_capital=Decimal(str(current)),
                         in_position=bool(in_position)
                     )
+                    
+                    # Eğer pozisyonda ise, açık pozisyon ID'sini bul
+                    if tf_capital.in_position:
+                        cursor2 = conn.cursor()
+                        cursor2.execute("""
+                            SELECT id FROM sim_positions
+                            WHERE simulation_id = ? AND timeframe = ? AND status = 'OPEN'
+                            ORDER BY entry_time DESC LIMIT 1
+                        """, (simulation_id, timeframe))
+                        pos_row = cursor2.fetchone()
+                        if pos_row:
+                            tf_capital.open_position_id = pos_row[0]
+                            logger.debug(f"Found open position {pos_row[0]} for sim {simulation_id} - {timeframe}")
+                    
+                    self.timeframe_capitals[simulation_id][timeframe] = tf_capital
                 
         except Exception as e:
             logger.error(f"Timeframe sermaye yükleme hatası: {str(e)}")
