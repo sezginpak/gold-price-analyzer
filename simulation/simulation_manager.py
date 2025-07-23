@@ -385,8 +385,11 @@ class SimulationManager:
         elif strategy == StrategyType.CONSERVATIVE:
             # Sadece yüksek güvenli sinyaller
             confidence = signal_data.get('confidence', 0)
-            result = confidence >= 0.7
-            logger.debug(f"{timeframe} - CONSERVATIVE: confidence {confidence} >= 0.7 ? {result}")
+            # Config'den min_confidence değerini al ve %50 daha yüksek bir eşik kullan
+            min_conf = config.min_confidence
+            conservative_threshold = min_conf * 1.5  # Conservative için %50 daha yüksek
+            result = confidence >= conservative_threshold
+            logger.debug(f"{timeframe} - CONSERVATIVE: confidence {confidence} >= {conservative_threshold} ? {result}")
             return result
         
         elif strategy == StrategyType.MOMENTUM:
