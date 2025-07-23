@@ -27,7 +27,7 @@ from models.simulation import StrategyType
 logger = setup_logger(
     name="gold_analyzer",
     log_dir="logs",
-    level="INFO"
+    level="DEBUG"  # DEBUG seviyesine çekildi
 )
 
 

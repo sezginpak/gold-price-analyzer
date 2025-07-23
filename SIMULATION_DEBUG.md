@@ -38,6 +38,8 @@ stop_distance = atr_pct * Decimal(str(config.atr_multiplier_sl))
 ### 5. NoneType Hataları
 - **Sorun**: Günlük performans güncellemesinde NoneType to float hatası
 - **Çözüm**: Timeframe capitals kontrolü ve varsayılan değerler eklendi
+- **Düzeltme**: `tf.current_capital if tf.current_capital is not None else 0` şeklinde güncellendi
+- **Durum**: Hala devam ediyor, başka bir yerde de sorun olabilir
 
 ## Mevcut Durum
 
@@ -56,7 +58,8 @@ stop_distance = atr_pct * Decimal(str(config.atr_multiplier_sl))
 ### Sorunlar
 1. **Pozisyon açılmıyor** - 0 pozisyon
 2. **1d timeframe için yeterli mum yok** - "Not enough gram candles for 1d: 7/20"
-3. **Günlük performans güncelleme hatası devam ediyor**
+3. **Günlük performans güncelleme hatası devam ediyor** - başka bir yerde NoneType sorunu var
+4. **SimulationManager logları görünmüyor** - start(), load_active_simulations() vs. logları yok
 
 ## Debug İçin Kontrol Edilecekler
 
@@ -77,7 +80,10 @@ commit 00a1b4c: Fix: Decimal type compatibility in position calculations
 ```
 
 ## Sonraki Adımlar
-1. Detaylı debug log ekleme
-2. _should_open_position ve _process_single_simulation metodlarına log ekleme
-3. 1d timeframe'i geçici olarak devre dışı bırakma testi
+1. ~~Detaylı debug log ekleme~~ ✅ Eklendi ama görünmüyor
+2. ~~_should_open_position ve _process_single_simulation metodlarına log ekleme~~ ✅ Eklendi
+3. ~~1d timeframe'i geçici olarak devre dışı bırakma~~ ✅ _get_latest_signals'da kaldırıldı
 4. Strateji filtrelerini kontrol etme
+5. **SimulationManager'ın neden başlamadığını araştır** 🔴 ACİL
+6. NoneType hatasının kaynağını bul (başka yerlerde de olabilir)
+7. Veritabanında aktif simülasyon var mı kontrol et
