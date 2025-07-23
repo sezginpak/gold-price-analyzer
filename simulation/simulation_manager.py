@@ -1046,6 +1046,9 @@ class SimulationManager:
                 
                 stats = cursor.fetchone()
                 
+                # Debug log
+                logger.debug(f"Daily performance stats for sim {sim_id}: {stats}")
+                
                 # Değerleri al
                 total_trades = stats[0] or 0
                 winning_trades = stats[1] or 0
@@ -1071,7 +1074,7 @@ class SimulationManager:
                         float(total_capital), float(daily_pnl), 
                         float(daily_pnl / starting_capital * 100) if starting_capital > 0 else 0,
                         total_trades, winning_trades, losing_trades,
-                        stats[4], stats[5], stats[6], stats[7],
+                        stats[4] or 0, stats[5] or 0, stats[6] or 0, stats[7] or 0,
                         float(stats[8] or 0), float(stats[9] or 0), float(stats[10] or 0), float(stats[11] or 0),
                         sim_id, today
                     ))
@@ -1088,14 +1091,16 @@ class SimulationManager:
                         sim_id, today, float(starting_capital), float(total_capital),
                         float(daily_pnl), float(daily_pnl / starting_capital * 100) if starting_capital > 0 else 0,
                         total_trades, winning_trades, losing_trades,
-                        stats[4], stats[5], stats[6], stats[7],
-                        float(stats[8]), float(stats[9]), float(stats[10]), float(stats[11])
+                        stats[4] or 0, stats[5] or 0, stats[6] or 0, stats[7] or 0,
+                        float(stats[8] or 0), float(stats[9] or 0), float(stats[10] or 0), float(stats[11] or 0)
                     ))
                 
                 conn.commit()
                 
         except Exception as e:
+            import traceback
             logger.error(f"Günlük performans güncelleme hatası: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
     
     # Public metodlar
     async def get_simulation_status(self, sim_id: int) -> Optional[SimulationSummary]:
