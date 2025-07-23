@@ -267,9 +267,11 @@ class SimulationManager:
     
     def _is_trading_hours(self, current_time: datetime) -> bool:
         """İşlem saatleri içinde mi?"""
-        current_hour = current_time.hour
-        # Varsayılan 09:00-17:00
-        return 9 <= current_hour < 17
+        # GEÇİCİ: Test için trading saatleri kontrolü devre dışı
+        return True
+        # current_hour = current_time.hour
+        # # Varsayılan 09:00-17:00
+        # return 9 <= current_hour < 17
     
     async def _process_single_simulation(
         self,
