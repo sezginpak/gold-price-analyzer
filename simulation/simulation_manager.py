@@ -976,9 +976,9 @@ class SimulationManager:
                     tf.current_capital 
                     for tf in self.timeframe_capitals[sim_id].values()
                 )
-        
-        # İşlem istatistikleri
-        cursor.execute("""
+                
+                # İşlem istatistikleri
+                cursor.execute("""
             SELECT 
                 COUNT(*) as total_trades,
                 SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as winning_trades,
@@ -988,23 +988,23 @@ class SimulationManager:
                 SUM(net_profit_loss) as total_pnl
             FROM sim_positions
             WHERE simulation_id = ? AND status = 'CLOSED'
-        """, (sim_id,))
-        
-        stats = cursor.fetchone()
-        
-        # Metrikleri hesapla
-        total_trades = stats[0] or 0
-        winning_trades = stats[1] or 0
-        losing_trades = stats[2] or 0
-        avg_win = stats[3] or 0
-        avg_loss = stats[4] or 0
-        total_pnl = stats[5] or 0
-        
-        win_rate = winning_trades / total_trades if total_trades > 0 else 0
-        profit_factor = (winning_trades * avg_win) / (losing_trades * avg_loss) if losing_trades > 0 and avg_loss > 0 else 0
-        
-        # Simülasyonu güncelle
-        cursor.execute("""
+                """, (sim_id,))
+                
+                stats = cursor.fetchone()
+                
+                # Metrikleri hesapla
+                total_trades = stats[0] or 0
+                winning_trades = stats[1] or 0
+                losing_trades = stats[2] or 0
+                avg_win = stats[3] or 0
+                avg_loss = stats[4] or 0
+                total_pnl = stats[5] or 0
+                
+                win_rate = winning_trades / total_trades if total_trades > 0 else 0
+                profit_factor = (winning_trades * avg_win) / (losing_trades * avg_loss) if losing_trades > 0 and avg_loss > 0 else 0
+                
+                # Simülasyonu güncelle
+                cursor.execute("""
             UPDATE simulations
             SET current_capital = ?, total_trades = ?, winning_trades = ?,
                 losing_trades = ?, total_profit_loss = ?, total_profit_loss_pct = ?,
@@ -1024,7 +1024,7 @@ class SimulationManager:
             float(avg_loss),
             datetime.now(),
             sim_id
-        ))
+                ))
                 
                 conn.commit()
                 logger.debug(f"Updated stats for sim {sim_id}: trades={total_trades}, pnl={total_pnl}, capital={total_capital}")
