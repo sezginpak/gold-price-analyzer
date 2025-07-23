@@ -914,10 +914,16 @@ class SimulationManager:
                 cursor = conn.cursor()
                 
                 # Toplam sermayeyi hesapla
+                tf_capitals = self.timeframe_capitals.get(sim_id, {})
+                if not tf_capitals:
+                    # Eğer timeframe capitals yoksa, varsayılan dağıtımı kullan
+                    self._init_timeframe_capitals(sim_id, self.active_simulations[sim_id])
+                    tf_capitals = self.timeframe_capitals.get(sim_id, {})
+                
                 total_capital = sum(
-                    tf.current_capital 
-                    for tf in self.timeframe_capitals.get(sim_id, {}).values()
-                )
+                    float(tf.current_capital) 
+                    for tf in tf_capitals.values()
+                ) or 1000.0  # Varsayılan sermaye
                 
                 # Günün başlangıç sermayesini al (veya varsayılan)
                 cursor.execute("""
@@ -978,7 +984,7 @@ class SimulationManager:
                         float(daily_pnl / starting_capital * 100) if starting_capital > 0 else 0,
                         total_trades, winning_trades, losing_trades,
                         stats[4], stats[5], stats[6], stats[7],
-                        float(stats[8]), float(stats[9]), float(stats[10]), float(stats[11]),
+                        float(stats[8] or 0), float(stats[9] or 0), float(stats[10] or 0), float(stats[11] or 0),
                         sim_id, today
                     ))
                 else:
