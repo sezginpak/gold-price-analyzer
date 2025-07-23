@@ -953,14 +953,15 @@ class SimulationManager:
     
     async def _update_simulation_stats(self, sim_id: int):
         """Simülasyon istatistiklerini güncelle"""
-        with self.storage.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Toplam sermayeyi hesapla
-        total_capital = sum(
-            tf.current_capital 
-            for tf in self.timeframe_capitals[sim_id].values()
-        )
+        try:
+            with self.storage.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Toplam sermayeyi hesapla
+                total_capital = sum(
+                    tf.current_capital 
+                    for tf in self.timeframe_capitals[sim_id].values()
+                )
         
         # İşlem istatistikleri
         cursor.execute("""
@@ -1010,8 +1011,12 @@ class SimulationManager:
             datetime.now(),
             sim_id
         ))
-        
-        conn.commit()
+                
+                conn.commit()
+                logger.debug(f"Updated stats for sim {sim_id}: trades={total_trades}, pnl={total_pnl}, capital={total_capital}")
+                
+        except Exception as e:
+            logger.error(f"Simülasyon istatistik güncelleme hatası: {str(e)}")
     
     async def _update_daily_performance(self, sim_id: int):
         """Günlük performansı güncelle"""
