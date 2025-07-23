@@ -31,6 +31,7 @@ class SimulationManager:
         self.active_simulations: Dict[int, SimulationConfig] = {}
         self.timeframe_capitals: Dict[int, Dict[str, TimeframeCapital]] = {}
         self.is_running = False
+        logger.info("SimulationManager initialized")
         
     async def create_simulation(
         self,
@@ -107,6 +108,8 @@ class SimulationManager:
     
     async def start(self):
         """Simülasyon döngüsünü başlat"""
+        logger.info("SimulationManager.start() called")
+        
         if self.is_running:
             logger.warning("Simülasyon zaten çalışıyor")
             return
@@ -115,15 +118,19 @@ class SimulationManager:
         logger.info("Simülasyon sistemi başlatıldı")
         
         # Aktif simülasyonları yükle
+        logger.info("Loading active simulations...")
         await self._load_active_simulations()
+        
+        logger.info(f"Starting simulation loop with {len(self.active_simulations)} simulations")
         
         # Ana döngü
         while self.is_running:
             try:
+                logger.debug("Processing simulations cycle...")
                 await self._process_simulations()
                 await asyncio.sleep(60)  # 1 dakika bekle
             except Exception as e:
-                logger.error(f"Simülasyon döngü hatası: {str(e)}")
+                logger.error(f"Simülasyon döngü hatası: {str(e)}", exc_info=True)
                 await asyncio.sleep(5)
     
     async def _load_active_simulations(self):
@@ -985,7 +992,7 @@ class SimulationManager:
                     tf_capitals = self.timeframe_capitals.get(sim_id, {})
                 
                 total_capital = sum(
-                    float(tf.current_capital) 
+                    float(tf.current_capital) if tf.current_capital is not None else 0
                     for tf in tf_capitals.values()
                 ) or 1000.0  # Varsayılan sermaye
                 
