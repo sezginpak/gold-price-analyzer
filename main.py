@@ -225,7 +225,9 @@ class HybridGoldAnalyzer:
         asyncio.create_task(self.show_statistics())
         
         # Simülasyon sistemini başlat
+        logger.info("Starting SimulationManager...")
         asyncio.create_task(self.simulation_manager.start())
+        logger.info("SimulationManager task created")
         
         logger.info("System started successfully")
         
