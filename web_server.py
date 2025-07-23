@@ -414,11 +414,37 @@ async def get_simulation_positions(sim_id: int, status: str = "all"):
             columns = [desc[0] for desc in cursor.description]
             
             positions = []
+            
+            # Anlık fiyatı al
+            current_price = None
+            latest = storage.get_latest_price()
+            if latest and latest.gram_altin:
+                current_price = float(latest.gram_altin)
+            
             for row in cursor.fetchall():
                 pos = dict(zip(columns, row))
+                
+                # Açık pozisyonlar için anlık kar/zarar hesapla
+                if pos['status'] == 'OPEN' and current_price:
+                    entry_price = float(pos['entry_price'])
+                    position_size = float(pos['position_size'])
+                    
+                    if pos['position_type'] == 'LONG':
+                        pnl_gram = (current_price - entry_price) * position_size
+                    else:
+                        pnl_gram = (entry_price - current_price) * position_size
+                    
+                    # Maliyetleri çıkar
+                    total_costs = float(pos['entry_spread']) + float(pos['entry_commission'])
+                    pnl_gram -= total_costs
+                    
+                    pos['current_price'] = current_price
+                    pos['current_pnl'] = pnl_gram
+                    pos['current_pnl_pct'] = (pnl_gram / float(pos['allocated_capital'])) * 100
+                
                 positions.append(pos)
             
-            return {"positions": positions}
+            return {"positions": positions, "current_price": current_price}
     except Exception as e:
         logger.error(f"Error getting positions: {e}")
         return {"error": str(e)}

@@ -114,13 +114,14 @@
                         <th class="text-left py-3 px-4">Tip</th>
                         <th class="text-right py-3 px-4">Boyut</th>
                         <th class="text-right py-3 px-4">Giriş</th>
-                        <th class="text-right py-3 px-4">PnL</th>
+                        <th class="text-right py-3 px-4">Çıkış/Anlık</th>
+                        <th class="text-right py-3 px-4">Kar/Zarar</th>
                         <th class="text-center py-3 px-4">Durum</th>
                     </tr>
                 </thead>
                 <tbody id="positionsTable">
                     <tr>
-                        <td colspan="8" class="text-center py-8 text-gray-400">
+                        <td colspan="9" class="text-center py-8 text-gray-400">
                             <i class="fas fa-spinner fa-spin mr-2"></i>Yükleniyor...
                         </td>
                     </tr>
@@ -329,8 +330,10 @@ async function loadPositions() {
             const response = await fetch(`/api/simulations/${sim.id}/positions?status=all`);
             const data = await response.json();
             if (data.positions) {
+                // Anlık fiyatı tüm pozisyonlara ekle
+                const currentPrice = data.current_price;
                 allPositions = allPositions.concat(
-                    data.positions.map(p => ({...p, sim_name: sim.name}))
+                    data.positions.map(p => ({...p, sim_name: sim.name, current_price: currentPrice}))
                 );
             }
         } catch (error) {
@@ -380,7 +383,7 @@ function displayPositions() {
     if (positions.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="text-center py-8 text-gray-400">
+                <td colspan="9" class="text-center py-8 text-gray-400">
                     Pozisyon bulunmuyor.
                 </td>
             </tr>
@@ -405,8 +408,9 @@ function displayPositions() {
                 <td class="py-3 px-4">${pos.position_type}</td>
                 <td class="py-3 px-4 text-right">${pos.position_size.toFixed(3)}g</td>
                 <td class="py-3 px-4 text-right">${pos.entry_price.toFixed(2)}</td>
+                <td class="py-3 px-4 text-right">${displayPriceColumn(pos)}</td>
                 <td class="py-3 px-4 text-right ${pnlClass} font-medium">
-                    ${pnl.toFixed(2)}g
+                    ${displayPnL(pos)}
                 </td>
                 <td class="py-3 px-4 text-center">${statusBadge}</td>
             </tr>
@@ -449,6 +453,41 @@ function updatePerformanceChart(performance) {
     };
     
     performanceChart.update();
+}
+
+// Fiyat kolonunu göster (çıkış veya anlık)
+function displayPriceColumn(pos) {
+    if (pos.status === 'CLOSED') {
+        return `${pos.exit_price.toFixed(2)}`;
+    } else if (pos.current_price) {
+        const priceChange = pos.current_price - pos.entry_price;
+        const priceClass = priceChange >= 0 ? 'text-green-400' : 'text-red-400';
+        return `<span class="${priceClass}">${pos.current_price.toFixed(2)}</span>`;
+    }
+    return '-';
+}
+
+// Kar/Zarar gösterimi
+function displayPnL(pos) {
+    let pnl, pnlPct;
+    
+    if (pos.status === 'CLOSED') {
+        pnl = pos.net_profit_loss || 0;
+        pnlPct = pos.profit_loss_pct || 0;
+    } else if (pos.current_pnl !== undefined) {
+        pnl = pos.current_pnl;
+        pnlPct = pos.current_pnl_pct || 0;
+    } else {
+        return '-';
+    }
+    
+    const sign = pnl >= 0 ? '+' : '';
+    return `
+        <div class="text-right">
+            <div>${sign}${pnl.toFixed(2)}g</div>
+            <div class="text-xs opacity-75">${sign}${pnlPct.toFixed(2)}%</div>
+        </div>
+    `;
 }
 
 // Sayfa yüklendiğinde
