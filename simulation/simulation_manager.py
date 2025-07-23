@@ -268,11 +268,11 @@ class SimulationManager:
                         'confidence': analysis.get('confidence', 0),
                         'price': analysis.get('gram_price'),
                         'indicators': {
-                            'rsi': analysis.get('gram_analysis', {}).get('rsi'),
-                            'macd': analysis.get('gram_analysis', {}).get('macd'),
-                            'bb': analysis.get('gram_analysis', {}).get('bollinger_bands'),
-                            'atr': analysis.get('gram_analysis', {}).get('atr'),
-                            'patterns': analysis.get('pattern_analysis', {})
+                            'rsi': analysis.get('gram_analysis', {}).get('indicators', {}).get('rsi'),
+                            'macd': analysis.get('gram_analysis', {}).get('indicators', {}).get('macd'),
+                            'bb': analysis.get('gram_analysis', {}).get('indicators', {}).get('bollinger'),
+                            'atr': analysis.get('gram_analysis', {}).get('indicators', {}).get('atr'),
+                            'patterns': analysis.get('gram_analysis', {}).get('patterns', [])
                         },
                         'stop_loss': analysis.get('stop_loss'),
                         'take_profit': analysis.get('take_profit'),
