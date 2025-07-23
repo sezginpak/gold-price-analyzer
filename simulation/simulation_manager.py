@@ -303,6 +303,14 @@ class SimulationManager:
                     sim_id, tf_capital.open_position_id, signal_data
                 )
             else:
+                # Önce aynı timeframe için açık pozisyon olup olmadığını kontrol et
+                has_open_position = await self._check_open_position_exists(sim_id, timeframe)
+                if has_open_position:
+                    logger.warning(f"Open position already exists for {sim_id}-{timeframe}, skipping")
+                    # Timeframe capital'i güncelle
+                    tf_capital.in_position = True
+                    continue
+                
                 # Yeni pozisyon açma kontrolü
                 logger.debug(f"Checking if should open position for {timeframe}")
                 if self._should_open_position(config, signal_data, timeframe):
@@ -376,6 +384,17 @@ class SimulationManager:
     ) -> bool:
         """Strateji tipine göre sinyal filtrele"""
         return self.signal_analyzer._apply_strategy_filter(config, signal_data, timeframe)
+    
+    async def _check_open_position_exists(self, sim_id: int, timeframe: str) -> bool:
+        """Belirli bir timeframe için açık pozisyon var mı kontrol et"""
+        with self.storage.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM sim_positions
+                WHERE simulation_id = ? AND timeframe = ? AND status = 'OPEN'
+            """, (sim_id, timeframe))
+            count = cursor.fetchone()[0]
+            return count > 0
     
     async def _open_position(
         self,
@@ -591,6 +610,8 @@ class SimulationManager:
             # Timeframe sermayesini güncelle
             tf_capital = self.timeframe_capitals[sim_id][position.timeframe]
             tf_capital.update_capital(net_pnl)
+            tf_capital.in_position = False
+            tf_capital.open_position_id = None
             await self._update_timeframe_capital(sim_id, position.timeframe, tf_capital)
             
             # Simülasyon istatistiklerini güncelle
