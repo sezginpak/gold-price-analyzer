@@ -1047,7 +1047,10 @@ class SimulationManager:
                 stats = cursor.fetchone()
                 
                 # Debug log
-                logger.debug(f"Daily performance stats for sim {sim_id}: {stats}")
+                if stats:
+                    logger.debug(f"Daily performance stats for sim {sim_id}: {list(stats)}")
+                else:
+                    logger.debug(f"No daily performance stats for sim {sim_id}")
                 
                 # Değerleri al
                 total_trades = stats[0] or 0
