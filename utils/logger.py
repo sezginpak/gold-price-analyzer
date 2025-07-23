@@ -67,7 +67,7 @@ def setup_logger(
     
     # 3. Console Handler
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)  # DEBUG seviyesine çekildi
     console_handler.setFormatter(simple_formatter)
     
     # 4. Critical alerts file - Kritik hatalar için ayrı dosya
