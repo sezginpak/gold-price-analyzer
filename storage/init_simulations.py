@@ -124,9 +124,9 @@ def init_simulations(db_path: str = "gold_prices.db"):
                 # Güncelle
                 cursor.execute("""
                     UPDATE simulations 
-                    SET config = ?, updated_at = ?
+                    SET config = ?
                     WHERE name = ?
-                """, (json.dumps(sim["config"]), datetime.now(), sim["name"]))
+                """, (json.dumps(sim["config"]), sim["name"]))
                 logger.info(f"Simülasyon güncellendi: {sim['name']}")
             else:
                 # Yeni ekle
