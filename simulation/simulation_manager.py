@@ -407,8 +407,8 @@ class SimulationManager:
             logger.debug(f"{timeframe} - MEAN_REVERSION: BB={bb}, Price={price}")
             
             if bb and price:
-                upper = bb.get('upper')
-                lower = bb.get('lower')
+                upper = bb.get('upper_band') or bb.get('upper')
+                lower = bb.get('lower_band') or bb.get('lower')
                 logger.debug(f"{timeframe} - MEAN_REVERSION: Upper={upper}, Lower={lower}, Price={price}")
                 
                 if upper and lower:
