@@ -5,6 +5,12 @@ import sqlite3
 import json
 import logging
 from datetime import datetime
+import sys
+import os
+
+# Proje root'unu path'e ekle
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from models.simulation import StrategyType, SimulationStatus
 
 logger = logging.getLogger(__name__)
