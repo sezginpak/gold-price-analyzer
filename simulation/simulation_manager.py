@@ -19,6 +19,11 @@ from models.trading_signal import SignalType
 from storage.sqlite_storage import SQLiteStorage
 from utils.risk_management import KellyRiskManager
 
+# Yeni modülleri import et
+from .position_manager import PositionManager
+from .signal_analyzer import SignalAnalyzer
+from .statistics_manager import StatisticsManager
+
 logger = logging.getLogger("gold_analyzer")
 
 
@@ -31,6 +36,12 @@ class SimulationManager:
         self.active_simulations: Dict[int, SimulationConfig] = {}
         self.timeframe_capitals: Dict[int, Dict[str, TimeframeCapital]] = {}
         self.is_running = False
+        
+        # Yeni modülleri başlat
+        self.position_manager = PositionManager(storage)
+        self.signal_analyzer = SignalAnalyzer()
+        self.statistics_manager = StatisticsManager(storage)
+        
         logger.info("SimulationManager initialized")
         
     async def create_simulation(
@@ -355,42 +366,7 @@ class SimulationManager:
         timeframe: str
     ) -> bool:
         """Pozisyon açılmalı mı?"""
-        logger.debug(f"\n=== Should open position check for {timeframe} ===")
-        logger.debug(f"Config: {config.name} ({config.strategy_type.value})")
-        logger.debug(f"Min confidence required: {config.min_confidence}")
-        
-        if not signal_data:
-            logger.debug(f"❌ No signal data for {timeframe}")
-            return False
-            
-        signal = signal_data.get('signal')
-        confidence = signal_data.get('confidence', 0)
-        
-        logger.debug(f"Signal: {signal}, Confidence: {confidence}")
-        
-        if not signal:
-            logger.debug(f"❌ No signal field in data")
-            return False
-        
-        # Sadece BUY/SELL sinyalleri
-        if signal not in ['BUY', 'SELL']:
-            logger.debug(f"❌ Signal is not BUY/SELL: {signal}")
-            return False
-        
-        # Güven skoru kontrolü
-        if confidence < config.min_confidence:
-            logger.debug(f"❌ Confidence too low: {confidence} < {config.min_confidence}")
-            return False
-        
-        logger.debug(f"✅ Basic checks passed, applying strategy filter...")
-        
-        # Strateji tipine göre ek filtreler
-        if not self._apply_strategy_filter(config, signal_data, timeframe):
-            logger.debug(f"❌ Strategy filter failed for {config.strategy_type.value}")
-            return False
-        
-        logger.info(f"✅ Position CAN BE OPENED for {timeframe} - {signal} signal with confidence {confidence}")
-        return True
+        return self.signal_analyzer.should_open_position(config, signal_data, timeframe)
     
     def _apply_strategy_filter(
         self,
@@ -399,78 +375,7 @@ class SimulationManager:
         timeframe: str
     ) -> bool:
         """Strateji tipine göre sinyal filtrele"""
-        strategy = config.strategy_type
-        indicators = signal_data.get('indicators', {})
-        
-        logger.debug(f"Applying {strategy.value} filter for {timeframe}")
-        
-        if strategy == StrategyType.MAIN:
-            # Ana strateji - ek filtre yok
-            logger.debug(f"{timeframe} - MAIN strategy: No additional filter")
-            return True
-        
-        elif strategy == StrategyType.CONSERVATIVE:
-            # Sadece yüksek güvenli sinyaller
-            confidence = signal_data.get('confidence', 0)
-            # Config'den min_confidence değerini al ve %50 daha yüksek bir eşik kullan
-            min_conf = config.min_confidence
-            conservative_threshold = min_conf * 1.5  # Conservative için %50 daha yüksek
-            result = confidence >= conservative_threshold
-            logger.debug(f"{timeframe} - CONSERVATIVE: confidence {confidence} >= {conservative_threshold} ? {result}")
-            return result
-        
-        elif strategy == StrategyType.MOMENTUM:
-            # RSI 30-70 dışında
-            rsi = indicators.get('rsi')
-            logger.debug(f"{timeframe} - MOMENTUM: RSI={rsi}")
-            if rsi:
-                result = rsi < 30 or rsi > 70
-                logger.debug(f"{timeframe} - MOMENTUM: RSI {rsi} outside 30-70? {result}")
-                return result
-            logger.debug(f"{timeframe} - MOMENTUM: No RSI data")
-            return False
-        
-        elif strategy == StrategyType.MEAN_REVERSION:
-            # Bollinger band dışında
-            bb = indicators.get('bb', {})
-            price = signal_data.get('price')
-            logger.debug(f"{timeframe} - MEAN_REVERSION: BB={bb}, Price={price}")
-            
-            if bb and price:
-                upper = bb.get('upper_band') or bb.get('upper')
-                lower = bb.get('lower_band') or bb.get('lower')
-                logger.debug(f"{timeframe} - MEAN_REVERSION: Upper={upper}, Lower={lower}, Price={price}")
-                
-                if upper and lower:
-                    result = price > upper or price < lower
-                    logger.debug(f"{timeframe} - MEAN_REVERSION: Price outside bands? {result}")
-                    return result
-                else:
-                    logger.debug(f"{timeframe} - MEAN_REVERSION: Missing upper/lower bands")
-            else:
-                logger.debug(f"{timeframe} - MEAN_REVERSION: Missing BB or price data")
-            return False
-        
-        elif strategy == StrategyType.CONSENSUS:
-            # TODO: 3+ gösterge uyumu kontrolü
-            return True
-        
-        elif strategy == StrategyType.RISK_ADJUSTED:
-            # TODO: Volatilite bazlı filtreleme
-            return True
-        
-        elif strategy == StrategyType.TIME_BASED:
-            # Saate göre strateji değiştir
-            hour = datetime.now().hour
-            if 9 <= hour < 11:  # Momentum
-                rsi = indicators.get('rsi')
-                return rsi and (rsi < 30 or rsi > 70)
-            elif 11 <= hour < 14:  # Mean reversion
-                return True
-            else:  # Conservative
-                return signal_data.get('confidence', 0) >= 0.7
-        
-        return True
+        return self.signal_analyzer._apply_strategy_filter(config, signal_data, timeframe)
     
     async def _open_position(
         self,
@@ -507,30 +412,27 @@ class SimulationManager:
             
             # ATR değerini al - eğer dict ise 'atr' key'inden al, değilse direkt kullan
             if isinstance(atr, dict):
-                atr_value = atr.get('atr') or atr.get('value')
+                atr_dict = atr
             else:
-                atr_value = atr
+                atr_dict = {'atr': atr}
                 
-            if not atr_value:
-                logger.warning(f"ATR değeri bulunamadı {timeframe} için, pozisyon açılamıyor")
-                return
-            
-            # Stop loss hesapla (1.5 x ATR)
-            atr_value = Decimal(str(atr_value))
-            atr_pct = atr_value / current_price
-            stop_distance = atr_pct * Decimal(str(config.atr_multiplier_sl))
-            
-            if signal_data['signal'] == 'BUY':
-                stop_loss = current_price * (1 - stop_distance)
-                take_profit = current_price * (1 + stop_distance * Decimal(str(config.risk_reward_ratio)))
-            else:
-                stop_loss = current_price * (1 + stop_distance)
-                take_profit = current_price * (1 - stop_distance * Decimal(str(config.risk_reward_ratio)))
-            
             # Pozisyon boyutu hesapla
+            position_size = self.position_manager.calculate_position_size(
+                config, tf_capital.current_capital, current_price, atr_dict
+            )
+            
+            # Stop loss ve take profit hesapla
+            position_type = "LONG" if signal_data['signal'] == 'BUY' else "SHORT"
+            stop_loss = self.position_manager.calculate_stop_loss(
+                position_type, current_price, atr_dict, config
+            )
+            take_profit = self.position_manager.calculate_take_profit(
+                position_type, current_price, stop_loss, config
+            )
+            
+            # Risk miktarını hesapla
             risk_amount = tf_capital.current_capital * Decimal(str(config.max_risk))
-            position_value = risk_amount / stop_distance
-            position_size = position_value / current_price  # gram cinsinden
+            position_value = position_size * current_price  # gram x fiyat
             
             # Spread ve komisyon
             spread_cost = config.spread
@@ -589,86 +491,40 @@ class SimulationManager:
                 return
             
             current_price = Decimal(str(current_signal['price']))
-            logger.debug(f"Checking exit for position {position_id}: Entry={position.entry_price}, Current={current_price}, SL={position.stop_loss}, TP={position.take_profit}")
+            config = self.active_simulations[sim_id]
+            
+            # Çıkış koşullarını kontrol et
+            exit_reason_str = self.signal_analyzer.check_exit_conditions(
+                position, current_price, current_signal, config
+            )
+            
             exit_reason = None
             exit_price = current_price
             
-            # 1. Stop loss kontrolü
-            if position.position_type == "LONG":
-                if current_price <= position.stop_loss:
-                    exit_reason = ExitReason.STOP_LOSS
+            if exit_reason_str:
+                # String'i ExitReason enum'a çevir
+                exit_reason = ExitReason[exit_reason_str]
+                # Çıkış fiyatını belirle
+                if exit_reason == ExitReason.STOP_LOSS:
                     exit_price = position.stop_loss
-            else:
-                if current_price >= position.stop_loss:
-                    exit_reason = ExitReason.STOP_LOSS
-                    exit_price = position.stop_loss
+                elif exit_reason == ExitReason.TAKE_PROFIT:
+                    exit_price = position.take_profit
+                elif exit_reason == ExitReason.TRAILING_STOP:
+                    exit_price = position.trailing_stop
             
-            # 2. Take profit kontrolü
+            # Trailing stop güncellemesi kontrol et
             if not exit_reason:
-                if position.position_type == "LONG":
-                    if current_price >= position.take_profit:
-                        exit_reason = ExitReason.TAKE_PROFIT
-                        exit_price = position.take_profit
-                else:
-                    if current_price <= position.take_profit:
-                        exit_reason = ExitReason.TAKE_PROFIT
-                        exit_price = position.take_profit
+                new_trailing = self.signal_analyzer.update_trailing_stop(
+                    position, current_price, config
+                )
+                if new_trailing:
+                    await self._update_position_trailing_stop(position_id, new_trailing)
+                    logger.info(f"Trailing stop güncellendi: {new_trailing}")
             
-            # 3. Trailing stop kontrolü
-            if not exit_reason and position.trailing_stop:
-                if position.position_type == "LONG":
-                    if current_price <= position.trailing_stop:
-                        exit_reason = ExitReason.TRAILING_STOP
-                        exit_price = position.trailing_stop
-                else:
-                    if current_price >= position.trailing_stop:
-                        exit_reason = ExitReason.TRAILING_STOP
-                        exit_price = position.trailing_stop
-            
-            # 4. Trailing stop aktivasyonu
-            if not exit_reason:
-                config = self.active_simulations[sim_id]
-                if position.should_activate_trailing_stop(
-                    current_price,
-                    config.trailing_stop_activation
-                ):
-                    new_trailing = position.calculate_trailing_stop(
-                        current_price,
-                        config.trailing_stop_distance
-                    )
-                    
-                    # Mevcut trailing stop'tan daha iyi mi?
-                    if not position.trailing_stop or (
-                        position.position_type == "LONG" and new_trailing > position.trailing_stop
-                    ) or (
-                        position.position_type == "SHORT" and new_trailing < position.trailing_stop
-                    ):
-                        position.trailing_stop = new_trailing
-                        await self._update_position_trailing_stop(position_id, new_trailing)
-                        logger.info(f"Trailing stop güncellendi: {new_trailing}")
-            
-            # 5. Ters sinyal kontrolü
-            if not exit_reason:
-                new_signal = current_signal.get('signal')
-                if new_signal:
-                    if (position.position_type == "LONG" and new_signal == "SELL") or \
-                       (position.position_type == "SHORT" and new_signal == "BUY"):
-                        exit_reason = ExitReason.REVERSE_SIGNAL
-            
-            # 6. Güven düşüşü kontrolü
+            # Güven düşüşü kontrolü (signal_analyzer içinde yok, burada bırakalım)
             if not exit_reason:
                 if current_signal.get('confidence', 1) < 0.4:
                     exit_reason = ExitReason.CONFIDENCE_DROP
-            
-            # 7. Zaman limiti kontrolü
-            if not exit_reason:
-                config = self.active_simulations[sim_id]
-                time_limit = config.time_limits.get(position.timeframe, 168)
-                holding_hours = (datetime.now() - position.entry_time).total_seconds() / 3600
-                logger.debug(f"Time limit check: {position.timeframe} position held for {holding_hours:.1f}h, limit is {time_limit}h")
-                if holding_hours >= time_limit:
-                    exit_reason = ExitReason.TIME_LIMIT
-                    logger.info(f"Time limit reached for position {position_id}: {holding_hours:.1f}h >= {time_limit}h")
             
             # Pozisyonu kapat
             if exit_reason:
@@ -812,9 +668,9 @@ class SimulationManager:
         """Güncel gram altın fiyatını al"""
         try:
             # Son fiyat verisini al
-            latest = self.storage.get_latest_price_data()
-            if latest:
-                return Decimal(str(latest['gram_altin_satis']))
+            latest = self.storage.get_latest_price()
+            if latest and latest.gram_altin:
+                return latest.gram_altin
             return None
         except Exception as e:
             logger.error(f"Fiyat alma hatası: {str(e)}")
@@ -823,123 +679,19 @@ class SimulationManager:
     # Veritabanı işlemleri
     async def _save_position(self, position: SimulationPosition) -> int:
         """Pozisyonu veritabanına kaydet"""
-        with self.storage.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                INSERT INTO sim_positions (
-                    simulation_id, timeframe, position_type, status,
-                    entry_time, entry_price, entry_spread, entry_commission,
-                    position_size, allocated_capital, risk_amount,
-                    stop_loss, take_profit, entry_confidence, entry_indicators
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                position.simulation_id,
-                position.timeframe,
-                position.position_type,
-                position.status.value,
-                position.entry_time,
-                float(position.entry_price),
-                float(position.entry_spread),
-                float(position.entry_commission),
-                float(position.position_size),
-                float(position.allocated_capital),
-                float(position.risk_amount),
-                float(position.stop_loss),
-                float(position.take_profit),
-                position.entry_confidence,
-                json.dumps(position.entry_indicators)
-            ))
-            
-            conn.commit()
-            return cursor.lastrowid
+        return await self.position_manager.save_position(position)
     
     async def _get_position(self, position_id: int) -> Optional[SimulationPosition]:
         """Pozisyonu veritabanından al"""
-        with self.storage.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT * FROM sim_positions WHERE id = ?", (position_id,))
-            row = cursor.fetchone()
-        
-        if row:
-            # Row'dan SimulationPosition oluştur
-            col_names = [desc[0] for desc in cursor.description]
-            data = dict(zip(col_names, row))
-            
-            position = SimulationPosition(
-                id=data['id'],
-                simulation_id=data['simulation_id'],
-                timeframe=data['timeframe'],
-                position_type=data['position_type'],
-                status=PositionStatus(data['status']),
-                entry_time=datetime.fromisoformat(data['entry_time']),
-                entry_price=Decimal(str(data['entry_price'])),
-                entry_spread=Decimal(str(data['entry_spread'])),
-                entry_commission=Decimal(str(data['entry_commission'])),
-                position_size=Decimal(str(data['position_size'])),
-                allocated_capital=Decimal(str(data['allocated_capital'])),
-                risk_amount=Decimal(str(data['risk_amount'])),
-                stop_loss=Decimal(str(data['stop_loss'])),
-                take_profit=Decimal(str(data['take_profit'])),
-                entry_confidence=data['entry_confidence']
-            )
-            
-            # Opsiyonel alanlar
-            if data.get('trailing_stop'):
-                position.trailing_stop = Decimal(str(data['trailing_stop']))
-            if data.get('max_profit'):
-                position.max_profit = Decimal(str(data['max_profit']))
-            if data.get('entry_indicators'):
-                position.entry_indicators = json.loads(data['entry_indicators'])
-            
-            return position
-        
-        return None
+        return await self.position_manager.get_position(position_id)
     
     async def _update_position_trailing_stop(self, position_id: int, trailing_stop: Decimal):
         """Trailing stop güncelle"""
-        with self.storage.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                UPDATE sim_positions
-                SET trailing_stop = ?, updated_at = ?
-                WHERE id = ?
-            """, (float(trailing_stop), datetime.now(), position_id))
-            
-            conn.commit()
+        await self.position_manager.update_position_trailing_stop(position_id, trailing_stop)
     
     async def _update_position_close(self, position: SimulationPosition):
         """Pozisyon kapanışını güncelle"""
-        with self.storage.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                UPDATE sim_positions
-                SET status = ?, exit_time = ?, exit_price = ?,
-                    exit_spread = ?, exit_commission = ?, exit_reason = ?,
-                    gross_profit_loss = ?, net_profit_loss = ?,
-                    profit_loss_pct = ?, holding_period_minutes = ?,
-                    exit_indicators = ?, updated_at = ?
-                WHERE id = ?
-            """, (
-            position.status.value,
-            position.exit_time,
-            float(position.exit_price),
-            float(position.exit_spread),
-            float(position.exit_commission),
-            position.exit_reason.value,
-            float(position.gross_profit_loss),
-            float(position.net_profit_loss),
-            position.profit_loss_pct,
-            position.holding_period_minutes,
-            json.dumps(position.exit_indicators) if position.exit_indicators else None,
-            datetime.now(),
-            position.id
-        ))
-        
-        conn.commit()
+        await self.position_manager.update_position_close(position)
     
     async def _update_timeframe_capital(
         self,
@@ -948,201 +700,15 @@ class SimulationManager:
         tf_capital: TimeframeCapital
     ):
         """Timeframe sermayesini güncelle"""
-        with self.storage.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                UPDATE sim_timeframe_capital
-                SET current_capital = ?, in_position = ?, last_update = ?
-                WHERE simulation_id = ? AND timeframe = ?
-            """, (
-                float(tf_capital.current_capital),
-                int(tf_capital.in_position),
-                datetime.now(),
-                sim_id,
-                timeframe
-            ))
-            
-            conn.commit()
+        await self.statistics_manager.update_timeframe_capital(sim_id, timeframe, tf_capital)
     
     async def _update_simulation_stats(self, sim_id: int):
         """Simülasyon istatistiklerini güncelle"""
-        try:
-            with self.storage.get_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Toplam sermayeyi hesapla
-                total_capital = sum(
-                    tf.current_capital 
-                    for tf in self.timeframe_capitals[sim_id].values()
-                )
-                
-                # İşlem istatistikleri
-                cursor.execute("""
-            SELECT 
-                COUNT(*) as total_trades,
-                SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as winning_trades,
-                SUM(CASE WHEN net_profit_loss < 0 THEN 1 ELSE 0 END) as losing_trades,
-                AVG(CASE WHEN net_profit_loss > 0 THEN net_profit_loss ELSE NULL END) as avg_win,
-                AVG(CASE WHEN net_profit_loss < 0 THEN ABS(net_profit_loss) ELSE NULL END) as avg_loss,
-                SUM(net_profit_loss) as total_pnl
-            FROM sim_positions
-            WHERE simulation_id = ? AND status = 'CLOSED'
-                """, (sim_id,))
-                
-                stats = cursor.fetchone()
-                
-                # Metrikleri hesapla
-                total_trades = stats[0] or 0
-                winning_trades = stats[1] or 0
-                losing_trades = stats[2] or 0
-                avg_win = stats[3] or 0
-                avg_loss = stats[4] or 0
-                total_pnl = stats[5] or 0
-                
-                win_rate = winning_trades / total_trades if total_trades > 0 else 0
-                profit_factor = (winning_trades * avg_win) / (losing_trades * avg_loss) if losing_trades > 0 and avg_loss > 0 else 0
-                
-                # Simülasyonu güncelle
-                cursor.execute("""
-            UPDATE simulations
-            SET current_capital = ?, total_trades = ?, winning_trades = ?,
-                losing_trades = ?, total_profit_loss = ?, total_profit_loss_pct = ?,
-                win_rate = ?, profit_factor = ?, avg_win = ?, avg_loss = ?,
-                last_update = ?
-            WHERE id = ?
-        """, (
-            float(total_capital),
-            total_trades,
-            winning_trades,
-            losing_trades,
-            float(total_pnl),
-            float((total_capital - 1000) / 10),  # %
-            win_rate,
-            profit_factor,
-            float(avg_win),
-            float(avg_loss),
-            datetime.now(),
-            sim_id
-                ))
-                
-                conn.commit()
-                logger.debug(f"Updated stats for sim {sim_id}: trades={total_trades}, pnl={total_pnl}, capital={total_capital}")
-                
-        except Exception as e:
-            logger.error(f"Simülasyon istatistik güncelleme hatası: {str(e)}")
+        await self.statistics_manager.update_simulation_stats(sim_id, self.timeframe_capitals)
     
     async def _update_daily_performance(self, sim_id: int):
         """Günlük performansı güncelle"""
-        try:
-            today = datetime.now().date()
-            
-            with self.storage.get_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Toplam sermayeyi hesapla
-                tf_capitals = self.timeframe_capitals.get(sim_id, {})
-                if not tf_capitals:
-                    # Eğer timeframe capitals yoksa, varsayılan dağıtımı kullan
-                    self._init_timeframe_capitals(sim_id, self.active_simulations[sim_id])
-                    tf_capitals = self.timeframe_capitals.get(sim_id, {})
-                
-                total_capital = sum(
-                    float(tf.current_capital) if tf.current_capital is not None else 0
-                    for tf in tf_capitals.values()
-                ) or 1000.0  # Varsayılan sermaye
-                
-                # Günün başlangıç sermayesini al (veya varsayılan)
-                cursor.execute("""
-                    SELECT ending_capital FROM sim_daily_performance
-                    WHERE simulation_id = ? AND date < ?
-                    ORDER BY date DESC LIMIT 1
-                """, (sim_id, today))
-                
-                row = cursor.fetchone()
-                starting_capital = row[0] if row else 1000.0
-                
-                # Bugünkü işlemleri al - timeframe bazlı
-                cursor.execute("""
-                    SELECT 
-                        COUNT(*) as total,
-                        SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as wins,
-                        SUM(CASE WHEN net_profit_loss < 0 THEN 1 ELSE 0 END) as losses,
-                        SUM(net_profit_loss) as total_pnl,
-                        SUM(CASE WHEN timeframe = '15m' THEN 1 ELSE 0 END) as trades_15m,
-                        SUM(CASE WHEN timeframe = '1h' THEN 1 ELSE 0 END) as trades_1h,
-                        SUM(CASE WHEN timeframe = '4h' THEN 1 ELSE 0 END) as trades_4h,
-                        SUM(CASE WHEN timeframe = '1d' THEN 1 ELSE 0 END) as trades_1d,
-                        SUM(CASE WHEN timeframe = '15m' THEN net_profit_loss ELSE 0 END) as pnl_15m,
-                        SUM(CASE WHEN timeframe = '1h' THEN net_profit_loss ELSE 0 END) as pnl_1h,
-                        SUM(CASE WHEN timeframe = '4h' THEN net_profit_loss ELSE 0 END) as pnl_4h,
-                        SUM(CASE WHEN timeframe = '1d' THEN net_profit_loss ELSE 0 END) as pnl_1d
-                    FROM sim_positions
-                    WHERE simulation_id = ? 
-                    AND DATE(exit_time) = ?
-                    AND status = 'CLOSED'
-                """, (sim_id, today))
-                
-                stats = cursor.fetchone()
-                
-                # Debug log
-                if stats:
-                    logger.debug(f"Daily performance stats for sim {sim_id}: {list(stats)}")
-                else:
-                    logger.debug(f"No daily performance stats for sim {sim_id}")
-                
-                # Değerleri al
-                total_trades = stats[0] or 0
-                winning_trades = stats[1] or 0
-                losing_trades = stats[2] or 0
-                daily_pnl = stats[3] or 0.0
-                
-                # Mevcut kaydı kontrol et
-                cursor.execute("""
-                    SELECT id FROM sim_daily_performance
-                    WHERE simulation_id = ? AND date = ?
-                """, (sim_id, today))
-                
-                if cursor.fetchone():
-                    # Güncelle
-                    cursor.execute("""
-                        UPDATE sim_daily_performance
-                        SET ending_capital = ?, daily_pnl = ?, daily_pnl_pct = ?,
-                            total_trades = ?, winning_trades = ?, losing_trades = ?,
-                            trades_15m = ?, trades_1h = ?, trades_4h = ?, trades_1d = ?,
-                            pnl_15m = ?, pnl_1h = ?, pnl_4h = ?, pnl_1d = ?
-                        WHERE simulation_id = ? AND date = ?
-                    """, (
-                        float(total_capital), float(daily_pnl), 
-                        float(daily_pnl / starting_capital * 100) if starting_capital > 0 else 0,
-                        total_trades, winning_trades, losing_trades,
-                        stats[4] or 0, stats[5] or 0, stats[6] or 0, stats[7] or 0,
-                        float(stats[8] or 0), float(stats[9] or 0), float(stats[10] or 0), float(stats[11] or 0),
-                        sim_id, today
-                    ))
-                else:
-                    # Yeni kayıt
-                    cursor.execute("""
-                        INSERT INTO sim_daily_performance (
-                            simulation_id, date, starting_capital, ending_capital,
-                            daily_pnl, daily_pnl_pct, total_trades, winning_trades, losing_trades,
-                            trades_15m, trades_1h, trades_4h, trades_1d,
-                            pnl_15m, pnl_1h, pnl_4h, pnl_1d
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        sim_id, today, float(starting_capital), float(total_capital),
-                        float(daily_pnl), float(daily_pnl / starting_capital * 100) if starting_capital > 0 else 0,
-                        total_trades, winning_trades, losing_trades,
-                        stats[4] or 0, stats[5] or 0, stats[6] or 0, stats[7] or 0,
-                        float(stats[8] or 0), float(stats[9] or 0), float(stats[10] or 0), float(stats[11] or 0)
-                    ))
-                
-                conn.commit()
-                
-        except Exception as e:
-            import traceback
-            logger.error(f"Günlük performans güncelleme hatası: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
+        await self.statistics_manager.update_daily_performance(sim_id, self.timeframe_capitals, self.active_simulations)
     
     # Public metodlar
     async def get_simulation_status(self, sim_id: int) -> Optional[SimulationSummary]:
@@ -1182,13 +748,13 @@ class SimulationManager:
                 # Günlük performans
                 today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
                 cursor.execute("""
-                SELECT COUNT(*), SUM(net_profit_loss)
-                FROM sim_positions
-                WHERE simulation_id = ? AND exit_time >= ?
-            """, (sim_id, today_start))
-            daily_trades, daily_pnl = cursor.fetchone()
-            
-            return SimulationSummary(
+                    SELECT COUNT(*), SUM(net_profit_loss)
+                    FROM sim_positions
+                    WHERE simulation_id = ? AND exit_time >= ?
+                """, (sim_id, today_start))
+                daily_trades, daily_pnl = cursor.fetchone()
+                
+                return SimulationSummary(
                 simulation_id=sim_id,
                 name=sim_data['name'],
                 strategy_type=sim_data['strategy_type'],
