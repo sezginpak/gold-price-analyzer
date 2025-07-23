@@ -199,8 +199,11 @@ class SimulationManager:
         """Tüm aktif simülasyonları işle"""
         current_time = datetime.now()
         
+        # Türkiye saatine çevir (UTC+3)
+        tr_time = current_time.replace(hour=(current_time.hour + 3) % 24)
+        
         # İşlem saatleri kontrolü
-        if not self._is_trading_hours(current_time):
+        if not self._is_trading_hours(tr_time):
             # Sadece açık pozisyonları kontrol et
             await self._check_open_positions()
             return
