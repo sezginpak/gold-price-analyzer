@@ -558,9 +558,11 @@ class SimulationManager:
             # Pozisyonu al
             position = await self._get_position(position_id)
             if not position or position.status != PositionStatus.OPEN:
+                logger.debug(f"Position {position_id} not found or not open")
                 return
             
             current_price = Decimal(str(current_signal['price']))
+            logger.debug(f"Checking exit for position {position_id}: Entry={position.entry_price}, Current={current_price}, SL={position.stop_loss}, TP={position.take_profit}")
             exit_reason = None
             exit_price = current_price
             
@@ -641,6 +643,7 @@ class SimulationManager:
             
             # Pozisyonu kapat
             if exit_reason:
+                logger.info(f"🔴 Closing position {position_id}: Reason={exit_reason.value}, Exit price={exit_price}")
                 await self._close_position(
                     sim_id,
                     position,
@@ -648,6 +651,8 @@ class SimulationManager:
                     exit_reason,
                     current_signal.get('indicators')
                 )
+            else:
+                logger.debug(f"Position {position_id} remains open - no exit conditions met")
                 
         except Exception as e:
             logger.error(f"Pozisyon çıkış kontrolü hatası: {str(e)}")
