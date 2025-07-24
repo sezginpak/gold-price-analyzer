@@ -206,12 +206,20 @@
     
     <!-- Signals -->
     <div class="glass-card rounded-lg p-4 lg:p-6 mb-6">
-        <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-            <i class="fas fa-bell mr-2 text-red-400"></i>
-            Bugünkü Sinyaller
-        </h2>
-        <div id="signals-container" class="space-y-2 max-h-64 overflow-y-auto">
-            <p class="text-gray-400">Yükleniyor...</p>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg lg:text-xl font-bold flex items-center">
+                <i class="fas fa-bell mr-2 text-yellow-400"></i>
+                Son Trading Sinyalleri
+            </h2>
+            <a href="/signals" class="text-xs text-gray-400 hover:text-yellow-400 transition-colors">
+                Tümünü Gör →
+            </a>
+        </div>
+        <div id="signals-container" class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+            <div class="text-center py-4">
+                <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
+                <p class="text-gray-400 text-sm mt-2">Yükleniyor...</p>
+            </div>
         </div>
     </div>
 
@@ -663,37 +671,76 @@
         // Sinyalleri yükle
         async function loadSignals() {
             try {
-                const response = await fetch('/api/signals/today');
+                const response = await fetch('/api/signals/recent');
                 const data = await response.json();
                 
                 const container = document.getElementById('signals-container');
                 
                 if (data.signals && data.signals.length > 0) {
-                    container.innerHTML = data.signals.map(signal => {
+                    // Son 10 sinyali göster
+                    const recentSignals = data.signals.slice(0, 10);
+                    
+                    container.innerHTML = recentSignals.map(signal => {
                         const time = new Date(signal.timestamp);
-                        const trTime = new Date(time.getTime() + (3 * 60 * 60 * 1000));
+                        const signalClass = signal.signal === 'BUY' ? 'bg-green-900/30 border-green-600/50' : 'bg-red-900/30 border-red-600/50';
+                        const iconClass = signal.signal === 'BUY' ? 'text-green-400' : 'text-red-400';
+                        const confidence = (signal.confidence * 100).toFixed(0);
+                        
                         return `
-                            <div class="bg-slate-800/50 rounded-lg p-3">
-                                <div class="flex justify-between items-center">
-                                    <span class="${signal.type === 'BUY' ? 'signal-buy' : 'signal-sell'} font-bold">
-                                        ${signal.type === 'BUY' ? '🟢 ALIŞ' : '🔴 SATIŞ'}
-                                    </span>
-                                    <span class="text-sm text-gray-400">
-                                        ${trTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
+                            <div class="${signalClass} border rounded-lg p-3 hover:bg-opacity-50 transition-all">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="${iconClass}">
+                                            <i class="fas ${signal.signal === 'BUY' ? 'fa-arrow-circle-up' : 'fa-arrow-circle-down'} text-xl"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-sm">
+                                                ${signal.signal === 'BUY' ? 'ALIŞ' : 'SATIŞ'} Sinyali
+                                                <span class="ml-2 text-xs bg-slate-700 px-2 py-1 rounded">${signal.timeframe}</span>
+                                            </div>
+                                            <div class="text-xs text-gray-400 mt-1">
+                                                Fiyat: ₺${parseFloat(signal.gram_price).toFixed(2)}
+                                                ${signal.stop_loss ? `• SL: ₺${parseFloat(signal.stop_loss).toFixed(2)}` : ''}
+                                                ${signal.take_profit ? `• TP: ₺${parseFloat(signal.take_profit).toFixed(2)}` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs text-gray-400">
+                                            ${time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                        <div class="text-xs mt-1">
+                                            <span class="bg-slate-700 px-2 py-1 rounded">
+                                                %${confidence} güven
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="mt-1 text-sm">
-                                    <span>Fiyat: ₺${signal.price}</span>
-                                    <span class="ml-4">Güven: ${signal.confidence}</span>
+                                ${signal.risk_reward && signal.risk_reward > 0 ? `
+                                <div class="mt-2 pt-2 border-t border-gray-700">
+                                    <span class="text-xs text-gray-400">Risk/Ödül: ${signal.risk_reward.toFixed(2)}</span>
+                                    ${signal.position_size ? `<span class="ml-3 text-xs text-gray-400">Pozisyon: %${(signal.position_size * 100).toFixed(0)}</span>` : ''}
                                 </div>
+                                ` : ''}
                             </div>
                         `;
                     }).join('');
                 } else {
-                    container.innerHTML = '<p class="text-gray-400">Bugün henüz sinyal yok</p>';
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <i class="fas fa-bell-slash text-4xl text-gray-600 mb-3"></i>
+                            <p class="text-gray-400">Son 24 saatte sinyal üretilmedi</p>
+                        </div>
+                    `;
                 }
             } catch (error) {
                 console.error('Sinyaller yüklenemedi:', error);
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle text-yellow-400 mb-2"></i>
+                        <p class="text-gray-400 text-sm">Sinyaller yüklenemedi</p>
+                    </div>
+                `;
             }
         }
 
