@@ -967,6 +967,12 @@
             }
         }
 
+        // loadPrices fonksiyonu - güvenlik için wrapper
+        async function loadPrices() {
+            // loadInitialPrices fonksiyonunu çağır
+            return loadInitialPrices();
+        }
+        
         // Veri dışa aktarma
         async function exportData() {
             const btn = event.target;
