@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import List, Optional, Dict, Tuple, Any
 import logging
 from utils import timezone
+from datetime import datetime
 from contextlib import contextmanager
 from models.price_data import PriceData, PriceCandle
 from models.analysis_result import AnalysisResult, TrendType, TrendStrength
