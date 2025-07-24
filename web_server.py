@@ -168,42 +168,89 @@ async def get_candles(interval: str):
     }
 
 
+@app.get("/api/signals/recent")
+async def get_recent_signals():
+    """Son 24 saatteki sinyalleri veritabanından al"""
+    try:
+        # Son 24 saatteki hybrid analizleri al
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Son 24 saatteki analizleri al
+            yesterday = datetime.now() - timedelta(hours=24)
+            
+            cursor.execute("""
+                SELECT 
+                    timestamp,
+                    timeframe,
+                    signal,
+                    confidence,
+                    gram_price,
+                    stop_loss,
+                    take_profit,
+                    position_size,
+                    risk_reward,
+                    analysis_details
+                FROM hybrid_analysis
+                WHERE timestamp > ?
+                ORDER BY timestamp DESC
+                LIMIT 100
+            """, (yesterday,))
+            
+            signals = []
+            for row in cursor.fetchall():
+                timestamp, timeframe, signal, confidence, gram_price, stop_loss, take_profit, position_size, risk_reward, details = row
+                
+                # Sadece BUY/SELL sinyallerini al (HOLD hariç)
+                if signal in ['BUY', 'SELL']:
+                    signals.append({
+                        'timestamp': timestamp,
+                        'timeframe': timeframe,
+                        'signal': signal,
+                        'confidence': confidence,
+                        'gram_price': gram_price,
+                        'stop_loss': stop_loss,
+                        'take_profit': take_profit,
+                        'position_size': position_size,
+                        'risk_reward': risk_reward
+                    })
+            
+            return {
+                'status': 'success',
+                'signals': signals,
+                'count': len(signals)
+            }
+            
+    except Exception as e:
+        logger.error(f"Sinyal alma hatası: {str(e)}")
+        return {
+            'status': 'error',
+            'message': str(e),
+            'signals': []
+        }
+
+
 @app.get("/api/signals/today")
 async def get_today_signals():
-    """Bugünkü sinyaller"""
-    signals = []
-    signal_file = f"signals/signals_{datetime.now().strftime('%Y%m%d')}.log"
+    """Bugünkü sinyalleri al (eski API uyumluluğu için)"""
+    # Yeni API'yi çağır ve formatı dönüştür
+    result = await get_recent_signals()
     
-    if os.path.exists(signal_file):
-        with open(signal_file, 'r') as f:
-            content = f.read()
-            
-        # Parse signals (basit parser)
-        signal_blocks = content.split('-' * 50)
-        for block in signal_blocks:
-            if "Type:" in block:
-                lines = block.strip().split('\n')
-                signal = {}
-                for line in lines:
-                    if line.startswith('Type:'):
-                        signal['type'] = line.split(':')[1].strip()
-                    elif line.startswith('Price:'):
-                        signal['price'] = line.split(':')[1].strip()
-                    elif line.startswith('Confidence:'):
-                        signal['confidence'] = line.split(':')[1].strip()
-                    elif line.startswith('Target:'):
-                        signal['target'] = line.split(':')[1].strip()
-                    elif line.startswith('Stop:'):
-                        signal['stop_loss'] = line.split(':')[1].strip()
-                    elif line and not line.startswith('Reasons:'):
-                        try:
-                            signal['timestamp'] = line
-                        except:
-                            pass
-                if signal:
-                    signals.append(signal)
+    if result['status'] == 'success':
+        # Eski format için dönüşüm
+        signals = []
+        for s in result['signals']:
+            signals.append({
+                'type': s['signal'],
+                'price': str(s['gram_price']),
+                'confidence': str(s['confidence']),
+                'target': str(s['take_profit']) if s['take_profit'] else '-',
+                'stop_loss': str(s['stop_loss']) if s['stop_loss'] else '-',
+                'timestamp': s['timestamp']
+            })
+        return {"signals": signals}
     
-    return {"signals": signals}
+    return {"signals": []}
 
 
 @app.get("/api/logs/recent")
