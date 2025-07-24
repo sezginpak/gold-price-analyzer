@@ -107,18 +107,39 @@ def format_for_web(dt: Optional[datetime]) -> str:
     return turkey_time.isoformat()
 
 
-def parse_datetime(date_string: str, format_str: str = "%Y-%m-%d %H:%M:%S") -> datetime:
+def parse_datetime(date_string: str, format_str: str = None) -> datetime:
     """
     Parse datetime string assuming Turkey timezone.
     
     Args:
         date_string: Datetime string
-        format_str: Format string
+        format_str: Format string (if None, tries common formats)
         
     Returns:
         datetime: Timezone-aware datetime in Turkey timezone
     """
-    dt = datetime.strptime(date_string, format_str)
+    if format_str:
+        dt = datetime.strptime(date_string, format_str)
+    else:
+        # Try common formats
+        formats = [
+            "%Y-%m-%d %H:%M:%S.%f",  # With microseconds
+            "%Y-%m-%d %H:%M:%S",      # Without microseconds
+            "%Y-%m-%dT%H:%M:%S.%f",   # ISO format with microseconds
+            "%Y-%m-%dT%H:%M:%S",      # ISO format without microseconds
+        ]
+        
+        dt = None
+        for fmt in formats:
+            try:
+                dt = datetime.strptime(date_string, fmt)
+                break
+            except ValueError:
+                continue
+        
+        if dt is None:
+            raise ValueError(f"Unable to parse datetime string: {date_string}")
+    
     return TURKEY_TZ.localize(dt)
 
 

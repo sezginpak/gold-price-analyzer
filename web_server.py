@@ -473,13 +473,32 @@ async def get_recent_logs(category: str = "all", lines: int = 50):
 
 
 def parse_log_line(line: str) -> Dict[str, str]:
-    """Log satırını parse et"""
+    """Log satırını parse et ve Türkiye saatine çevir"""
+    from utils.timezone import to_turkey_time
+    from datetime import datetime
+    
     # Format: 2024-01-17 15:30:45 - module - LEVEL - message
     parts = line.split(' - ', 3)
     
     if len(parts) >= 4:
+        timestamp_str = parts[0]
+        
+        # Timestamp'i parse et ve Türkiye saatine çevir
+        try:
+            # Log timestamp'ini datetime objesine çevir
+            log_dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+            # UTC olarak varsay ve Türkiye saatine çevir
+            import pytz
+            utc_dt = pytz.UTC.localize(log_dt)
+            turkey_dt = to_turkey_time(utc_dt)
+            # Türkiye saatinde formatla
+            turkey_timestamp = turkey_dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            # Parse edilemezse orijinalini kullan
+            turkey_timestamp = timestamp_str
+        
         return {
-            "timestamp": parts[0],
+            "timestamp": turkey_timestamp,
             "module": parts[1],
             "level": parts[2],
             "message": parts[3],
