@@ -57,6 +57,13 @@ class SignalCombiner:
         global_direction = global_trend.get("trend_direction", "NEUTRAL")
         risk_level = currency_risk.get("risk_level", "MEDIUM")
         
+        # Debug: Ana parametreler
+        logger.debug(f"🔍 SIGNAL COMBINER INPUT:")
+        logger.debug(f"   Gram signal: {gram_signal_type} (conf: {gram_confidence:.2%})")
+        logger.debug(f"   Global trend: {global_trend.get('trend')} (dir: {global_direction})")
+        logger.debug(f"   Currency risk: {risk_level}")
+        logger.debug(f"   Market volatility: {market_volatility:.3f}")
+        
         # Sinyal puanları
         signal_scores = defaultdict(float)
         
@@ -64,6 +71,7 @@ class SignalCombiner:
         signal_scores[gram_signal_type] += self.weights["gram_analysis"] * (
             gram_confidence if gram_signal_type != "HOLD" else 1.0
         )
+        logger.debug(f"📈 After gram signal: {dict(signal_scores)}")
         
         # 2. Global trend uyumu
         self._apply_global_trend_score(
@@ -87,18 +95,26 @@ class SignalCombiner:
         
         # Nihai sinyal belirleme
         final_signal = self._determine_final_signal(signal_scores)
+        logger.debug(f"🎯 After determine_final_signal: {final_signal}")
+        logger.debug(f"📊 Signal scores: {dict(signal_scores)}")
         
         # Güven skoru hesaplama
         confidence = self._calculate_confidence(
             final_signal, signal_scores, gram_confidence, 
             global_trend, currency_risk
         )
+        logger.debug(f"🔢 Calculated confidence: {confidence:.3f}")
         
         # Volatilite ve timeframe filtreleri
+        original_signal = final_signal
         final_signal, strength = self._apply_filters(
             final_signal, confidence, market_volatility, 
             timeframe, global_direction, risk_level
         )
+        
+        if original_signal != final_signal:
+            logger.debug(f"🔄 Filter changed signal: {original_signal} -> {final_signal}")
+        logger.debug(f"⚡ Final signal: {final_signal}, strength: {strength}")
         
         # Global trend uyumsuzluk cezası
         if final_signal != "HOLD":
