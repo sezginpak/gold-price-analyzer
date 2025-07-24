@@ -231,13 +231,11 @@ Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
 // Anlık fiyat güncelleme
 async function updateGoldPrice() {
     try {
-        const response = await fetch('/api/prices/latest');
+        const response = await fetch('/api/prices/current');
         const data = await response.json();
         
-        if (data && data.prices && data.prices.length > 0) {
-            // En son fiyatı al
-            const latestPrice = data.prices[data.prices.length - 1];
-            const newPrice = latestPrice.gram_altin;
+        if (data && data.gram_altin) {
+            const newPrice = data.gram_altin;
             
             previousGoldPrice = currentGoldPrice || newPrice;
             currentGoldPrice = newPrice;
@@ -245,7 +243,7 @@ async function updateGoldPrice() {
             // Fiyat göstergesini güncelle
             const priceElement = document.getElementById('currentPrice');
             priceElement.innerHTML = `₺${currentGoldPrice.toFixed(2)}`;
-            priceElement.className = 'text-2xl font-bold text-white slide-in';
+            priceElement.className = 'text-xl lg:text-2xl font-bold text-white slide-in';
             
             // Fiyat değişimi
             const change = currentGoldPrice - previousGoldPrice;
@@ -266,6 +264,9 @@ async function updateGoldPrice() {
             const now = new Date();
             document.getElementById('lastUpdate').textContent = 
                 `Son güncelleme: ${now.toLocaleTimeString('tr-TR')}`;
+        } else if (data && data.error) {
+            document.getElementById('currentPrice').innerHTML = 
+                '<span class="text-sm">Veri bekleniyor...</span>';
         }
     } catch (error) {
         console.error('Fiyat güncelleme hatası:', error);

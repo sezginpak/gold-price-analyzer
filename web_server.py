@@ -114,6 +114,21 @@ async def get_latest_prices():
     }
 
 
+@app.get("/api/prices/current")
+async def get_current_price():
+    """Anlık gram altın fiyatı"""
+    latest = storage.get_latest_price()
+    if latest:
+        return {
+            "timestamp": latest.timestamp.isoformat(),
+            "ons_usd": float(latest.ons_usd),
+            "usd_try": float(latest.usd_try),
+            "ons_try": float(latest.ons_try),
+            "gram_altin": float(latest.gram_altin) if latest.gram_altin else float(latest.ons_try / 31.1035)
+        }
+    return {"error": "No price data available"}
+
+
 @app.get("/api/gram-candles/{interval}")
 async def get_gram_candles(interval: str):
     """Gram altın OHLC mum verileri"""
