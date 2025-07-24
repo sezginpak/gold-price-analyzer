@@ -1,52 +1,106 @@
 {% extends "base.html" %}
 
-{% block title %}Log Görüntüleme - Dezy - Gold Price Analyzer{% endblock %}
+{% block title %}Sistem Logları - Dezy - Gold Price Analyzer{% endblock %}
 
-{% block extra_styles %}
+{% block extra_head %}
 <style>
     .log-container {
-        background: rgba(30, 41, 59, 0.8);
-        border-radius: 10px;
-        padding: 20px;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(16px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 24px;
         margin-bottom: 20px;
         max-height: 600px;
         overflow-y: auto;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
     
     .log-filters {
         display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
+        gap: 12px;
+        margin-bottom: 24px;
         flex-wrap: wrap;
+        align-items: center;
     }
     
     .log-category-btn {
-        padding: 8px 16px;
-        border-radius: 5px;
-        border: 1px solid #475569;
-        background: rgba(71, 85, 105, 0.3);
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(30, 41, 59, 0.5);
         color: #e2e8f0;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        font-size: 14px;
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .log-category-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, transparent, rgba(255, 215, 0, 0.1));
+        opacity: 0;
+        transition: opacity 0.3s;
     }
     
     .log-category-btn.active {
-        background: #3b82f6;
-        border-color: #3b82f6;
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        border-color: rgba(251, 191, 36, 0.5);
+        color: #1e293b;
+        font-weight: 600;
+        box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
     }
     
-    .log-category-btn:hover {
-        background: rgba(71, 85, 105, 0.5);
+    .log-category-btn:hover:not(.active) {
+        background: rgba(71, 85, 105, 0.4);
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+    }
+    
+    .log-category-btn:hover::before {
+        opacity: 1;
     }
     
     .log-entry {
-        padding: 10px;
-        margin-bottom: 5px;
-        border-radius: 5px;
-        background: rgba(15, 23, 42, 0.5);
-        font-family: 'Courier New', monospace;
+        padding: 16px;
+        margin-bottom: 8px;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.4);
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
         font-size: 13px;
-        border-left: 3px solid transparent;
+        border-left: 4px solid transparent;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .log-entry:hover {
+        background: rgba(30, 41, 59, 0.6);
+        transform: translateX(4px);
+    }
+    
+    .log-entry::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: inherit;
+        transition: width 0.2s ease;
+    }
+    
+    .log-entry:hover::before {
+        width: 100%;
+        opacity: 0.05;
     }
     
     .log-entry.ERROR {
@@ -104,134 +158,397 @@
     
     .log-stats {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
     }
     
     .stat-card {
-        background: rgba(30, 41, 59, 0.8);
-        padding: 15px;
-        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(16px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 24px;
+        border-radius: 12px;
         text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255, 215, 0, 0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        border-color: rgba(255, 255, 255, 0.15);
     }
     
     .stat-value {
-        font-size: 24px;
-        font-weight: bold;
-        margin-bottom: 5px;
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        letter-spacing: -1px;
+        position: relative;
+        z-index: 1;
     }
     
     .stat-label {
         color: #94a3b8;
         font-size: 14px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: relative;
+        z-index: 1;
     }
     
     .refresh-btn {
-        background: #3b82f6;
-        color: white;
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        color: #1e293b;
         border: none;
-        padding: 10px 20px;
-        border-radius: 5px;
+        padding: 12px 24px;
+        border-radius: 8px;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .refresh-btn::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.5s, height 0.5s;
     }
     
     .refresh-btn:hover {
-        background: #2563eb;
+        background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(251, 191, 36, 0.4);
+    }
+    
+    .refresh-btn:active::before {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .refresh-btn.loading {
+        pointer-events: none;
+        opacity: 0.8;
+    }
+    
+    .refresh-btn.loading i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
     
     .loading {
         text-align: center;
         color: #94a3b8;
-        padding: 40px;
+        padding: 60px;
+    }
+    
+    .loading i {
+        font-size: 48px;
+        color: #fbbf24;
+        margin-bottom: 16px;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(0.95); }
     }
     
     .no-logs {
         text-align: center;
         color: #64748b;
-        padding: 40px;
+        padding: 60px;
+        background: rgba(30, 41, 59, 0.3);
+        border-radius: 12px;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    
+    .no-logs i {
+        font-size: 48px;
+        color: #475569;
+        margin-bottom: 16px;
+    }
+    
+    /* Search box styles */
+    .search-box {
+        position: relative;
+        flex: 1;
+        max-width: 400px;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 10px 20px 10px 45px;
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: #e2e8f0;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: rgba(251, 191, 36, 0.5);
+        background: rgba(30, 41, 59, 0.7);
+        box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+    }
+    
+    .search-input::placeholder {
+        color: #64748b;
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #64748b;
+        pointer-events: none;
+    }
+    
+    /* Filter dropdown */
+    .filter-dropdown {
+        position: relative;
+    }
+    
+    .filter-select {
+        appearance: none;
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #e2e8f0;
+        padding: 10px 40px 10px 15px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+    
+    .filter-select:focus {
+        outline: none;
+        border-color: rgba(251, 191, 36, 0.5);
+    }
+    
+    .filter-icon {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #64748b;
+        pointer-events: none;
+    }
+    
+    /* Level badges */
+    .log-level.ERROR { 
+        background: linear-gradient(135deg, #ef4444, #dc2626); 
+        color: white; 
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    }
+    .log-level.WARNING { 
+        background: linear-gradient(135deg, #f59e0b, #d97706); 
+        color: white; 
+        box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+    }
+    .log-level.INFO { 
+        background: linear-gradient(135deg, #3b82f6, #2563eb); 
+        color: white; 
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+    .log-level.DEBUG { 
+        background: linear-gradient(135deg, #6b7280, #4b5563); 
+        color: white; 
+        box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
+    }
+    .log-level.CRITICAL { 
+        background: linear-gradient(135deg, #dc2626, #991b1b); 
+        color: white; 
+        box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+        animation: blink 1s infinite;
+    }
+    
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .log-filters {
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .search-box {
+            max-width: 100%;
+        }
+        
+        .log-stats {
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .stat-card {
+            padding: 16px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+        }
+        
+        .log-entry {
+            padding: 12px;
+            font-size: 12px;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold">
-            <i class="fas fa-file-lines mr-3"></i>
-            <span class="gradient-text">Sistem Logları</span>
-        </h1>
-        
-        <button class="refresh-btn" onclick="loadLogs()">
-            <i class="fas fa-sync-alt"></i>
-            Yenile
-        </button>
+    <!-- Header Section -->
+    <div class="glass-card rounded-xl p-6 mb-8">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold mb-2">
+                    <i class="fas fa-file-lines mr-3 text-yellow-400"></i>
+                    <span class="gradient-text">Sistem Logları</span>
+                </h1>
+                <p class="text-gray-400 text-sm">Sistem olaylarını ve hata kayıtlarını görüntüleyin</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button class="refresh-btn" onclick="loadLogs()" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Yenile</span>
+                </button>
+            </div>
+        </div>
     </div>
     
     <!-- Log İstatistikleri -->
     <div class="log-stats" id="logStats">
         <div class="stat-card">
+            <div class="flex items-center justify-center mb-3">
+                <i class="fas fa-list text-blue-400 text-2xl"></i>
+            </div>
             <div class="stat-value text-blue-400" id="totalLogs">-</div>
             <div class="stat-label">Toplam Log</div>
         </div>
         <div class="stat-card">
+            <div class="flex items-center justify-center mb-3">
+                <i class="fas fa-exclamation-circle text-red-400 text-2xl"></i>
+            </div>
             <div class="stat-value text-red-400" id="errorCount">-</div>
             <div class="stat-label">Hata</div>
         </div>
         <div class="stat-card">
+            <div class="flex items-center justify-center mb-3">
+                <i class="fas fa-exclamation-triangle text-yellow-400 text-2xl"></i>
+            </div>
             <div class="stat-value text-yellow-400" id="warningCount">-</div>
             <div class="stat-label">Uyarı</div>
         </div>
         <div class="stat-card">
+            <div class="flex items-center justify-center mb-3">
+                <i class="fas fa-info-circle text-green-400 text-2xl"></i>
+            </div>
             <div class="stat-value text-green-400" id="infoCount">-</div>
             <div class="stat-label">Bilgi</div>
         </div>
     </div>
     
-    <!-- Log Filtreleri -->
-    <div class="log-filters">
-        <button class="log-category-btn active" data-category="all" onclick="filterLogs('all')">
-            <i class="fas fa-list mr-2"></i>Tümü
-        </button>
-        <button class="log-category-btn" data-category="analyzer" onclick="filterLogs('analyzer')">
-            <i class="fas fa-chart-line mr-2"></i>Analiz
-        </button>
-        <button class="log-category-btn" data-category="web" onclick="filterLogs('web')">
-            <i class="fas fa-globe mr-2"></i>Web
-        </button>
-        <button class="log-category-btn" data-category="errors" onclick="filterLogs('errors')">
-            <i class="fas fa-exclamation-triangle mr-2"></i>Hatalar
-        </button>
-        <button class="log-category-btn" data-category="critical" onclick="filterLogs('critical')">
-            <i class="fas fa-skull-crossbones mr-2"></i>Kritik
-        </button>
-        
-        <div style="margin-left: auto; display: flex; gap: 10px;">
-            <label style="color: #94a3b8;">
-                Satır Sayısı:
-                <select id="lineCount" onchange="loadLogs()" style="background: #1e293b; color: white; padding: 5px; border-radius: 5px;">
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                    <option value="200">200</option>
-                    <option value="500">500</option>
-                </select>
-            </label>
+    <!-- Filters Section -->
+    <div class="glass-card rounded-xl p-6 mb-6">
+        <div class="flex flex-col lg:flex-row gap-4">
+            <!-- Category Filters -->
+            <div class="flex flex-wrap gap-3">
+                <button class="log-category-btn active" data-category="all" onclick="filterLogs('all')">
+                    <i class="fas fa-list mr-2"></i>Tümü
+                </button>
+                <button class="log-category-btn" data-category="analyzer" onclick="filterLogs('analyzer')">
+                    <i class="fas fa-chart-line mr-2"></i>Analiz
+                </button>
+                <button class="log-category-btn" data-category="web" onclick="filterLogs('web')">
+                    <i class="fas fa-globe mr-2"></i>Web
+                </button>
+                <button class="log-category-btn" data-category="errors" onclick="filterLogs('errors')">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Hatalar
+                </button>
+                <button class="log-category-btn" data-category="critical" onclick="filterLogs('critical')">
+                    <i class="fas fa-skull-crossbones mr-2"></i>Kritik
+                </button>
+            </div>
             
-            <label style="color: #94a3b8;">
-                <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
-                Otomatik Yenile
-            </label>
+            <!-- Search and Settings -->
+            <div class="flex flex-col lg:flex-row gap-3 lg:ml-auto">
+                <!-- Search Box -->
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="search-input" placeholder="Log içeriğinde ara..." id="searchInput" onkeyup="searchLogs()">
+                </div>
+                
+                <!-- Line Count -->
+                <div class="filter-dropdown">
+                    <select id="lineCount" onchange="loadLogs()" class="filter-select">
+                        <option value="50">Son 50 satır</option>
+                        <option value="100">Son 100 satır</option>
+                        <option value="200">Son 200 satır</option>
+                        <option value="500">Son 500 satır</option>
+                    </select>
+                    <i class="fas fa-chevron-down filter-icon"></i>
+                </div>
+                
+                <!-- Auto Refresh Toggle -->
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()" class="w-4 h-4 text-yellow-400 bg-gray-700 border-gray-600 rounded focus:ring-yellow-500 focus:ring-2">
+                    <span class="text-sm text-gray-400">Otomatik Yenile</span>
+                </label>
+            </div>
         </div>
     </div>
     
     <!-- Log Konteyneri -->
     <div class="log-container" id="logContainer">
         <div class="loading">
-            <i class="fas fa-spinner fa-spin fa-2x"></i>
-            <p>Loglar yükleniyor...</p>
+            <i class="fas fa-spinner fa-spin"></i>
+            <p class="mt-4 text-lg">Loglar yükleniyor...</p>
         </div>
     </div>
 </div>
@@ -240,9 +557,15 @@
 let currentCategory = 'all';
 let autoRefreshInterval = null;
 let allLogs = {};
+let allEntriesCache = [];
 
 async function loadLogs() {
     const lineCount = document.getElementById('lineCount').value;
+    const refreshBtn = document.getElementById('refreshBtn');
+    
+    // Add loading state to button
+    refreshBtn.classList.add('loading');
+    refreshBtn.querySelector('i').className = 'fas fa-spinner fa-spin';
     
     try {
         const response = await fetch(`/api/logs/recent?category=${currentCategory}&lines=${lineCount}`);
@@ -256,10 +579,15 @@ async function loadLogs() {
         console.error('Error loading logs:', error);
         document.getElementById('logContainer').innerHTML = `
             <div class="no-logs">
-                <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
-                <p>Loglar yüklenirken hata oluştu</p>
+                <i class="fas fa-exclamation-circle mb-3"></i>
+                <p class="text-lg font-medium mb-2">Loglar yüklenirken hata oluştu</p>
+                <p class="text-sm text-gray-500">${error.message || 'Bağlantı hatası'}</p>
             </div>
         `;
+    } finally {
+        // Remove loading state
+        refreshBtn.classList.remove('loading');
+        refreshBtn.querySelector('i').className = 'fas fa-sync-alt';
     }
 }
 
@@ -287,25 +615,46 @@ function displayLogs(logs) {
         return 0;
     });
     
+    // Cache for search
+    allEntriesCache = allEntries;
+    
     if (!hasLogs) {
         container.innerHTML = `
             <div class="no-logs">
-                <i class="fas fa-inbox fa-2x mb-3"></i>
-                <p>Log bulunamadı</p>
+                <i class="fas fa-inbox mb-3"></i>
+                <p class="text-lg font-medium mb-2">Log bulunamadı</p>
+                <p class="text-sm text-gray-500">Seçili filtrelerde kayıt bulunmuyor</p>
             </div>
         `;
         return;
     }
     
+    // Apply search filter if exists
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    if (searchTerm) {
+        allEntries = allEntries.filter(entry => {
+            const message = (entry.message || entry.raw || '').toLowerCase();
+            const module = (entry.module || '').toLowerCase();
+            return message.includes(searchTerm) || module.includes(searchTerm);
+        });
+    }
+    
     // Logları göster
     allEntries.forEach(entry => {
         const logDiv = document.createElement('div');
-        logDiv.className = `log-entry ${entry.level}`;
+        logDiv.className = `log-entry ${entry.level || ''}`;
         
         let content = '';
         
         if (entry.timestamp) {
-            content += `<span class="log-timestamp">${entry.timestamp}</span>`;
+            const date = new Date(entry.timestamp);
+            const formattedTime = date.toLocaleTimeString('tr-TR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            content += `<span class="log-timestamp">${formattedTime}</span>`;
         }
         
         if (entry.level) {
@@ -316,11 +665,24 @@ function displayLogs(logs) {
             content += `<span class="log-module">[${entry.module}]</span>`;
         }
         
-        content += `<span class="log-message">${entry.message || entry.raw}</span>`;
+        const message = entry.message || entry.raw || '';
+        content += `<span class="log-message">${escapeHtml(message)}</span>`;
         
         logDiv.innerHTML = content;
         container.appendChild(logDiv);
     });
+}
+
+// HTML escape function
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
 }
 
 function filterLogs(category) {
@@ -362,12 +724,57 @@ function toggleAutoRefresh() {
     
     if (checkbox.checked) {
         autoRefreshInterval = setInterval(loadLogs, 5000); // Her 5 saniyede yenile
+        // Visual feedback
+        showNotification('Otomatik yenileme aktif', 'success');
     } else {
         if (autoRefreshInterval) {
             clearInterval(autoRefreshInterval);
             autoRefreshInterval = null;
+            showNotification('Otomatik yenileme kapalı', 'info');
         }
     }
+}
+
+// Search function
+function searchLogs() {
+    displayLogs(allLogs);
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 transform transition-all duration-300`;
+    
+    switch(type) {
+        case 'success':
+            notification.classList.add('bg-green-500');
+            break;
+        case 'error':
+            notification.classList.add('bg-red-500');
+            break;
+        default:
+            notification.classList.add('bg-blue-500');
+    }
+    
+    notification.innerHTML = `
+        <div class="flex items-center gap-3">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.classList.add('translate-y-0');
+    }, 10);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.add('translate-y-full', 'opacity-0');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // İlk yükleme
