@@ -56,3 +56,8 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Deployment scripts (contains credentials)
+quick_deploy.sh
+quick_deploy_secure.sh
+deploy_*.sh
