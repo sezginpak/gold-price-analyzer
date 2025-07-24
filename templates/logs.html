@@ -648,13 +648,30 @@ function displayLogs(logs) {
         
         if (entry.timestamp) {
             const date = new Date(entry.timestamp);
-            const formattedTime = date.toLocaleTimeString('tr-TR', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-            content += `<span class="log-timestamp">${formattedTime}</span>`;
+            const today = new Date();
+            const isToday = date.toDateString() === today.toDateString();
+            
+            let formattedDate;
+            if (isToday) {
+                // Bugün için sadece saat
+                formattedDate = date.toLocaleTimeString('tr-TR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+            } else {
+                // Diğer günler için kısa tarih + saat
+                formattedDate = date.toLocaleDateString('tr-TR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+            }
+            content += `<span class="log-timestamp" title="${date.toLocaleString('tr-TR')}">${formattedDate}</span>`;
         }
         
         if (entry.level) {
