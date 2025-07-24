@@ -61,3 +61,6 @@ build/
 quick_deploy.sh
 quick_deploy_secure.sh
 deploy_*.sh
+
+# Claude instructions (project specific)
+CLAUDE.md
