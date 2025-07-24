@@ -87,6 +87,29 @@
         transform: translateX(4px);
     }
     
+    .log-entry:hover::after {
+        content: '📋 Kopyala';
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(59, 130, 246, 0.9);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+        opacity: 0;
+        animation: fadeInCopy 0.2s ease forwards;
+    }
+    
+    @keyframes fadeInCopy {
+        to {
+            opacity: 1;
+        }
+    }
+    
     .log-entry::before {
         content: '';
         position: absolute;
@@ -644,7 +667,12 @@ function displayLogs(logs) {
         const logDiv = document.createElement('div');
         logDiv.className = `log-entry ${entry.level || ''}`;
         
+        // Kopyalama özelliği için cursor ve title ekle
+        logDiv.style.cursor = 'pointer';
+        logDiv.title = 'Kopyalamak için tıklayın';
+        
         let content = '';
+        let fullLogText = ''; // Kopyalanacak tam metin
         
         if (entry.timestamp) {
             const date = new Date(entry.timestamp);
@@ -672,20 +700,50 @@ function displayLogs(logs) {
                 });
             }
             content += `<span class="log-timestamp" title="${date.toLocaleString('tr-TR')}">${formattedDate}</span>`;
+            fullLogText += `${date.toLocaleString('tr-TR')} `;
         }
         
         if (entry.level) {
             content += `<span class="log-level ${entry.level}">${entry.level}</span>`;
+            fullLogText += `${entry.level} `;
         }
         
         if (entry.module) {
             content += `<span class="log-module">[${entry.module}]</span>`;
+            fullLogText += `[${entry.module}] `;
         }
         
         const message = entry.message || entry.raw || '';
         content += `<span class="log-message">${escapeHtml(message)}</span>`;
+        fullLogText += message;
         
         logDiv.innerHTML = content;
+        
+        // Kopyalama event listener'ı ekle
+        logDiv.addEventListener('click', async function() {
+            try {
+                await navigator.clipboard.writeText(fullLogText);
+                
+                // Görsel geri bildirim - yeşil flash
+                const originalBg = logDiv.style.backgroundColor;
+                logDiv.style.backgroundColor = 'rgba(34, 197, 94, 0.3)';
+                logDiv.style.transition = 'background-color 0.3s ease';
+                
+                // Kopyalandı mesajı göster
+                showCopyNotification('Log kopyalandı!');
+                
+                setTimeout(() => {
+                    logDiv.style.backgroundColor = originalBg;
+                }, 300);
+                
+            } catch (err) {
+                console.error('Kopyalama hatası:', err);
+                // Fallback - metin seçimi
+                selectLogText(logDiv);
+                showCopyNotification('Log seçildi, Ctrl+C ile kopyalayın');
+            }
+        });
+        
         container.appendChild(logDiv);
     });
 }
@@ -792,6 +850,43 @@ function showNotification(message, type = 'info') {
         notification.classList.add('translate-y-full', 'opacity-0');
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// Show copy notification
+function showCopyNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-20 right-4 px-4 py-2 bg-green-500 text-white rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-x-full`;
+    
+    notification.innerHTML = `
+        <div class="flex items-center gap-2">
+            <i class="fas fa-copy"></i>
+            <span class="text-sm">${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+    }, 10);
+    
+    // Remove after 2 seconds
+    setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => notification.remove(), 300);
+    }, 2000);
+}
+
+// Select log text (fallback for copy)
+function selectLogText(element) {
+    if (window.getSelection) {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
 }
 
 // İlk yükleme
