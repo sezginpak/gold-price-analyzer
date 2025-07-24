@@ -401,14 +401,15 @@ class GramAltinAnalyzer:
             if resistance_levels:
                 nearest_resistance = resistance_levels[0].level
                 resistance_distance = (nearest_resistance - current_price) / current_price
+                logger.info(f"BUY TP Check - Price: {current_price}, Resistance: {nearest_resistance}, Distance: {resistance_distance:.1%}")
                 
                 # Eğer resistance çok uzaksa (fiyatın %2'sinden fazla) ATR bazlı hesapla
                 if resistance_distance > Decimal("0.02"):
                     take_profit = current_price + (atr_decimal * 3)
-                    logger.debug(f"Resistance too far ({resistance_distance:.1%}), using ATR-based TP")
+                    logger.info(f"Resistance too far ({resistance_distance:.1%}), using ATR-based TP")
                 else:
                     take_profit = nearest_resistance * Decimal("0.995")
-                    logger.debug(f"Using resistance-based TP at {take_profit}")
+                    logger.info(f"Using resistance-based TP at {take_profit}")
             else:
                 # Resistance yoksa ATR bazlı
                 take_profit = current_price + (atr_decimal * 3)
