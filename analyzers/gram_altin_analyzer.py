@@ -373,7 +373,7 @@ class GramAltinAnalyzer:
     
     def _calculate_risk_levels(self, current_price: Decimal, signal: str, 
                               atr: float, support_levels: List, resistance_levels: List) -> Tuple[Optional[Decimal], Optional[Decimal]]:
-        """Stop-loss ve take-profit hesapla"""
+        """Stop-loss ve take-profit hesapla - Dinamik ATR bazlı"""
         if signal == "HOLD":
             return None, None
         
@@ -388,31 +388,70 @@ class GramAltinAnalyzer:
             atr_decimal = Decimal("10")
         
         if signal == "BUY":
-            # En yakın desteğin biraz altı veya ATR bazlı
+            # Stop Loss: En yakın desteğin altı veya ATR bazlı
             if support_levels:
-                stop_loss = support_levels[0].level * Decimal("0.995")
+                sl_from_support = support_levels[0].level * Decimal("0.995")
+                sl_from_atr = current_price - (atr_decimal * 2)
+                stop_loss = max(sl_from_support, sl_from_atr)  # Daha güvenli olanı seç
             else:
                 stop_loss = current_price - (atr_decimal * 2)
             
-            # BUY için: En yakın direncin biraz altı veya ATR bazlı
+            # Take Profit: Dinamik hesaplama
+            # 1. Resistance varsa ve makul mesafedeyse kullan
             if resistance_levels:
-                take_profit = resistance_levels[0].level * Decimal("0.995")  # Dirence yaklaşınca kar al
+                nearest_resistance = resistance_levels[0].level
+                resistance_distance = (nearest_resistance - current_price) / current_price
+                
+                # Eğer resistance çok uzaksa (fiyatın %2'sinden fazla) ATR bazlı hesapla
+                if resistance_distance > Decimal("0.02"):
+                    take_profit = current_price + (atr_decimal * 3)
+                    logger.debug(f"Resistance too far ({resistance_distance:.1%}), using ATR-based TP")
+                else:
+                    take_profit = nearest_resistance * Decimal("0.995")
+                    logger.debug(f"Using resistance-based TP at {take_profit}")
             else:
+                # Resistance yoksa ATR bazlı
                 take_profit = current_price + (atr_decimal * 3)
+                logger.debug(f"No resistance found, using ATR-based TP")
                 
         else:  # SELL
-            # En yakın direncin biraz üstü veya ATR bazlı
+            # Stop Loss: En yakın direncin üstü veya ATR bazlı
             if resistance_levels:
-                stop_loss = resistance_levels[0].level * Decimal("1.005")
+                sl_from_resistance = resistance_levels[0].level * Decimal("1.005")
+                sl_from_atr = current_price + (atr_decimal * 2)
+                stop_loss = min(sl_from_resistance, sl_from_atr)
             else:
                 stop_loss = current_price + (atr_decimal * 2)
             
-            # SELL için: En yakın desteğin biraz altı veya ATR bazlı
+            # Take Profit: Dinamik hesaplama
             if support_levels:
-                take_profit = support_levels[0].level * Decimal("0.995")  # SELL için altında olmalı
+                nearest_support = support_levels[0].level
+                support_distance = (current_price - nearest_support) / current_price
+                
+                # Eğer destek çok uzaksa ATR bazlı hesapla
+                if support_distance > Decimal("0.02"):
+                    take_profit = current_price - (atr_decimal * 3)
+                    logger.debug(f"Support too far ({support_distance:.1%}), using ATR-based TP")
+                else:
+                    take_profit = nearest_support * Decimal("1.005")
+                    logger.debug(f"Using support-based TP at {take_profit}")
             else:
                 take_profit = current_price - (atr_decimal * 3)
+                logger.debug(f"No support found, using ATR-based TP")
         
+        # Risk/Reward kontrolü - minimum 1.5:1 olmalı
+        risk = abs(current_price - stop_loss)
+        reward = abs(take_profit - current_price)
+        
+        if risk > 0 and reward / risk < Decimal("1.5"):
+            # TP'yi genişlet
+            if signal == "BUY":
+                take_profit = current_price + (risk * Decimal("2"))
+            else:
+                take_profit = current_price - (risk * Decimal("2"))
+            logger.debug(f"Adjusted TP for better R:R ratio")
+        
+        logger.debug(f"Risk levels - Price: {current_price}, SL: {stop_loss}, TP: {take_profit}, R:R: {reward/risk if risk > 0 else 0:.2f}")
         return stop_loss, take_profit
     
     def _create_analysis_details(self, rsi_signal: str, macd: Dict, 
