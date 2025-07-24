@@ -75,89 +75,215 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #64748b;
         }
+        
+        /* Active nav item */
+        .nav-item.active {
+            background: rgba(250, 204, 21, 0.1);
+        }
+        
+        .nav-item.active .fa-chart-line,
+        .nav-item.active .fa-brain,
+        .nav-item.active .fa-bell,
+        .nav-item.active .fa-robot,
+        .nav-item.active .fa-file-lines,
+        .nav-item.active .fa-code {
+            color: #fbbf24;
+        }
+        
+        .nav-item.active span {
+            color: white;
+        }
+        
+        /* Navbar animations */
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        nav {
+            animation: slideDown 0.3s ease-out;
+        }
     </style>
     
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen">
     <!-- Desktop Navigation -->
-    <nav class="hidden lg:block glass-card border-b border-white/5">
-        <div class="container mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <h1 class="text-2xl font-bold">
-                    <span class="gradient-text">Gold Price Analyzer</span>
-                </h1>
+    <nav class="hidden lg:block sticky top-0 z-50 backdrop-blur-xl bg-slate-900/70 border-b border-yellow-400/10 shadow-xl">
+        <div class="container mx-auto px-6">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo Section -->
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg blur opacity-25"></div>
+                        <div class="relative flex items-center space-x-3 bg-slate-800 px-4 py-2 rounded-lg">
+                            <i class="fas fa-coins text-yellow-400 text-xl"></i>
+                            <h1 class="text-xl font-bold">
+                                <span class="gradient-text">Gold Analyzer</span>
+                            </h1>
+                        </div>
+                    </div>
+                </div>
                 
-                <div class="flex items-center space-x-6">
-                    <a href="/" class="nav-link text-gray-300 hover:text-white transition-all duration-200 hover:scale-105">
-                        <i class="fas fa-chart-line mr-2"></i>Dashboard
+                <!-- Nav Links -->
+                <div class="flex items-center space-x-2">
+                    <a href="/" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-chart-line text-yellow-400 group-hover:text-yellow-300"></i>
+                            <span class="text-gray-300 group-hover:text-white font-medium">Dashboard</span>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                     </a>
-                    <a href="/analysis" class="nav-link text-gray-300 hover:text-white transition-all duration-200 hover:scale-105">
-                        <i class="fas fa-brain mr-2"></i>Analizler
+                    
+                    <a href="/analysis" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-brain text-yellow-400 group-hover:text-yellow-300"></i>
+                            <span class="text-gray-300 group-hover:text-white font-medium">Analizler</span>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                     </a>
-                    <a href="/signals" class="nav-link text-gray-300 hover:text-white transition-all duration-200 hover:scale-105">
-                        <i class="fas fa-bell mr-2"></i>Sinyaller
+                    
+                    <a href="/signals" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-bell text-yellow-400 group-hover:text-yellow-300"></i>
+                            <span class="text-gray-300 group-hover:text-white font-medium">Sinyaller</span>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                     </a>
-                    <a href="/simulations" class="nav-link text-gray-300 hover:text-white transition-all duration-200 hover:scale-105">
-                        <i class="fas fa-robot mr-2"></i>Simülasyon
+                    
+                    <a href="/simulations" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-robot text-yellow-400 group-hover:text-yellow-300"></i>
+                            <span class="text-gray-300 group-hover:text-white font-medium">Simülasyon</span>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                     </a>
-                    <a href="/logs" class="nav-link text-gray-300 hover:text-white transition-all duration-200 hover:scale-105">
-                        <i class="fas fa-file-lines mr-2"></i>Loglar
+                    
+                    <a href="/logs" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-file-lines text-yellow-400 group-hover:text-yellow-300"></i>
+                            <span class="text-gray-300 group-hover:text-white font-medium">Loglar</span>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                     </a>
-                    <a href="/api/docs" class="nav-link text-gray-300 hover:text-white transition-all duration-200 hover:scale-105">
-                        <i class="fas fa-code mr-2"></i>API
+                    
+                    <a href="/api/docs" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-code text-yellow-400 group-hover:text-yellow-300"></i>
+                            <span class="text-gray-300 group-hover:text-white font-medium">API</span>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                     </a>
-                    <div class="flex items-center space-x-2 text-sm">
-                        <span class="text-gray-500">Son Güncelleme:</span>
-                        <span id="last-update" class="text-amber-400">-</span>
+                    
+                    <!-- Live Status -->
+                    <div class="ml-4 flex items-center space-x-3 bg-slate-800/50 px-4 py-2 rounded-lg border border-yellow-400/20">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                            <span class="text-xs text-gray-400">Live</span>
+                        </div>
+                        <div class="border-l border-gray-700 pl-3">
+                            <span id="last-update" class="text-sm text-yellow-400 font-mono">00:00:00</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </nav>
     
-    <!-- Mobile Menu Button -->
-    <button id="mobile-menu-btn" class="lg:hidden fixed top-4 left-4 z-50 p-3 glass-card rounded-lg">
-        <i class="fas fa-bars text-xl"></i>
-    </button>
+    <!-- Mobile Navigation Bar -->
+    <nav class="lg:hidden sticky top-0 z-40 backdrop-blur-xl bg-slate-900/70 border-b border-yellow-400/10 shadow-xl">
+        <div class="flex justify-between items-center h-16 px-4">
+            <button id="mobile-menu-btn" class="p-2 rounded-lg hover:bg-yellow-400/10 transition-all">
+                <i class="fas fa-bars text-xl text-yellow-400"></i>
+            </button>
+            
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-coins text-yellow-400"></i>
+                <span class="font-bold gradient-text">Gold Analyzer</span>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span class="text-xs text-gray-400">Live</span>
+            </div>
+        </div>
+    </nav>
     
     <!-- Mobile Menu Overlay -->
-    <div id="mobile-menu-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+    <div id="mobile-menu-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 hidden"></div>
     
     <!-- Mobile Menu -->
-    <nav id="mobile-menu" class="mobile-menu fixed lg:hidden top-0 left-0 w-64 h-full bg-slate-900 z-50">
-        <div class="p-4">
-            <div class="flex justify-between items-center mb-8 pt-12">
-                <h2 class="text-xl font-bold gradient-text">Gold Analyzer</h2>
-                <button id="mobile-menu-close" class="p-2">
-                    <i class="fas fa-times text-xl"></i>
+    <nav id="mobile-menu" class="mobile-menu fixed lg:hidden top-0 left-0 w-72 h-full bg-slate-900/95 backdrop-blur-xl z-50 shadow-2xl border-r border-yellow-400/10">
+        <div class="p-6 h-full flex flex-col">
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-8">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-coins text-yellow-400 text-2xl"></i>
+                    <h2 class="text-xl font-bold gradient-text">Gold Analyzer</h2>
+                </div>
+                <button id="mobile-menu-close" class="p-2 rounded-lg hover:bg-slate-800 transition-all">
+                    <i class="fas fa-times text-xl text-gray-400"></i>
                 </button>
             </div>
             
-            <div class="space-y-4">
-                <a href="/" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
-                    <i class="fas fa-chart-line mr-3"></i>Dashboard
-                </a>
-                <a href="/analysis" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
-                    <i class="fas fa-brain mr-3"></i>Analizler
-                </a>
-                <a href="/signals" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
-                    <i class="fas fa-bell mr-3"></i>Sinyaller
-                </a>
-                <a href="/simulations" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
-                    <i class="fas fa-robot mr-3"></i>Simülasyon
-                </a>
-                <a href="/logs" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
-                    <i class="fas fa-file-lines mr-3"></i>Loglar
-                </a>
-                <a href="/api/docs" class="block py-3 px-4 rounded-lg hover:bg-slate-800 transition-colors">
-                    <i class="fas fa-code mr-3"></i>API Dokümantasyon
-                </a>
-                
-                <div class="mt-8 p-4 glass-card rounded-lg">
-                    <div class="text-sm text-gray-400 mb-1">Son Güncelleme</div>
-                    <div class="text-yellow-400" id="mobile-last-update">-</div>
+            <!-- Menu Items -->
+            <div class="flex-1 overflow-y-auto">
+                <div class="space-y-2">
+                    <a href="/" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
+                        <i class="fas fa-chart-line text-yellow-400 w-5 text-center"></i>
+                        <span class="text-gray-300 group-hover:text-white font-medium">Dashboard</span>
+                    </a>
+                    <a href="/analysis" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
+                        <i class="fas fa-brain text-yellow-400 w-5 text-center"></i>
+                        <span class="text-gray-300 group-hover:text-white font-medium">Analizler</span>
+                    </a>
+                    <a href="/signals" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
+                        <i class="fas fa-bell text-yellow-400 w-5 text-center"></i>
+                        <span class="text-gray-300 group-hover:text-white font-medium">Sinyaller</span>
+                    </a>
+                    <a href="/simulations" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
+                        <i class="fas fa-robot text-yellow-400 w-5 text-center"></i>
+                        <span class="text-gray-300 group-hover:text-white font-medium">Simülasyon</span>
+                    </a>
+                    <a href="/logs" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
+                        <i class="fas fa-file-lines text-yellow-400 w-5 text-center"></i>
+                        <span class="text-gray-300 group-hover:text-white font-medium">Loglar</span>
+                    </a>
+                    <a href="/api/docs" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
+                        <i class="fas fa-code text-yellow-400 w-5 text-center"></i>
+                        <span class="text-gray-300 group-hover:text-white font-medium">API Dokümantasyon</span>
+                    </a>
                 </div>
+                
+                <!-- Live Status -->
+                <div class="mt-8 p-4 bg-slate-800/50 rounded-lg border border-yellow-400/20">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm text-gray-400">Sistem Durumu</span>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                            <span class="text-xs text-green-400">Aktif</span>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Son Güncelleme</span>
+                            <span class="text-xs text-yellow-400 font-mono" id="mobile-last-update">00:00:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="mt-4 pt-4 border-t border-gray-800">
+                <p class="text-xs text-gray-500 text-center">
+                    Gold Price Analyzer © 2024
+                </p>
             </div>
         </div>
     </nav>
@@ -212,6 +338,35 @@
         // Update time on load and every minute
         updateLastUpdateTime();
         setInterval(updateLastUpdateTime, 60000);
+        
+        // Highlight active page
+        function highlightActivePage() {
+            const currentPath = window.location.pathname;
+            const navItems = document.querySelectorAll('.nav-item');
+            
+            navItems.forEach(item => {
+                const href = item.getAttribute('href');
+                if (currentPath === href || (currentPath === '/' && href === '/')) {
+                    item.classList.add('active');
+                } else if (currentPath.startsWith(href) && href !== '/') {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Mobile menu active highlight
+            const mobileLinks = document.querySelectorAll('#mobile-menu a');
+            mobileLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (currentPath === href || (currentPath === '/' && href === '/')) {
+                    link.classList.add('bg-yellow-400/10', 'border-l-4', 'border-yellow-400');
+                } else if (currentPath.startsWith(href) && href !== '/') {
+                    link.classList.add('bg-yellow-400/10', 'border-l-4', 'border-yellow-400');
+                }
+            });
+        }
+        
+        // Call on page load
+        highlightActivePage();
     </script>
     
     {% block scripts %}{% endblock %}
