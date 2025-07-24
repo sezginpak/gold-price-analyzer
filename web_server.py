@@ -89,12 +89,21 @@ async def get_stats():
     # Uptime hesapla
     uptime = timezone.now() - system_stats["start_time"]
     
-    # Bugünkü sinyalleri say
+    # Bugünkü sinyalleri say - veritabanından
     today_signals = 0
-    signal_file = f"signals/signals_{timezone.now().strftime('%Y%m%d')}.log"
-    if os.path.exists(signal_file):
-        with open(signal_file, 'r') as f:
-            today_signals = f.read().count("Type:")
+    try:
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            today_start = timezone.get_day_start()
+            cursor.execute("""
+                SELECT COUNT(*) FROM hybrid_analysis 
+                WHERE timestamp >= ? AND signal IN ('BUY', 'SELL')
+            """, (today_start,))
+            result = cursor.fetchone()
+            today_signals = result[0] if result else 0
+    except Exception as e:
+        logger.error(f"Bugünkü sinyal sayısı alma hatası: {str(e)}")
+        today_signals = 0
     
     result = {
         "system": {
