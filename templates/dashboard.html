@@ -1059,15 +1059,17 @@
         // Paralel veri yükleme fonksiyonu
         async function loadAllData() {
             try {
-                // 1. EN KRİTİK: Anlık fiyatları anında yükle
-                await loadCurrentPriceOnly();
-                console.log('✅ Anlık fiyatlar yüklendi');
+                // 1. EN KRİTİK: Anlık fiyatlar + Stats anında yükle
+                await Promise.allSettled([
+                    loadCurrentPriceOnly(),
+                    loadStats()  // İstatistikleri de hemen yükle
+                ]);
+                console.log('✅ Anlık fiyatlar ve istatistikler yüklendi');
                 
                 // 2. Kısa gecikme sonrası kritik veriler (500ms bekle)
                 setTimeout(async () => {
                     const criticalData = await Promise.allSettled([
                         loadInitialPrices(), // Grafik için geçmiş veriler
-                        loadStats(),
                         loadHybridAnalysis()
                     ]);
                     console.log('✅ Kritik veriler yüklendi');
