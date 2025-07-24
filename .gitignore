@@ -64,3 +64,6 @@ deploy_*.sh
 
 # Claude instructions (project specific)
 CLAUDE.md
+
+# Utility scripts
+cleanup.sh

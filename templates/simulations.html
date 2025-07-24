@@ -278,7 +278,8 @@ async function loadSimulations() {
         
         if (simulations.length > 0) {
             loadPerformanceChart();
-            loadPositions();
+            await loadPositions(); // Pozisyonları yükle
+            loadDistributionChart(); // Sonra grafiği güncelle
         }
     } catch (error) {
         console.error('Simülasyon yükleme hatası:', error);
@@ -416,38 +417,118 @@ function loadDistributionChart() {
         distributionChart.destroy();
     }
     
-    // Simülasyon başına işlem sayıları
-    const labels = simulations.map(s => s.name.split(' ')[0]);
-    const data = simulations.map(s => s.total_trades);
+    // Simülasyon yoksa çık
+    if (!simulations || simulations.length === 0) {
+        return;
+    }
     
-    distributionChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: [
-                    '#ffd700',
-                    '#10b981',
-                    '#f43f5e',
-                    '#3b82f6'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 10,
-                        usePointStyle: true
+    // Timeframe bazında işlem sayılarını topla
+    const timeframeData = {};
+    
+    allPositions.forEach(pos => {
+        const tf = pos.timeframe || '15m';
+        if (!timeframeData[tf]) {
+            timeframeData[tf] = 0;
+        }
+        timeframeData[tf]++;
+    });
+    
+    const labels = Object.keys(timeframeData);
+    const data = Object.values(timeframeData);
+    
+    // Eğer pozisyon yoksa simülasyon bazında göster
+    if (data.length === 0) {
+        const simLabels = simulations.map(s => s.name.split(' ')[0]);
+        const simData = simulations.map(s => s.total_trades || 0);
+        
+        distributionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: simLabels,
+                datasets: [{
+                    data: simData,
+                    backgroundColor: [
+                        '#ffd700',
+                        '#10b981',
+                        '#f43f5e',
+                        '#3b82f6'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 10,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${label}: ${value} işlem (${percentage}%)`;
+                            }
+                        }
                     }
                 }
             }
-        }
-    });
+        });
+    } else {
+        // Timeframe bazında göster
+        distributionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#ffd700',
+                        '#10b981', 
+                        '#f43f5e',
+                        '#3b82f6',
+                        '#9333ea',
+                        '#f97316'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Timeframe Bazında İşlem Dağılımı',
+                        padding: 20
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 10,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${label}: ${value} işlem (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
 // Pozisyonları yükle
@@ -659,9 +740,8 @@ function displayPnL(pos) {
 
 // Sayfa yüklendiğinde
 document.addEventListener('DOMContentLoaded', function() {
-    loadSimulations();
-    loadDistributionChart();
     updateGoldPrice(); // İlk fiyat güncellemesi
+    loadSimulations();
     
     // Fiyat güncellemeleri - 5 saniyede bir
     setInterval(() => {
@@ -670,7 +750,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Pozisyon güncellemeleri - 10 saniyede bir
     setInterval(() => {
-        loadPositions();
+        loadPositions().then(() => {
+            loadDistributionChart(); // Pozisyonlar yüklendikten sonra grafiği güncelle
+        });
     }, 10000);
     
     // Simülasyon güncellemeleri - 30 saniyede bir
