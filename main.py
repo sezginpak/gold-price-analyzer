@@ -56,7 +56,10 @@ class HybridGoldAnalyzer:
         
         # Son analiz zamanları - dict comprehension ile optimize
         from datetime import datetime
-        self.last_analysis_times = {tf: datetime.min for tf in ANALYSIS_INTERVALS.keys()}
+        from utils.timezone import TURKEY_TZ
+        # Timezone-aware minimum datetime kullan
+        min_datetime = TURKEY_TZ.localize(datetime.min.replace(year=2000))
+        self.last_analysis_times = {tf: min_datetime for tf in ANALYSIS_INTERVALS.keys()}
         
         # Analiz aralıkları (dakika) - constants'tan al
         self.analysis_intervals = ANALYSIS_INTERVALS
