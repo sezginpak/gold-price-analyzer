@@ -5,10 +5,11 @@ import asyncio
 import signal
 import sys
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
 import gc  # Garbage collection için
+from utils.timezone import now, format_for_display
 
 from services.harem_altin_service import HaremAltinPriceService
 from collectors.harem_price_collector import HaremPriceCollector
@@ -62,7 +63,7 @@ class HybridGoldAnalyzer:
     async def analyze_price(self, price_data: PriceData):
         """Fiyat verisi geldiğinde analiz yap"""
         try:
-            current_time = datetime.now()
+            current_time = now()
             
             # Her timeframe için analiz zamanı geldi mi kontrol et
             for timeframe, interval_minutes in self.analysis_intervals.items():
@@ -90,7 +91,7 @@ class HybridGoldAnalyzer:
                 return
             
             # Market data (son 200 kayıt - trend analizi için)
-            end_time = datetime.now()
+            end_time = now()
             start_time = end_time - timedelta(hours=48)
             market_data = self.storage.get_price_range(start_time, end_time)
             
@@ -144,7 +145,7 @@ class HybridGoldAnalyzer:
         print(f"\n{'='*70}")
         print(f"⚡ {signal_emoji} SİNYALİ {strength_emoji} [{timeframe}] ⚡")
         print(f"{'='*70}")
-        print(f"📅 Zaman: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"📅 Zaman: {format_for_display(now())}")
         print(f"💰 Gram Altın: {analysis['gram_price']:.2f} TRY")
         print(f"📊 Güven: %{analysis['confidence']*100:.0f}")
         position_size = analysis.get('position_size', 0)

@@ -3,9 +3,9 @@ Global Trend Analiz Motoru - ONS/USD üzerinden majör trend belirleme
 """
 from typing import List, Dict, Any, Tuple
 from decimal import Decimal
-from datetime import datetime
 import logging
 import numpy as np
+from utils.timezone import utc_now
 
 from models.market_data import MarketData
 
@@ -59,7 +59,7 @@ class GlobalTrendAnalyzer:
             key_levels = self._find_key_levels(ons_prices)
             
             return {
-                "timestamp": datetime.utcnow(),
+                "timestamp": utc_now(),
                 "ons_usd_price": Decimal(str(current_price)),
                 "trend_direction": trend_direction,
                 "trend_strength": trend_strength,
@@ -252,7 +252,7 @@ class GlobalTrendAnalyzer:
     def _empty_analysis(self) -> Dict[str, Any]:
         """Boş analiz sonucu"""
         return {
-            "timestamp": datetime.utcnow(),
+            "timestamp": utc_now(),
             "ons_usd_price": None,
             "trend_direction": "UNKNOWN",
             "trend_strength": "WEAK",

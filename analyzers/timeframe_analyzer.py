@@ -2,11 +2,12 @@
 Farklı zaman dilimleri için analiz yöneticisi
 """
 import asyncio
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, Optional, Callable
 import logging
 from config import settings
 from models.price_data import PriceData
+from utils.timezone import now
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +23,12 @@ class TimeframeAnalyzer:
         self.analyze_callback = analyze_callback
         # İlk analizleri erken başlatmak için geçmiş zamanlar kullan
         # Ancak çok fazla geriye gitmeyelim ki sürekli analiz yapmasın
-        now = datetime.now()
+        current_time = now()
         self.last_analysis_times: Dict[str, datetime] = {
-            "15m": now - timedelta(minutes=14),   # 1 dakika sonra ilk analiz
-            "1h": now - timedelta(minutes=55),    # 5 dakika sonra ilk analiz
-            "4h": now - timedelta(minutes=230),   # 10 dakika sonra ilk analiz
-            "1d": now - timedelta(minutes=1420)   # 20 dakika sonra ilk analiz
+            "15m": current_time - timedelta(minutes=14),   # 1 dakika sonra ilk analiz
+            "1h": current_time - timedelta(minutes=55),    # 5 dakika sonra ilk analiz
+            "4h": current_time - timedelta(minutes=230),   # 10 dakika sonra ilk analiz
+            "1d": current_time - timedelta(minutes=1420)   # 20 dakika sonra ilk analiz
         }
         
         # Zaman dilimi ayarları (dakika cinsinden)
@@ -59,7 +60,7 @@ class TimeframeAnalyzer:
     
     async def process_price_update(self, price_data: PriceData):
         """Fiyat güncellemesini işle ve gerekli analizleri tetikle"""
-        current_time = datetime.now()
+        current_time = now()
         
         for timeframe, config in self.timeframe_configs.items():
             # Bu zaman dilimi için analiz zamanı geldi mi?
@@ -123,7 +124,7 @@ class TimeframeAnalyzer:
     
     def get_analysis_status(self) -> Dict[str, dict]:
         """Analiz durumunu döndür"""
-        current_time = datetime.now()
+        current_time = now()
         status = {}
         
         for timeframe, config in self.timeframe_configs.items():

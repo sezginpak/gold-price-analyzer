@@ -3,9 +3,10 @@ USD/TRY Risk Değerlendirme Motoru
 """
 from typing import List, Dict, Any
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 import numpy as np
+from utils.timezone import utc_now
 
 from models.market_data import MarketData
 
@@ -70,7 +71,7 @@ class CurrencyRiskAnalyzer:
             )
             
             return {
-                "timestamp": datetime.utcnow(),
+                "timestamp": utc_now(),
                 "usd_try": Decimal(str(current_rate)),
                 "volatility": volatility,
                 "risk_level": risk_level,
@@ -254,7 +255,7 @@ class CurrencyRiskAnalyzer:
     def _empty_analysis(self) -> Dict[str, Any]:
         """Boş analiz sonucu"""
         return {
-            "timestamp": datetime.utcnow(),
+            "timestamp": utc_now(),
             "usd_try": None,
             "volatility": {"daily": 0, "weekly": 0, "monthly": 0},
             "risk_level": "UNKNOWN",
