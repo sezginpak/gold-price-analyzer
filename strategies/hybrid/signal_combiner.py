@@ -246,20 +246,24 @@ class SignalCombiner:
                       volatility: float, timeframe: str,
                       global_dir: str, risk_level: str) -> Tuple[str, str]:
         """Volatilite ve timeframe filtrelerini uygula"""
+        logger.debug(f"🔍 FILTER CHECK: signal={signal}, conf={confidence:.3f}, vol={volatility:.3f}, tf={timeframe}")
+        
         # Volatilite filtresi
         if volatility < MIN_VOLATILITY_THRESHOLD and signal != "HOLD":
-            logger.info(f"Low volatility ({volatility:.2f}%), converting to HOLD")
+            logger.debug(f"🔄 FILTER: Low volatility ({volatility:.3f}% < {MIN_VOLATILITY_THRESHOLD}%), converting {signal} to HOLD")
             return "HOLD", "WEAK"
         
         # Timeframe güven eşiği
         if signal != "HOLD":
             min_confidence = MIN_CONFIDENCE_THRESHOLDS.get(timeframe, 0.5)
+            logger.debug(f"🔍 FILTER: Checking confidence {confidence:.3f} >= {min_confidence:.3f} for {timeframe}")
             if confidence < min_confidence:
-                logger.info(f"Low confidence for {timeframe}: {confidence:.3f} < {min_confidence}")
+                logger.debug(f"🔄 FILTER: Low confidence for {timeframe}: {confidence:.3f} < {min_confidence}, converting {signal} to HOLD")
                 return "HOLD", "WEAK"
         
         # Sinyal gücü belirleme
         strength = self._calculate_signal_strength(confidence, risk_level)
+        logger.debug(f"✅ FILTER: Signal {signal} passed all filters, strength={strength}")
         
         return signal, strength
     
