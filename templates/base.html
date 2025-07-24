@@ -182,14 +182,9 @@
                     </a>
                     
                     <!-- Live Status -->
-                    <div class="ml-4 flex items-center space-x-3 bg-slate-800/50 px-4 py-2 rounded-lg border border-yellow-400/20">
-                        <div class="flex items-center space-x-2">
-                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                            <span class="text-xs text-gray-400">Live</span>
-                        </div>
-                        <div class="border-l border-gray-700 pl-3">
-                            <span id="last-update" class="text-sm text-yellow-400 font-mono">00:00:00</span>
-                        </div>
+                    <div class="ml-4 flex items-center space-x-2 bg-slate-800/50 px-4 py-2 rounded-lg border border-yellow-400/20">
+                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span class="text-xs text-gray-400">Live</span>
                     </div>
                 </div>
             </div>
@@ -270,12 +265,6 @@
                             <span class="text-xs text-green-400">Aktif</span>
                         </div>
                     </div>
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Son Güncelleme</span>
-                            <span class="text-xs text-yellow-400 font-mono" id="mobile-last-update">00:00:00</span>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -322,26 +311,6 @@
         mobileMenuClose?.addEventListener('click', closeMobileMenu);
         mobileMenuOverlay?.addEventListener('click', closeMobileMenu);
         
-        // Update last update time
-        function updateLastUpdateTime() {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('tr-TR', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-            
-            const lastUpdate = document.getElementById('last-update');
-            const mobileLastUpdate = document.getElementById('mobile-last-update');
-            
-            if (lastUpdate) lastUpdate.textContent = timeStr;
-            if (mobileLastUpdate) mobileLastUpdate.textContent = timeStr;
-        }
-        
-        // Update time on load and every minute
-        updateLastUpdateTime();
-        setInterval(updateLastUpdateTime, 60000);
         
         // Highlight active page
         function highlightActivePage() {

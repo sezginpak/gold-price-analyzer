@@ -111,7 +111,6 @@
     <div class="card mb-6">
         <h2 class="text-xl font-bold mb-4 flex items-center">
             <span class="mr-2">⚡</span> Aktif Sinyaller
-            <span class="ml-auto text-sm font-normal text-gray-400" id="last-update">Son güncelleme: -</span>
         </h2>
         
         <div id="active-signals" class="space-y-3">
@@ -185,7 +184,6 @@ async function loadSignals() {
         if (data.status === 'success') {
             allSignals = data.signals;
             applyFilters();
-            updateLastUpdate();
         }
     } catch (error) {
         console.error('Sinyaller yüklenemedi:', error);
@@ -360,11 +358,6 @@ function displaySignalHistory(signals) {
     tbody.innerHTML = html;
 }
 
-// Son güncelleme zamanını göster
-function updateLastUpdate() {
-    const now = new Date().toLocaleTimeString('tr-TR');
-    document.getElementById('last-update').textContent = `Son güncelleme: ${now}`;
-}
 
 // Hata göster
 function showError(message) {
