@@ -386,12 +386,12 @@
                     // Analiz geçmişini göster
                     const historyHtml = data.analyses.map(analysis => {
                         const date = new Date(analysis.timestamp);
-                        const trDate = new Date(date.getTime() + (3 * 60 * 60 * 1000)); // UTC+3
+                        // Timestamp zaten Türkiye saatinde geliyor, ekleme yapma
                         
                         const timeframeClass = `timeframe-${analysis.timeframe}`;
                         return `
                             <tr class="border-b border-gray-700 ${timeframeClass} transition-colors">
-                                <td class="py-1 lg:py-2 text-xs lg:text-sm hidden lg:table-cell">${trDate.toLocaleTimeString('tr-TR')}</td>
+                                <td class="py-1 lg:py-2 text-xs lg:text-sm hidden lg:table-cell">${date.toLocaleTimeString('tr-TR')}</td>
                                 <td class="py-1 lg:py-2 text-xs lg:text-sm font-semibold">${analysis.timeframe}</td>
                                 <td class="py-1 lg:py-2 text-xs lg:text-sm">₺${analysis.price.toFixed(2)}</td>
                                 <td class="py-1 lg:py-2">
@@ -449,7 +449,7 @@
                 
                 // Son analiz zamanı
                 document.getElementById('last-analysis-time').textContent = 
-                    new Date(Date.now() + (3 * 60 * 60 * 1000)).toLocaleTimeString('tr-TR');
+                    new Date().toLocaleTimeString('tr-TR');
                     
             } catch (error) {
                 console.error('Hibrit analiz verileri yüklenemedi:', error);
