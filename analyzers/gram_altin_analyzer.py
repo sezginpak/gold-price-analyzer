@@ -4,9 +4,10 @@ Gram Altın Analiz Motoru - Ana analiz sistemi
 from typing import List, Dict, Any, Optional, Tuple
 from decimal import Decimal, InvalidOperation
 import decimal
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 import numpy as np
+from utils import timezone
 
 from models.market_data import MarketData, GramAltinCandle
 from indicators.rsi import RSIIndicator
@@ -91,7 +92,7 @@ class GramAltinAnalyzer:
             )
             
             result = {
-                "timestamp": datetime.utcnow(),
+                "timestamp": timezone.utc_now(),
                 "price": current_price,
                 "trend": trend,
                 "trend_strength": trend_strength,
@@ -470,7 +471,7 @@ class GramAltinAnalyzer:
     def _empty_analysis(self) -> Dict[str, Any]:
         """Boş analiz sonucu"""
         return {
-            "timestamp": datetime.utcnow(),
+            "timestamp": timezone.utc_now(),
             "price": Decimal("0"),
             "trend": TrendType.NEUTRAL,
             "trend_strength": TrendStrength.WEAK,

@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Dict, List, Optional, Any
 from enum import Enum
 from pydantic import BaseModel, Field
+from utils.timezone import utc_now
 
 
 class SignalType(str, Enum):
@@ -28,7 +29,7 @@ class SignalResult(str, Enum):
 
 class TradingSignal(BaseModel):
     """Alım/Satım sinyali modeli"""
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now)
     signal_type: SignalType
     price_level: Decimal = Field(..., description="Sinyal fiyat seviyesi")
     current_price: Decimal = Field(..., description="Mevcut fiyat")

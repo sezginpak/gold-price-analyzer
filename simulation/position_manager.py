@@ -2,11 +2,11 @@
 Pozisyon yönetimi modülü
 """
 import logging
-from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Dict
 import json
 
+from utils.timezone import utc_now, parse_datetime
 from models.simulation import (
     SimulationPosition, 
     PositionStatus,
@@ -86,7 +86,7 @@ class PositionManager:
                     timeframe=data['timeframe'],
                     position_type=data['position_type'],
                     status=PositionStatus(data['status']),
-                    entry_time=datetime.fromisoformat(data['entry_time']),
+                    entry_time=parse_datetime(data['entry_time']),
                     entry_price=Decimal(str(data['entry_price'])),
                     entry_spread=Decimal(str(data['entry_spread'])),
                     entry_commission=Decimal(str(data['entry_commission'])),
@@ -119,7 +119,7 @@ class PositionManager:
                 UPDATE sim_positions
                 SET trailing_stop = ?, updated_at = ?
                 WHERE id = ?
-            """, (float(trailing_stop), datetime.now(), position_id))
+            """, (float(trailing_stop), utc_now(), position_id))
             
             conn.commit()
     
@@ -148,7 +148,7 @@ class PositionManager:
                 float(position.profit_loss_pct),
                 position.holding_period_minutes,
                 json.dumps(position.exit_indicators) if position.exit_indicators else None,
-                datetime.now(),
+                utc_now(),
                 position.id
             ))
             

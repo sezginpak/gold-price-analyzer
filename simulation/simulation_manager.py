@@ -5,10 +5,11 @@ Gerçek zamanlı sinyal takibi ve otomatik trading simülasyonu
 import asyncio
 import logging
 import json
-from datetime import datetime, timedelta, time
+from datetime import timedelta, time
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
+from utils.timezone import now, utc_now, to_turkey_time
 
 from models.simulation import (
     SimulationConfig, SimulationPosition, SimulationStatus,

@@ -7,11 +7,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import List, Dict, Any
 import os
 from pathlib import Path
 import logging
+from utils import timezone
 
 from storage.sqlite_storage import SQLiteStorage
 from services.harem_altin_service import HaremAltinPriceService
@@ -43,7 +44,7 @@ active_connections: List[WebSocket] = []
 
 # Global stats
 system_stats = {
-    "start_time": datetime.now(),
+    "start_time": timezone.now(),
     "last_price_update": None,
     "total_signals": 0,
     "active_connections": 0,
@@ -63,11 +64,11 @@ async def get_stats():
     db_stats = storage.get_statistics()
     
     # Uptime hesapla
-    uptime = datetime.now() - system_stats["start_time"]
+    uptime = timezone.now() - system_stats["start_time"]
     
     # Bugünkü sinyalleri say
     today_signals = 0
-    signal_file = f"signals/signals_{datetime.now().strftime('%Y%m%d')}.log"
+    signal_file = f"signals/signals_{timezone.now().strftime('%Y%m%d')}.log"
     if os.path.exists(signal_file):
         with open(signal_file, 'r') as f:
             today_signals = f.read().count("Type:")
@@ -95,7 +96,7 @@ async def get_stats():
 @app.get("/api/prices/latest")
 async def get_latest_prices():
     """Son 30 dakikalık gram altın fiyat verisi"""
-    end_time = datetime.now()
+    end_time = timezone.now()
     start_time = end_time - timedelta(minutes=30)  # 30 dakika geriye git
     
     prices = storage.get_price_range(start_time, end_time)
@@ -192,7 +193,7 @@ async def get_recent_signals():
             cursor = conn.cursor()
             
             # Son 24 saatteki analizleri al
-            yesterday = datetime.now() - timedelta(hours=24)
+            yesterday = timezone.now() - timedelta(hours=24)
             
             cursor.execute("""
                 SELECT 
@@ -424,7 +425,7 @@ async def trigger_analysis(timeframe: str):
             "status": "success",
             "message": f"{timeframe} analizi tetiklendi",
             "timeframe": timeframe,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": timezone.now().isoformat(),
             "latest_price": float(latest_price.gram_altin) if latest_price.gram_altin else None,
             "candle_count": len(candles),
             "last_analysis": analyses[0] if analyses else None

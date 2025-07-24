@@ -3,9 +3,9 @@ Hibrit Strateji - Gram altın, global trend ve kur riskini birleştiren ana stra
 """
 from typing import Dict, Any, List, Tuple, Optional
 from decimal import Decimal
-from datetime import datetime
 import logging
 from collections import defaultdict
+from utils import timezone
 
 from models.market_data import MarketData, GramAltinCandle
 from analyzers.gram_altin_analyzer import GramAltinAnalyzer
@@ -104,7 +104,7 @@ class HybridStrategy:
             )
             
             return {
-                "timestamp": datetime.utcnow(),
+                "timestamp": timezone.utc_now(),
                 "gram_price": gram_analysis.get("price"),
                 
                 # Ana sinyal
@@ -433,7 +433,7 @@ class HybridStrategy:
     def _empty_result(self) -> Dict[str, Any]:
         """Boş sonuç"""
         return {
-            "timestamp": datetime.utcnow(),
+            "timestamp": timezone.utc_now(),
             "gram_price": 0,
             "signal": "HOLD",
             "signal_strength": "WEAK",

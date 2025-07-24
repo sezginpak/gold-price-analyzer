@@ -95,7 +95,7 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Header ve Fiyat Göstergeleri -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <!-- Sol: Başlık ve Açıklama -->
         <div class="glass-card rounded-lg p-6">
             <h2 class="text-xl lg:text-2xl font-bold mb-2">
@@ -126,24 +126,6 @@
                     <div class="text-lg font-bold text-emerald-400" id="miniUsdTry">-</div>
                     <div class="text-xs mt-1" id="miniUsdChange">-</div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Sağ: Canlı Gram Altın -->
-        <div class="price-ticker rounded-lg p-3 lg:p-4 text-center">
-            <div class="flex items-center justify-center mb-2">
-                <span class="live-indicator mr-2"></span>
-                <span class="text-xs text-gray-400">CANLI</span>
-            </div>
-            <div class="text-gray-400 text-xs lg:text-sm mb-1">Gram Altın</div>
-            <div id="currentPrice" class="text-xl lg:text-2xl font-bold text-yellow-400 slide-in">
-                <i class="fas fa-spinner fa-spin text-gray-400"></i>
-            </div>
-            <div id="priceChange" class="text-xs lg:text-sm mt-2">
-                <!-- Fiyat değişimi buraya gelecek -->
-            </div>
-            <div class="text-xs text-gray-500 mt-2" id="lastUpdate">
-                Son güncelleme: -
             </div>
         </div>
     </div>
@@ -272,26 +254,6 @@ async function updateGoldPrice() {
             previousGoldPrice = currentGoldPrice || newPrice;
             currentGoldPrice = newPrice;
             
-            // Ana fiyat göstergesini güncelle
-            const priceElement = document.getElementById('currentPrice');
-            priceElement.innerHTML = `₺${currentGoldPrice.toFixed(2)}`;
-            priceElement.className = 'text-xl lg:text-2xl font-bold text-yellow-400 slide-in';
-            
-            // Fiyat değişimi
-            const change = currentGoldPrice - previousGoldPrice;
-            const changePct = previousGoldPrice ? (change / previousGoldPrice * 100) : 0;
-            
-            const changeElement = document.getElementById('priceChange');
-            if (Math.abs(change) > 0.01) { // Küçük değişimleri gösterme
-                const arrow = change > 0 ? '↑' : '↓';
-                const colorClass = change > 0 ? 'text-green-400' : 'text-red-400';
-                changeElement.innerHTML = `
-                    <span class="${colorClass}">
-                        ${arrow} ${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)
-                    </span>
-                `;
-            }
-            
             // Mini fiyat kartlarını güncelle
             if (typeof updateMiniPriceCards === 'function') {
                 updateMiniPriceCards(data);
@@ -299,18 +261,11 @@ async function updateGoldPrice() {
             
             // Son güncelleme zamanı
             const now = new Date();
-            document.getElementById('lastUpdate').textContent = 
-                `Son güncelleme: ${now.toLocaleTimeString('tr-TR')}`;
             document.getElementById('lastUpdateTime').textContent = 
                 now.toLocaleTimeString('tr-TR');
-        } else if (data && data.error) {
-            document.getElementById('currentPrice').innerHTML = 
-                '<span class="text-sm">Veri bekleniyor...</span>';
         }
     } catch (error) {
         console.error('Fiyat güncelleme hatası:', error);
-        document.getElementById('currentPrice').innerHTML = 
-            '<span class="text-sm">Bağlantı hatası</span>';
     }
 }
 

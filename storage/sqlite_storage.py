@@ -2,10 +2,11 @@
 SQLite storage for price data
 """
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from typing import List, Optional, Dict, Tuple, Any
 import logging
+from utils import timezone
 from contextlib import contextmanager
 from models.price_data import PriceData, PriceCandle
 from models.analysis_result import AnalysisResult, TrendType, TrendStrength
@@ -236,7 +237,7 @@ class SQLiteStorage:
             row = cursor.fetchone()
             if row:
                 return PriceData(
-                    timestamp=datetime.fromisoformat(row['timestamp']),
+                    timestamp=timezone.parse_timestamp(row['timestamp']),
                     ons_usd=Decimal(str(row['ons_usd'])),
                     usd_try=Decimal(str(row['usd_try'])),
                     ons_try=Decimal(str(row['ons_try'])),
@@ -257,7 +258,7 @@ class SQLiteStorage:
             
             return [
                 PriceData(
-                    timestamp=datetime.fromisoformat(row['timestamp']),
+                    timestamp=timezone.parse_timestamp(row['timestamp']),
                     ons_usd=Decimal(str(row['ons_usd'])),
                     usd_try=Decimal(str(row['usd_try'])),
                     ons_try=Decimal(str(row['ons_try'])),
@@ -279,7 +280,7 @@ class SQLiteStorage:
             
             prices = [
                 PriceData(
-                    timestamp=datetime.fromisoformat(row['timestamp']),
+                    timestamp=timezone.parse_timestamp(row['timestamp']),
                     ons_usd=Decimal(str(row['ons_usd'])),
                     usd_try=Decimal(str(row['usd_try'])),
                     ons_try=Decimal(str(row['ons_try'])),
@@ -330,7 +331,7 @@ class SQLiteStorage:
             # List comprehension ile optimize et
             candles = [
                 PriceCandle(
-                    timestamp=datetime.fromisoformat(row['candle_time']),
+                    timestamp=timezone.parse_timestamp(row['candle_time']),
                     open=Decimal(str(row['open'])),
                     high=Decimal(str(row['high'])),
                     low=Decimal(str(row['low'])),
@@ -394,7 +395,7 @@ class SQLiteStorage:
             for row in cursor.fetchall():
                 if row['open'] and row['high'] and row['low'] and row['close']:
                     candle = PriceCandle(
-                        timestamp=datetime.fromisoformat(row['candle_time']),
+                        timestamp=timezone.parse_timestamp(row['candle_time']),
                         open=Decimal(str(row['open'])),
                         high=Decimal(str(row['high'])),
                         low=Decimal(str(row['low'])),
@@ -572,7 +573,7 @@ class SQLiteStorage:
     
     def _json_serializer(self, obj):
         """Custom JSON serializer for datetime and Decimal objects"""
-        if isinstance(obj, datetime):
+        if hasattr(obj, 'isoformat'):
             return obj.isoformat()
         elif isinstance(obj, Decimal):
             return float(obj)
@@ -603,7 +604,7 @@ class SQLiteStorage:
                     advanced_indicators, pattern_analysis
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                analysis["timestamp"].isoformat() if isinstance(analysis["timestamp"], datetime) else analysis["timestamp"],
+                analysis["timestamp"].isoformat() if hasattr(analysis["timestamp"], 'isoformat') else analysis["timestamp"],
                 analysis.get("timeframe", "15m"),
                 float(analysis.get("gram_price", 0)) if analysis.get("gram_price") else 0,
                 analysis["signal"],
@@ -713,7 +714,7 @@ class SQLiteStorage:
         
         return AnalysisResult(
             id=row['id'],
-            timestamp=datetime.fromisoformat(row['timestamp']),
+            timestamp=timezone.parse_timestamp(row['timestamp']),
             timeframe=row['timeframe'] if 'timeframe' in row.keys() else '15m',  # Eski veriler için varsayılan
             price=Decimal(str(row['price'])) if row['price'] else None,
             price_change=Decimal(str(row['price_change'])) if row['price_change'] else None,
@@ -738,7 +739,7 @@ class SQLiteStorage:
         """Veritabanı satırını hibrit analiz dict'ine dönüştür"""
         return {
             "id": row["id"],
-            "timestamp": datetime.fromisoformat(row["timestamp"]),
+            "timestamp": timezone.parse_timestamp(row["timestamp"]),
             "timeframe": row["timeframe"],
             "gram_price": Decimal(str(row["gram_price"])),
             "signal": row["signal"],

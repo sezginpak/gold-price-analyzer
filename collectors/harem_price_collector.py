@@ -2,7 +2,6 @@
 HaremAltin API'den fiyat toplama servisi
 """
 import asyncio
-from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Dict, Any, Callable
 import logging

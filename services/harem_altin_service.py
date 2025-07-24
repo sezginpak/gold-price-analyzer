@@ -375,7 +375,7 @@ class HaremAltinPriceService:
 # Ornek kullanim ve test fonksiyonlari
 async def price_callback(prices: Dict):
     """Ornek callback - gelen fiyatlari logla"""
-    print(f"\n📊 Fiyat guncellemesi: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"\n📊 Fiyat guncellemesi: {timezone.now().strftime('%H:%M:%S')}")
     print("-" * 50)
     
     # Onemli fiyatlari goster

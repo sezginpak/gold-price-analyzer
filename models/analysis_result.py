@@ -6,6 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Dict, Any, List
 from enum import Enum
+from utils.timezone import utc_now
 
 
 class TrendType(str, Enum):
@@ -120,7 +121,7 @@ class AnalysisResult:
     def __post_init__(self):
         """Varsayılan değerleri ayarla"""
         if self.timestamp is None:
-            self.timestamp = datetime.now()
+            self.timestamp = utc_now()
         if self.support_levels is None:
             self.support_levels = []
         if self.resistance_levels is None:

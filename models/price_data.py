@@ -5,11 +5,12 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
+from utils.timezone import utc_now
 
 
 class PriceData(BaseModel):
     """Fiyat verisi modeli"""
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now)
     ons_usd: Decimal = Field(..., description="Ons altın USD fiyatı")
     usd_try: Decimal = Field(..., description="USD/TRY kuru")
     ons_try: Decimal = Field(..., description="Ons altın TRY fiyatı")
