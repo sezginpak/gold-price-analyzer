@@ -364,14 +364,25 @@ async def get_simulations():
             """)
             
             simulations = []
+            
+            # Güncel fiyatı al
+            current_price = None
+            latest = storage.get_latest_price()
+            if latest and latest.gram_altin:
+                current_price = float(latest.gram_altin)
+            
             for row in cursor.fetchall():
+                total_pnl_tl = row[5]
+                total_pnl_gram = total_pnl_tl / current_price if current_price else 0
+                
                 simulations.append({
                     "id": row[0],
                     "name": row[1],
                     "strategy_type": row[2],
                     "status": row[3],
                     "current_capital": row[4],
-                    "total_profit_loss": row[5],
+                    "total_profit_loss": total_pnl_tl,
+                    "total_profit_loss_gram": total_pnl_gram,
                     "total_profit_loss_pct": row[6],
                     "win_rate": row[7],
                     "total_trades": row[8],
@@ -380,7 +391,7 @@ async def get_simulations():
                     "created_at": row[11]
                 })
             
-            return {"simulations": simulations}
+            return {"simulations": simulations, "current_price": current_price}
     except Exception as e:
         logger.error(f"Error getting simulations: {e}")
         return {"error": str(e)}
@@ -430,17 +441,28 @@ async def get_simulation_positions(sim_id: int, status: str = "all"):
                     position_size = float(pos['position_size'])
                     
                     if pos['position_type'] == 'LONG':
-                        pnl_gram = (current_price - entry_price) * position_size
+                        pnl_tl = (current_price - entry_price) * position_size
                     else:
-                        pnl_gram = (entry_price - current_price) * position_size
+                        pnl_tl = (entry_price - current_price) * position_size
                     
                     # Maliyetleri çıkar
                     total_costs = float(pos['entry_spread']) + float(pos['entry_commission'])
-                    pnl_gram -= total_costs
+                    pnl_tl -= total_costs
+                    
+                    # Gram cinsinden kar/zarar
+                    pnl_gram = pnl_tl / current_price
                     
                     pos['current_price'] = current_price
-                    pos['current_pnl'] = pnl_gram
-                    pos['current_pnl_pct'] = (pnl_gram / float(pos['allocated_capital'])) * 100
+                    pos['current_pnl_tl'] = pnl_tl
+                    pos['current_pnl_gram'] = pnl_gram
+                    pos['current_pnl_pct'] = (pnl_tl / float(pos['allocated_capital'])) * 100
+                
+                # Kapalı pozisyonlar için gram cinsinden kar/zarar ekle
+                elif pos['status'] == 'CLOSED' and pos.get('net_profit_loss'):
+                    # TL cinsinden kar/zarar zaten var
+                    # Çıkış fiyatını kullanarak gram'a çevir
+                    exit_price = float(pos.get('exit_price', entry_price))
+                    pos['net_profit_loss_gram'] = float(pos['net_profit_loss']) / exit_price
                 
                 positions.append(pos)
             

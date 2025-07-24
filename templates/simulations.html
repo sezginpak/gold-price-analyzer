@@ -199,9 +199,16 @@ function displaySimulationCards() {
                     
                     <div>
                         <div class="text-gray-400 text-xs">Kar/Zarar</div>
-                        <div class="${pnlClass} text-sm font-medium">
-                            ${sim.total_profit_loss >= 0 ? '+' : ''}${sim.total_profit_loss.toFixed(2)}g
-                            (${sim.total_profit_loss_pct.toFixed(2)}%)
+                        <div class="${pnlClass}">
+                            <div class="text-sm font-semibold">
+                                ${sim.total_profit_loss >= 0 ? '+' : ''}${sim.total_profit_loss.toFixed(2)} ₺
+                            </div>
+                            <div class="text-xs">
+                                ${sim.total_profit_loss >= 0 ? '+' : ''}${sim.total_profit_loss_gram.toFixed(3)}g
+                            </div>
+                            <div class="text-xs opacity-75">
+                                (${sim.total_profit_loss_pct.toFixed(2)}%)
+                            </div>
                         </div>
                     </div>
                     
@@ -323,7 +330,8 @@ function loadDistributionChart() {
 
 // Pozisyonları yükle
 async function loadPositions() {
-    allPositions = [];
+    // Her yüklemede pozisyon listesini temizle
+    const newPositions = [];
     
     for (const sim of simulations) {
         try {
@@ -332,14 +340,19 @@ async function loadPositions() {
             if (data.positions) {
                 // Anlık fiyatı tüm pozisyonlara ekle
                 const currentPrice = data.current_price;
-                allPositions = allPositions.concat(
-                    data.positions.map(p => ({...p, sim_name: sim.name, current_price: currentPrice}))
-                );
+                newPositions.push(...data.positions.map(p => ({
+                    ...p, 
+                    sim_name: sim.name, 
+                    current_price: currentPrice
+                })));
             }
         } catch (error) {
             console.error(`Pozisyon yükleme hatası (Sim ${sim.id}):`, error);
         }
     }
+    
+    // Global listeyi güncelle
+    allPositions = newPositions;
     
     updatePositionCounts();
     displayPositions();
@@ -469,23 +482,29 @@ function displayPriceColumn(pos) {
 
 // Kar/Zarar gösterimi
 function displayPnL(pos) {
-    let pnl, pnlPct;
+    let pnl_tl, pnl_gram, pnlPct;
     
     if (pos.status === 'CLOSED') {
-        pnl = pos.net_profit_loss || 0;
+        pnl_tl = pos.net_profit_loss || 0;
+        pnl_gram = pos.net_profit_loss_gram || 0;
         pnlPct = pos.profit_loss_pct || 0;
-    } else if (pos.current_pnl !== undefined) {
-        pnl = pos.current_pnl;
+    } else if (pos.current_pnl_tl !== undefined) {
+        pnl_tl = pos.current_pnl_tl;
+        pnl_gram = pos.current_pnl_gram || 0;
         pnlPct = pos.current_pnl_pct || 0;
     } else {
         return '-';
     }
     
-    const sign = pnl >= 0 ? '+' : '';
+    const sign_tl = pnl_tl >= 0 ? '+' : '';
+    const sign_gram = pnl_gram >= 0 ? '+' : '';
+    const pnlClass = pnl_tl >= 0 ? 'positive' : 'negative';
+    
     return `
-        <div class="text-right">
-            <div>${sign}${pnl.toFixed(2)}g</div>
-            <div class="text-xs opacity-75">${sign}${pnlPct.toFixed(2)}%</div>
+        <div class="text-right ${pnlClass}">
+            <div class="font-semibold">${sign_tl}${pnl_tl.toFixed(2)} ₺</div>
+            <div class="text-xs">${sign_gram}${pnl_gram.toFixed(3)}g</div>
+            <div class="text-xs opacity-75">${sign_tl}${pnlPct.toFixed(2)}%</div>
         </div>
     `;
 }
