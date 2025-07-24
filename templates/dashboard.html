@@ -1043,25 +1043,47 @@
             }
         }
 
+        // Hızlı fiyat güncelleme fonksiyonu
+        async function loadCurrentPriceOnly() {
+            try {
+                const response = await fetch('/api/prices/current');
+                const data = await response.json();
+                if (data && !data.error) {
+                    updateCurrentPrice(data);
+                }
+            } catch (error) {
+                console.error('Anlık fiyat yüklenemedi:', error);
+            }
+        }
+
         // Paralel veri yükleme fonksiyonu
         async function loadAllData() {
             try {
-                // Kritik veriler önce paralel olarak yüklensin
-                const criticalData = await Promise.allSettled([
-                    loadInitialPrices(),
-                    loadStats(),
-                    loadHybridAnalysis()
-                ]);
+                // 1. EN KRİTİK: Anlık fiyatları anında yükle
+                await loadCurrentPriceOnly();
+                console.log('✅ Anlık fiyatlar yüklendi');
                 
-                // Daha az kritik veriler sonra paralel yüklensin
-                const secondaryData = await Promise.allSettled([
-                    loadSignals(),
-                    loadDailyOpenPrices(),
-                    loadLogStats(),
-                    loadRecentErrors()
-                ]);
+                // 2. Kısa gecikme sonrası kritik veriler (500ms bekle)
+                setTimeout(async () => {
+                    const criticalData = await Promise.allSettled([
+                        loadInitialPrices(), // Grafik için geçmiş veriler
+                        loadStats(),
+                        loadHybridAnalysis()
+                    ]);
+                    console.log('✅ Kritik veriler yüklendi');
+                }, 500);
                 
-                console.log('Tüm veriler yüklendi');
+                // 3. Daha az kritik veriler daha sonra (1.5s bekle)
+                setTimeout(async () => {
+                    const secondaryData = await Promise.allSettled([
+                        loadSignals(),
+                        loadDailyOpenPrices(),
+                        loadLogStats(),
+                        loadRecentErrors()
+                    ]);
+                    console.log('✅ İkincil veriler yüklendi');
+                }, 1500);
+                
             } catch (error) {
                 console.error('Veri yükleme hatası:', error);
             }

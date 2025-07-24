@@ -143,7 +143,7 @@ async def get_latest_prices():
 
 @app.get("/api/prices/current")
 async def get_current_price():
-    """Anlık gram altın fiyatı"""
+    """Anlık gram altın fiyatı - Cache kullanılmaz, her zaman fresh data"""
     latest = storage.get_latest_price()
     if latest:
         return {
