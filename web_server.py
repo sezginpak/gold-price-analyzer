@@ -959,6 +959,62 @@ async def debug_analysis_timeframes():
         }
 
 
+@app.get("/api/analysis/details")
+async def get_analysis_details(timeframe: str = None):
+    """Detaylı analiz bilgilerini döndür"""
+    try:
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # En son analizleri al
+            if timeframe:
+                cursor.execute("""
+                    SELECT * FROM hybrid_analysis 
+                    WHERE timeframe = ? 
+                    ORDER BY id DESC LIMIT 1
+                """, (timeframe,))
+            else:
+                cursor.execute("""
+                    SELECT * FROM hybrid_analysis 
+                    ORDER BY id DESC LIMIT 3
+                """)
+            
+            analyses = []
+            for row in cursor.fetchall():
+                col_names = [desc[0] for desc in cursor.description]
+                data = dict(zip(col_names, row))
+                
+                # JSON alanları parse et
+                try:
+                    gram_analysis = json.loads(data.get('gram_analysis', '{}'))
+                    global_analysis = json.loads(data.get('global_analysis', '{}'))
+                    currency_analysis = json.loads(data.get('currency_analysis', '{}'))
+                    advanced_indicators = json.loads(data.get('advanced_indicators', '{}'))
+                    pattern_analysis = json.loads(data.get('pattern_analysis', '{}'))
+                except:
+                    continue
+                
+                analyses.append({
+                    'id': data['id'],
+                    'timestamp': data['timestamp'],
+                    'timeframe': data['timeframe'],
+                    'signal': data['signal'],
+                    'confidence': float(data['confidence']) if data['confidence'] else 0,
+                    'gram_price': float(data['gram_price']) if data['gram_price'] else 0,
+                    'gram_analysis': gram_analysis,
+                    'global_analysis': global_analysis,
+                    'currency_analysis': currency_analysis,
+                    'advanced_indicators': advanced_indicators,
+                    'pattern_analysis': pattern_analysis
+                })
+            
+            return {'analyses': analyses}
+            
+    except Exception as e:
+        logger.error(f"Analysis details error: {e}")
+        return {'analyses': []}
+
+
 @app.get("/api/analysis/levels")
 async def get_support_resistance():
     """Destek/Direnç seviyeleri"""

@@ -143,10 +143,13 @@ class HybridStrategy:
             market_volatility = (atr_value / current_price * 100) if current_price > 0 else 0
             
             # 12. Sinyalleri birleştir
+            logger.debug(f"🔄 HYBRID: Calling signal combiner for {timeframe}")
+            logger.debug(f"🔄 HYBRID: Gram signal = {gram_analysis.get('signal')}")
             combined_signal = self._combine_signals(
                 gram_analysis, global_analysis, currency_analysis,
                 advanced_indicators, pattern_analysis, timeframe, market_volatility
             )
+            logger.debug(f"🔄 HYBRID: Combined signal = {combined_signal.get('signal')}")
             
             # 7. Kelly Criterion ile pozisyon boyutu hesapla
             position_details = self._calculate_kelly_position(
