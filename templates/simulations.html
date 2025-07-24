@@ -109,16 +109,16 @@
             <div class="price-ticker rounded-lg p-3 lg:p-4 text-center w-full lg:w-auto lg:min-w-[200px]">
                 <div class="flex items-center justify-center mb-2">
                     <span class="live-indicator mr-2"></span>
-                    <span class="text-xs text-gray-100">CANLI</span>
+                    <span class="text-xs text-gray-400">CANLI</span>
                 </div>
-                <div class="text-gray-100 text-xs lg:text-sm mb-1">Gram Altın</div>
-                <div id="currentPrice" class="text-xl lg:text-2xl font-bold text-white slide-in">
-                    <i class="fas fa-spinner fa-spin"></i>
+                <div class="text-gray-400 text-xs lg:text-sm mb-1">Gram Altın</div>
+                <div id="currentPrice" class="text-xl lg:text-2xl font-bold text-yellow-400 slide-in">
+                    <i class="fas fa-spinner fa-spin text-gray-400"></i>
                 </div>
-                <div id="priceChange" class="text-xs lg:text-sm mt-2 text-gray-100">
+                <div id="priceChange" class="text-xs lg:text-sm mt-2">
                     <!-- Fiyat değişimi buraya gelecek -->
                 </div>
-                <div class="text-xs text-gray-200 mt-2" id="lastUpdate">
+                <div class="text-xs text-gray-500 mt-2" id="lastUpdate">
                     Son güncelleme: -
                 </div>
             </div>
@@ -245,7 +245,7 @@ async function updateGoldPrice() {
             // Fiyat göstergesini güncelle
             const priceElement = document.getElementById('currentPrice');
             priceElement.innerHTML = `₺${currentGoldPrice.toFixed(2)}`;
-            priceElement.className = 'text-xl lg:text-2xl font-bold text-white slide-in';
+            priceElement.className = 'text-xl lg:text-2xl font-bold text-yellow-400 slide-in';
             
             // Fiyat değişimi
             const change = currentGoldPrice - previousGoldPrice;
@@ -254,7 +254,7 @@ async function updateGoldPrice() {
             const changeElement = document.getElementById('priceChange');
             if (Math.abs(change) > 0.01) { // Küçük değişimleri gösterme
                 const arrow = change > 0 ? '↑' : '↓';
-                const colorClass = change > 0 ? 'text-green-300' : 'text-red-300';
+                const colorClass = change > 0 ? 'text-green-400' : 'text-red-400';
                 changeElement.innerHTML = `
                     <span class="${colorClass}">
                         ${arrow} ${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)
