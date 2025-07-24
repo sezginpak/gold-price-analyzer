@@ -74,18 +74,30 @@ def set_cache(key: str, data: Any):
 def format_analysis_summary(analysis: Dict) -> str:
     """Analiz özetini daha okunabilir hale getir"""
     try:
-        signal = analysis["signal"]
-        signal_strength = analysis["signal_strength"]
-        confidence = analysis["confidence"]
-        gram_price = analysis["gram_price"]
+        # Eğer zaten formatlanmış bir summary varsa ve teknik terimler içermiyorsa, olduğu gibi dön
+        existing_summary = analysis.get("summary", "")
+        if existing_summary and "TrendType" not in existing_summary and "🟢" in existing_summary:
+            return existing_summary
         
-        # Global trend ve currency risk bilgileri
-        global_trend = analysis.get("global_trend", {})
-        currency_risk = analysis.get("currency_risk", {})
+        signal = analysis.get("signal", "HOLD")
+        signal_strength = analysis.get("signal_strength", "WEAK")
+        confidence = analysis.get("confidence", 0.5)
+        gram_price = analysis.get("gram_price", 0)
         
-        global_direction = global_trend.get("direction", "NEUTRAL")
-        global_strength = global_trend.get("strength", "WEAK")
-        risk_level = currency_risk.get("level", "MEDIUM")
+        # Global trend ve currency risk bilgileri - flexible parsing
+        global_trend = analysis.get("global_trend", "NEUTRAL")
+        if isinstance(global_trend, dict):
+            global_direction = global_trend.get("direction", "NEUTRAL")
+            global_strength = global_trend.get("strength", "WEAK")
+        else:
+            global_direction = str(global_trend)
+            global_strength = "MODERATE"
+            
+        currency_risk = analysis.get("currency_risk", "MEDIUM")
+        if isinstance(currency_risk, dict):
+            risk_level = currency_risk.get("level", "MEDIUM")
+        else:
+            risk_level = str(currency_risk)
         
         # Temel mesaj
         if signal == "BUY":
