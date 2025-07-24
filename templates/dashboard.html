@@ -1050,8 +1050,6 @@
                 const data = await response.json();
                 if (data && !data.error) {
                     updateCurrentPrice(data);
-                    // Grafiğe de hemen anlık fiyatı ekle
-                    addPriceToChart(data);
                 }
             } catch (error) {
                 console.error('Anlık fiyat yüklenemedi:', error);
@@ -1071,13 +1069,20 @@
                 // 2. Kısa gecikme sonrası kritik veriler (500ms bekle)
                 setTimeout(async () => {
                     const criticalData = await Promise.allSettled([
-                        loadInitialPrices(), // Grafik için geçmiş veriler
                         loadHybridAnalysis()
                     ]);
-                    console.log('✅ Kritik veriler yüklendi');
+                    console.log('✅ Hibrit analiz yüklendi');
                 }, 500);
                 
-                // 3. Daha az kritik veriler daha sonra (1.5s bekle)
+                // 3. Grafik verilerini daha sonra yükle (2.5s bekle)
+                setTimeout(async () => {
+                    const chartData = await Promise.allSettled([
+                        loadInitialPrices() // 30 dakikalık grafik verisi
+                    ]);
+                    console.log('✅ Grafik verileri yüklendi');
+                }, 2500);
+                
+                // 4. En az kritik veriler en son (1.5s bekle)
                 setTimeout(async () => {
                     const secondaryData = await Promise.allSettled([
                         loadSignals(),
