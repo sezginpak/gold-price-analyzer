@@ -8,11 +8,12 @@ from fastapi.templating import Jinja2Templates
 import asyncio
 import json
 from datetime import timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 from pathlib import Path
 import logging
 from utils import timezone
+import time
 
 from storage.sqlite_storage import SQLiteStorage
 from services.harem_altin_service import HaremAltinPriceService
@@ -51,6 +52,24 @@ system_stats = {
     "errors_today": 0
 }
 
+# Simple cache system - 30 saniye cache
+cache = {}
+CACHE_TTL = 30  # saniye
+
+def get_cached(key: str) -> Optional[Any]:
+    """Cache'den veri al"""
+    if key in cache:
+        data, timestamp = cache[key]
+        if time.time() - timestamp < CACHE_TTL:
+            return data
+        else:
+            del cache[key]
+    return None
+
+def set_cache(key: str, data: Any):
+    """Cache'e veri kaydet"""
+    cache[key] = (data, time.time())
+
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
@@ -61,6 +80,10 @@ async def dashboard(request: Request):
 @app.get("/api/stats")
 async def get_stats():
     """Sistem istatistikleri"""
+    cached = get_cached("stats")
+    if cached:
+        return cached
+    
     db_stats = storage.get_statistics()
     
     # Uptime hesapla
@@ -73,7 +96,7 @@ async def get_stats():
         with open(signal_file, 'r') as f:
             today_signals = f.read().count("Type:")
     
-    return {
+    result = {
         "system": {
             "uptime": str(uptime).split('.')[0],
             "last_update": system_stats["last_price_update"],
@@ -91,6 +114,9 @@ async def get_stats():
             "total": system_stats["total_signals"]
         }
     }
+    
+    set_cache("stats", result)
+    return result
 
 
 @app.get("/api/prices/latest")
@@ -133,6 +159,11 @@ async def get_current_price():
 @app.get("/api/gram-candles/{interval}")
 async def get_gram_candles(interval: str):
     """Gram altın OHLC mum verileri"""
+    cache_key = f"gram_candles_{interval}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+    
     interval_map = {
         "15m": 15,
         "1h": 60,
@@ -143,7 +174,7 @@ async def get_gram_candles(interval: str):
     minutes = interval_map.get(interval, 60)
     candles = storage.generate_gram_candles(minutes, 100)
     
-    return {
+    result = {
         "candles": [
             {
                 "timestamp": c.timestamp.isoformat(),
@@ -155,6 +186,9 @@ async def get_gram_candles(interval: str):
             for c in candles
         ]
     }
+    
+    set_cache(cache_key, result)
+    return result
 
 
 @app.get("/api/candles/{interval}")
@@ -187,6 +221,10 @@ async def get_candles(interval: str):
 @app.get("/api/signals/recent")
 async def get_recent_signals():
     """Son 24 saatteki sinyalleri veritabanından al"""
+    cached = get_cached("signals_recent")
+    if cached:
+        return cached
+    
     try:
         # Son 24 saatteki hybrid analizleri al
         with storage.get_connection() as conn:
@@ -230,11 +268,14 @@ async def get_recent_signals():
                         'risk_reward': risk_reward
                     })
             
-            return {
+            result = {
                 'status': 'success',
                 'signals': signals,
                 'count': len(signals)
             }
+            
+            set_cache("signals_recent", result)
+            return result
             
     except Exception as e:
         logger.error(f"Sinyal alma hatası: {str(e)}")
