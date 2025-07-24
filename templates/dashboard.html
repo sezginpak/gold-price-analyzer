@@ -937,10 +937,10 @@
                 // 1 saniye bekle ve verileri yenile
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // Analiz sonrası verileri yenile
+                // Analiz sonrası verileri yenile - sadece mevcut fonksiyonları çağır
                 await Promise.all([
                     loadHybridAnalysis(),
-                    loadPrices(),
+                    loadInitialPrices(),
                     loadStats()
                 ]);
                 
