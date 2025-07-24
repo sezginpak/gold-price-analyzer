@@ -2,7 +2,7 @@
 Gram Altın Analiz Motoru - Ana analiz sistemi
 """
 from typing import List, Dict, Any, Optional, Tuple
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import decimal
 from datetime import datetime, timedelta
 import logging
@@ -383,7 +383,7 @@ class GramAltinAnalyzer:
                 atr_decimal = Decimal("10")  # Varsayılan ATR
             else:
                 atr_decimal = Decimal(str(float(atr)))
-        except (TypeError, ValueError, decimal.InvalidOperation) as e:
+        except (TypeError, ValueError, InvalidOperation) as e:
             logger.warning(f"ATR conversion error: {e}, using default value")
             atr_decimal = Decimal("10")
         
