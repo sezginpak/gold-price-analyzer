@@ -10,6 +10,16 @@
         .negative { color: #ef4444; }
         .log-line { font-family: monospace; font-size: 12px; }
         .error-log { color: #ef4444; }
+        
+        .analysis-summary {
+            white-space: pre-line;
+        }
+        
+        .analysis-summary strong,
+        .analysis-summary b {
+            font-weight: 600;
+            color: #f8fafc;
+        }
     </style>
 {% endblock %}
 
@@ -266,6 +276,13 @@
 
 {% block scripts %}
     <script>
+        // Summary text formatting function
+        function formatSummaryText(text) {
+            if (!text) return '';
+            // Convert **text** to <strong>text</strong>
+            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        }
+        
         // WebSocket bağlantısı
         let ws = null;
         let priceChart = null;
@@ -634,7 +651,7 @@
                                 
                                 <!-- Özet -->
                                 <div class="bg-slate-900/50 rounded p-3">
-                                    <p class="text-sm text-gray-300 leading-relaxed">${analysis.summary}</p>
+                                    <div class="text-sm text-gray-300 leading-relaxed analysis-summary">${formatSummaryText(analysis.summary)}</div>
                                 </div>
                             </div>
                             
@@ -1074,13 +1091,13 @@
                     console.log('✅ Hibrit analiz yüklendi');
                 }, 500);
                 
-                // 3. Grafik verilerini daha sonra yükle (2.5s bekle)
+                // 3. Grafik verilerini daha sonra yükle (1.75s bekle)
                 setTimeout(async () => {
                     const chartData = await Promise.allSettled([
                         loadInitialPrices() // 30 dakikalık grafik verisi
                     ]);
                     console.log('✅ Grafik verileri yüklendi');
-                }, 2500);
+                }, 1750);
                 
                 // 4. En az kritik veriler en son (1.5s bekle)
                 setTimeout(async () => {

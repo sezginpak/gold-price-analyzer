@@ -71,6 +71,93 @@ def set_cache(key: str, data: Any):
     cache[key] = (data, time.time())
 
 
+def format_analysis_summary(analysis: Dict) -> str:
+    """Analiz özetini daha okunabilir hale getir"""
+    try:
+        signal = analysis["signal"]
+        signal_strength = analysis["signal_strength"]
+        confidence = analysis["confidence"]
+        gram_price = analysis["gram_price"]
+        
+        # Global trend ve currency risk bilgileri
+        global_trend = analysis.get("global_trend", {})
+        currency_risk = analysis.get("currency_risk", {})
+        
+        global_direction = global_trend.get("direction", "NEUTRAL")
+        global_strength = global_trend.get("strength", "WEAK")
+        risk_level = currency_risk.get("level", "MEDIUM")
+        
+        # Temel mesaj
+        if signal == "BUY":
+            base_msg = f"🟢 **ALIŞ SİNYALİ** ({signal_strength.lower()} güçte)"
+        elif signal == "SELL":
+            base_msg = f"🔴 **SATIŞ SİNYALİ** ({signal_strength.lower()} güçte)"
+        else:
+            base_msg = f"🟡 **BEKLE** - Henüz uygun giriş noktası yok"
+        
+        # Global durum açıklaması
+        if global_direction == "BULLISH":
+            global_msg = "Global altın piyasası yükseliş trendinde."
+        elif global_direction == "BEARISH":
+            global_msg = "Global altın piyasası düşüş trendinde."
+        else:
+            global_msg = "Global altın piyasası yatay seyrediyor."
+        
+        # Risk değerlendirmesi
+        if risk_level == "LOW":
+            risk_msg = "USD/TRY volatilitesi düşük, işlem riski minimal."
+        elif risk_level == "HIGH":
+            risk_msg = "USD/TRY volatilitesi yüksek, dikkatli olun."
+        else:
+            risk_msg = "USD/TRY volatilitesi orta seviyede."
+        
+        # Güven oranı açıklaması
+        confidence_pct = int(confidence * 100)
+        if confidence_pct >= 75:
+            confidence_msg = f"Analiz güven oranı çok yüksek (%{confidence_pct})."
+        elif confidence_pct >= 60:
+            confidence_msg = f"Analiz güven oranı yüksek (%{confidence_pct})."
+        elif confidence_pct >= 40:
+            confidence_msg = f"Analiz güven oranı orta (%{confidence_pct})."
+        else:
+            confidence_msg = f"Analiz güven oranı düşük (%{confidence_pct}), dikkatli olun."
+        
+        # Öneriler
+        recommendations = []
+        if signal in ["BUY", "SELL"]:
+            if analysis.get("stop_loss"):
+                recommendations.append(f"Stop Loss: ₺{analysis['stop_loss']:.2f}")
+            if analysis.get("take_profit"):
+                recommendations.append(f"Hedef: ₺{analysis['take_profit']:.2f}")
+            
+            # Risk/Ödül oranı
+            risk_reward = analysis.get("risk_reward_ratio", 0)
+            if risk_reward > 0:
+                recommendations.append(f"Risk/Ödül oranı: 1:{risk_reward:.1f}")
+        
+        # Pozisyon boyutu önerisi
+        position_size = analysis.get("position_size", 0)
+        if isinstance(position_size, dict):
+            position_value = position_size.get('lots', 0)
+        else:
+            position_value = position_size
+        
+        if position_value > 0:
+            recommendations.append(f"Önerilen pozisyon: %{position_value*100:.0f}")
+        
+        # Final mesajı birleştir
+        summary_parts = [base_msg, global_msg, risk_msg, confidence_msg]
+        
+        if recommendations:
+            summary_parts.append("💡 **Öneriler:** " + " • ".join(recommendations))
+        
+        return " ".join(summary_parts)
+        
+    except Exception as e:
+        logger.error(f"Summary formatting error: {e}")
+        return analysis.get("summary", "Analiz özeti mevcut değil.")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Ana dashboard sayfası"""
@@ -728,7 +815,7 @@ async def get_analysis_history(timeframe: str = None):
                 "global_trend_strength": analysis["global_trend"]["strength"],
                 "currency_risk": analysis["currency_risk"]["level"],
                 "recommendations": analysis["recommendations"],
-                "summary": analysis["summary"],
+                "summary": format_analysis_summary(analysis),
                 "details": {
                     "gram": {
                         "trend": gram_details.get("trend", "NEUTRAL"),
