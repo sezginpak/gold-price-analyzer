@@ -1,6 +1,6 @@
-# Gold Price Analyzer 🏆
+# Dezy - Gold Price Analyzer 🏆
 
-Altın ve döviz fiyatlarını gerçek zamanlı takip eden, teknik analiz yapan ve alım/satım sinyalleri üreten profesyonel sistem.
+Kuyumcu işletmeleri için geliştirilmiş, altın ve döviz fiyatlarını gerçek zamanlı takip eden, teknik analiz yapan ve alım/satım sinyalleri üreten profesyonel sistem. Dezy kuyumcu uygulamasına entegre edilmek üzere tasarlanmıştır.
 
 ## 🚀 Özellikler
 
@@ -24,8 +24,8 @@ Altın ve döviz fiyatlarını gerçek zamanlı takip eden, teknik analiz yapan 
 
 ### 1. Repository'yi Klonlayın
 ```bash
-git clone https://github.com/YOUR_USERNAME/gold-price-analyzer.git
-cd gold-price-analyzer
+git clone https://github.com/YOUR_USERNAME/dezy-gold-analyzer.git
+cd dezy-gold-analyzer
 ```
 
 ### 2. Python Sanal Ortamı Oluşturun

@@ -28,7 +28,7 @@ logger = setup_logger(
     level="INFO"
 )
 
-app = FastAPI(title="Gold Price Analyzer Dashboard")
+app = FastAPI(title="Dezy - Gold Price Analyzer Dashboard")
 
 # Templates
 templates = Jinja2Templates(directory="templates")

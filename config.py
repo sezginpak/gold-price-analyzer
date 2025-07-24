@@ -1,5 +1,5 @@
 """
-Configuration module for Gold Price Analyzer
+Configuration module for Dezy - Gold Price Analyzer
 """
 import os
 from typing import Optional
