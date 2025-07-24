@@ -266,7 +266,7 @@ class SimulationManager:
             except Exception as e:
                 logger.error(f"Simülasyon {sim_id} işleme hatası: {str(e)}")
     
-    def _is_trading_hours(self, current_time: datetime) -> bool:
+    def _is_trading_hours(self, current_time) -> bool:
         """İşlem saatleri içinde mi?"""
         # GEÇİCİ: Test için trading saatleri kontrolü devre dışı
         return True
@@ -278,7 +278,7 @@ class SimulationManager:
         self,
         sim_id: int,
         config: SimulationConfig,
-        current_time: datetime
+        current_time
     ):
         """Tek bir simülasyonu işle"""
         logger.debug(f"Processing simulation {sim_id}: {config.name}")
