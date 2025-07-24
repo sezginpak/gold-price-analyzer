@@ -94,84 +94,56 @@
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Header -->
-    <div class="glass-card rounded-lg p-6">
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div class="flex-1">
-                <h2 class="text-xl lg:text-2xl font-bold mb-2">
-                    <i class="fas fa-chart-line text-yellow-400 mr-2"></i>
-                    Trading Simülasyonları
-                </h2>
-                <p class="text-sm lg:text-base text-gray-400">Gerçek zamanlı otomatik trading simülasyon sistemi</p>
-            </div>
-            
-            <!-- Anlık Fiyat Göstergesi -->
-            <div class="price-ticker rounded-lg p-3 lg:p-4 text-center w-full lg:w-auto lg:min-w-[200px]">
-                <div class="flex items-center justify-center mb-2">
-                    <span class="live-indicator mr-2"></span>
-                    <span class="text-xs text-gray-400">CANLI</span>
-                </div>
-                <div class="text-gray-400 text-xs lg:text-sm mb-1">Gram Altın</div>
-                <div id="currentPrice" class="text-xl lg:text-2xl font-bold text-yellow-400 slide-in">
-                    <i class="fas fa-spinner fa-spin text-gray-400"></i>
-                </div>
-                <div id="priceChange" class="text-xs lg:text-sm mt-2">
-                    <!-- Fiyat değişimi buraya gelecek -->
-                </div>
-                <div class="text-xs text-gray-500 mt-2" id="lastUpdate">
-                    Son güncelleme: -
-                </div>
-            </div>
+    <!-- Header ve Fiyat Göstergeleri -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <!-- Sol: Başlık ve Açıklama -->
+        <div class="glass-card rounded-lg p-6">
+            <h2 class="text-xl lg:text-2xl font-bold mb-2">
+                <i class="fas fa-chart-line text-yellow-400 mr-2"></i>
+                Trading Simülasyonları
+            </h2>
+            <p class="text-sm lg:text-base text-gray-400">Gerçek zamanlı otomatik trading simülasyon sistemi</p>
         </div>
-    </div>
-    
-    <!-- Fiyat Göstergeleri -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4">
-        <!-- Gram Altın -->
-        <div class="glass-card rounded-lg p-3 lg:p-4 relative overflow-hidden bg-gradient-to-br from-amber-500/5 to-yellow-500/5 border border-amber-500/20">
-            <div class="flex items-center justify-between">
-                <div>
-                    <span class="text-gray-400 text-xs">Gram Altın</span>
-                    <div class="text-lg lg:text-xl font-bold text-amber-400" id="miniGramPrice">-</div>
+        
+        <!-- Orta: Canlı Fiyatlar -->
+        <div class="glass-card rounded-lg p-4 lg:p-6">
+            <div class="grid grid-cols-3 gap-4">
+                <!-- Gram Altın -->
+                <div class="text-center">
+                    <div class="text-xs text-gray-400 mb-1">Gram Altın</div>
+                    <div class="text-lg font-bold text-amber-400" id="miniGramPrice">-</div>
                     <div class="text-xs mt-1" id="miniGramChange">-</div>
                 </div>
-                <i class="fas fa-coins text-2xl lg:text-3xl text-amber-400/20"></i>
-            </div>
-        </div>
-        
-        <!-- ONS/USD -->
-        <div class="glass-card rounded-lg p-3 lg:p-4 relative overflow-hidden bg-gradient-to-br from-blue-500/5 to-indigo-500/5 border border-blue-500/20">
-            <div class="flex items-center justify-between">
-                <div>
-                    <span class="text-gray-400 text-xs">ONS/USD</span>
-                    <div class="text-lg lg:text-xl font-bold text-blue-400" id="miniOnsUsd">-</div>
+                <!-- ONS/USD -->
+                <div class="text-center">
+                    <div class="text-xs text-gray-400 mb-1">ONS/USD</div>
+                    <div class="text-lg font-bold text-blue-400" id="miniOnsUsd">-</div>
                     <div class="text-xs mt-1" id="miniOnsChange">-</div>
                 </div>
-                <i class="fas fa-globe text-2xl lg:text-3xl text-blue-400/20"></i>
-            </div>
-        </div>
-        
-        <!-- USD/TRY -->
-        <div class="glass-card rounded-lg p-3 lg:p-4 relative overflow-hidden bg-gradient-to-br from-emerald-500/5 to-green-500/5 border border-emerald-500/20">
-            <div class="flex items-center justify-between">
-                <div>
-                    <span class="text-gray-400 text-xs">USD/TRY</span>
-                    <div class="text-lg lg:text-xl font-bold text-emerald-400" id="miniUsdTry">-</div>
+                <!-- USD/TRY -->
+                <div class="text-center">
+                    <div class="text-xs text-gray-400 mb-1">USD/TRY</div>
+                    <div class="text-lg font-bold text-emerald-400" id="miniUsdTry">-</div>
                     <div class="text-xs mt-1" id="miniUsdChange">-</div>
                 </div>
-                <i class="fas fa-dollar-sign text-2xl lg:text-3xl text-emerald-400/20"></i>
             </div>
         </div>
         
-        <!-- Son Güncelleme -->
-        <div class="glass-card rounded-lg p-3 lg:p-4 relative overflow-hidden bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20">
-            <div class="flex items-center justify-between">
-                <div>
-                    <span class="text-gray-400 text-xs">Günlük Değişim</span>
-                    <div class="text-lg lg:text-xl font-bold text-purple-400" id="dailyChange">-</div>
-                    <div class="text-xs mt-1 text-gray-400">Son: <span id="lastUpdateTime">-</span></div>
-                </div>
-                <i class="fas fa-chart-line text-2xl lg:text-3xl text-purple-400/20"></i>
+        <!-- Sağ: Canlı Gram Altın -->
+        <div class="price-ticker rounded-lg p-3 lg:p-4 text-center">
+            <div class="flex items-center justify-center mb-2">
+                <span class="live-indicator mr-2"></span>
+                <span class="text-xs text-gray-400">CANLI</span>
+            </div>
+            <div class="text-gray-400 text-xs lg:text-sm mb-1">Gram Altın</div>
+            <div id="currentPrice" class="text-xl lg:text-2xl font-bold text-yellow-400 slide-in">
+                <i class="fas fa-spinner fa-spin text-gray-400"></i>
+            </div>
+            <div id="priceChange" class="text-xs lg:text-sm mt-2">
+                <!-- Fiyat değişimi buraya gelecek -->
+            </div>
+            <div class="text-xs text-gray-500 mt-2" id="lastUpdate">
+                Son güncelleme: -
             </div>
         </div>
     </div>
@@ -321,7 +293,9 @@ async function updateGoldPrice() {
             }
             
             // Mini fiyat kartlarını güncelle
-            updateMiniPriceCards(data);
+            if (typeof updateMiniPriceCards === 'function') {
+                updateMiniPriceCards(data);
+            }
             
             // Son güncelleme zamanı
             const now = new Date();

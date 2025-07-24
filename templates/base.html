@@ -325,8 +325,12 @@
         // Update last update time
         function updateLastUpdateTime() {
             const now = new Date();
-            const trTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
-            const timeStr = trTime.toLocaleTimeString('tr-TR');
+            const timeStr = now.toLocaleTimeString('tr-TR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
             
             const lastUpdate = document.getElementById('last-update');
             const mobileLastUpdate = document.getElementById('mobile-last-update');
