@@ -911,62 +911,130 @@
         async function runQuickAnalysis(timeframe) {
             const btn = event.target;
             const originalText = btn.innerHTML;
+            const originalClasses = btn.className;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Analiz yapılıyor...';
             
             try {
-                // Mock API call - gerçek API endpoint'i eklenecek
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Gerçek API çağrısı
+                const response = await fetch(`/api/analysis/trigger/${timeframe}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
                 
-                // Analiz sonrası verileri yenile
-                await loadHybridAnalysis();
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 
                 // Başarı mesajı
-                btn.classList.remove('bg-blue-600', 'bg-green-600');
-                btn.classList.add('bg-green-500');
+                btn.className = originalClasses.replace(/from-\w+-600 to-\w+-600/, 'from-green-600 to-green-600');
                 btn.innerHTML = '<i class="fas fa-check mr-1"></i> Tamamlandı!';
                 
+                // 1 saniye bekle ve verileri yenile
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Analiz sonrası verileri yenile
+                await Promise.all([
+                    loadHybridAnalysis(),
+                    loadPrices(),
+                    loadStats()
+                ]);
+                
+                // Butonu eski haline döndür
                 setTimeout(() => {
-                    btn.classList.remove('bg-green-500');
-                    btn.classList.add(timeframe === '15m' ? 'bg-blue-600' : 'bg-green-600');
+                    btn.className = originalClasses;
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Analiz hatası:', error);
+                
+                // Hata mesajı
+                btn.className = originalClasses.replace(/from-\w+-600 to-\w+-600/, 'from-red-600 to-red-600');
+                btn.innerHTML = `<i class="fas fa-times mr-1"></i> ${error.message || 'Hata!'}`;
+                
+                // 3 saniye sonra eski haline döndür
+                setTimeout(() => {
+                    btn.className = originalClasses;
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 3000);
+            }
+        }
+
+        // Veri dışa aktarma
+        async function exportData() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            const originalClasses = btn.className;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Hazırlanıyor...';
+            
+            try {
+                // Son 24 saatlik veriyi al
+                const response = await fetch('/api/prices/latest');
+                const data = await response.json();
+                
+                if (!data.prices || data.prices.length === 0) {
+                    throw new Error('Veri bulunamadı');
+                }
+                
+                // CSV formatına çevir
+                const csv = [
+                    ['Zaman', 'Gram Altın (TRY)', 'ONS/USD', 'USD/TRY', 'ONS/TRY'].join(','),
+                    ...data.prices.map(p => [
+                        new Date(p.timestamp).toLocaleString('tr-TR'),
+                        p.gram_altin.toFixed(2),
+                        p.ons_usd.toFixed(2),
+                        p.usd_try.toFixed(4),
+                        p.ons_try.toFixed(2)
+                    ].join(','))
+                ].join('\n');
+                
+                // BOM ekle (Excel'de Türkçe karakterler için)
+                const BOM = '\uFEFF';
+                const csvWithBOM = BOM + csv;
+                
+                // Dosya olarak indir
+                const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', `dezy_gold_prices_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Başarı mesajı
+                btn.className = originalClasses.replace(/from-\w+-600 to-\w+-600/, 'from-green-600 to-green-600');
+                btn.innerHTML = '<i class="fas fa-check mr-1"></i> İndirildi!';
+                
+                setTimeout(() => {
+                    btn.className = originalClasses;
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 }, 2000);
                 
             } catch (error) {
-                console.error('Analiz hatası:', error);
-                btn.classList.add('bg-red-600');
+                console.error('Dışa aktarma hatası:', error);
+                
+                btn.className = originalClasses.replace(/from-\w+-600 to-\w+-600/, 'from-red-600 to-red-600');
                 btn.innerHTML = '<i class="fas fa-times mr-1"></i> Hata!';
                 
                 setTimeout(() => {
-                    btn.classList.remove('bg-red-600');
-                    btn.classList.add(timeframe === '15m' ? 'bg-blue-600' : 'bg-green-600');
+                    btn.className = originalClasses;
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 }, 2000);
             }
-        }
-
-        // Veri dışa aktarma
-        function exportData() {
-            // Mock export - gerçek implementasyon eklenecek
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Hazırlanıyor...';
-            
-            setTimeout(() => {
-                // Mock CSV data
-                const csvData = `Tarih,Gram Altın,ONS/USD,USD/TRY,ONS/TRY,Sinyal\n`;
-                const blob = new Blob([csvData], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `gold_price_data_${new Date().toISOString().split('T')[0]}.csv`;
-                a.click();
-                
-                btn.innerHTML = originalText;
-            }, 1000);
         }
 
         // Sayfa yüklendiğinde

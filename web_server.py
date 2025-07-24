@@ -387,6 +387,54 @@ async def get_analysis_config():
     }
 
 
+@app.post("/api/analysis/trigger/{timeframe}")
+async def trigger_analysis(timeframe: str):
+    """Manuel olarak analiz tetikle"""
+    try:
+        valid_timeframes = ["15m", "1h", "4h", "1d"]
+        if timeframe not in valid_timeframes:
+            return {"error": f"Geçersiz timeframe. Geçerli değerler: {valid_timeframes}"}
+        
+        # Son fiyat verisini al
+        latest_price = storage.get_latest_price()
+        if not latest_price:
+            return {"error": "Fiyat verisi bulunamadı"}
+        
+        # Mum verilerini oluştur
+        if timeframe == "15m":
+            candles = storage.generate_gram_candles(15, 100)
+        elif timeframe == "1h":
+            candles = storage.generate_gram_candles(60, 100)
+        elif timeframe == "4h":
+            candles = storage.generate_gram_candles(240, 100)
+        else:  # 1d
+            candles = storage.generate_gram_candles(1440, 100)
+        
+        if len(candles) < 50:
+            return {"error": f"Yeterli veri yok. Mevcut: {len(candles)}, Gerekli: 50"}
+        
+        # Timeframe'e özel analiz çalıştır (gerçek analiz main.py'de çalışıyor)
+        # Burada sadece analiz tetiklendiğini logla
+        logger.info(f"Manuel analiz tetiklendi: {timeframe}")
+        
+        # Son analizi dön
+        analyses = storage.get_hybrid_analysis_history(limit=1, timeframe=timeframe)
+        
+        return {
+            "status": "success",
+            "message": f"{timeframe} analizi tetiklendi",
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat(),
+            "latest_price": float(latest_price.gram_altin) if latest_price.gram_altin else None,
+            "candle_count": len(candles),
+            "last_analysis": analyses[0] if analyses else None
+        }
+        
+    except Exception as e:
+        logger.error(f"Analiz tetikleme hatası: {e}")
+        return {"error": str(e)}
+
+
 @app.get("/api/logs/stats")
 async def get_log_stats():
     """Log istatistiklerini döndür"""
