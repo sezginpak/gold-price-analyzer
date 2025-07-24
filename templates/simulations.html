@@ -30,6 +30,63 @@
     .neutral {
         color: #94a3b8;
     }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-10px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .slide-in {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    .price-ticker {
+        background: linear-gradient(135deg, #ffd700 0%, #ffa000 100%);
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+    }
+    
+    .pnl-change {
+        transition: all 0.5s ease;
+    }
+    
+    .arrow-up {
+        color: #10b981;
+        animation: bounce 1s ease-in-out;
+    }
+    
+    .arrow-down {
+        color: #f43f5e;
+        animation: bounce 1s ease-in-out;
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+    
+    .live-indicator {
+        width: 8px;
+        height: 8px;
+        background-color: #10b981;
+        border-radius: 50%;
+        display: inline-block;
+        animation: blink 1.5s infinite;
+    }
+    
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
 </style>
 {% endblock %}
 
@@ -37,11 +94,33 @@
 <div class="space-y-6">
     <!-- Header -->
     <div class="glass-card rounded-lg p-6">
-        <h2 class="text-2xl font-bold mb-2">
-            <i class="fas fa-chart-line text-yellow-400 mr-2"></i>
-            Trading Simülasyonları
-        </h2>
-        <p class="text-gray-400">Gerçek zamanlı otomatik trading simülasyon sistemi</p>
+        <div class="flex justify-between items-start">
+            <div>
+                <h2 class="text-2xl font-bold mb-2">
+                    <i class="fas fa-chart-line text-yellow-400 mr-2"></i>
+                    Trading Simülasyonları
+                </h2>
+                <p class="text-gray-400">Gerçek zamanlı otomatik trading simülasyon sistemi</p>
+            </div>
+            
+            <!-- Anlık Fiyat Göstergesi -->
+            <div class="price-ticker rounded-lg p-4 text-center min-w-[200px]">
+                <div class="flex items-center justify-center mb-2">
+                    <span class="live-indicator mr-2"></span>
+                    <span class="text-xs text-gray-100">CANLI</span>
+                </div>
+                <div class="text-gray-100 text-sm mb-1">Gram Altın</div>
+                <div id="currentPrice" class="text-2xl font-bold text-white slide-in">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <div id="priceChange" class="text-sm mt-2 text-gray-100">
+                    <!-- Fiyat değişimi buraya gelecek -->
+                </div>
+                <div class="text-xs text-gray-200 mt-2" id="lastUpdate">
+                    Son güncelleme: -
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- Simülasyon Kartları -->
@@ -140,11 +219,54 @@ let performanceChart = null;
 let distributionChart = null;
 let currentTab = 'open';
 let allPositions = [];
+let previousPnlValues = {}; // Önceki PnL değerlerini sakla
+let currentGoldPrice = 0;
+let previousGoldPrice = 0;
 
 // Chart.js varsayılan ayarları
 Chart.defaults.color = '#94a3b8';
 Chart.defaults.borderColor = '#1e293b';
 Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+// Anlık fiyat güncelleme
+async function updateGoldPrice() {
+    try {
+        const response = await fetch('/api/prices/latest');
+        const data = await response.json();
+        
+        if (data && data.gram_altin) {
+            previousGoldPrice = currentGoldPrice || data.gram_altin;
+            currentGoldPrice = data.gram_altin;
+            
+            // Fiyat göstergesini güncelle
+            const priceElement = document.getElementById('currentPrice');
+            priceElement.innerHTML = `₺${currentGoldPrice.toFixed(2)}`;
+            priceElement.className = 'text-2xl font-bold text-white slide-in';
+            
+            // Fiyat değişimi
+            const change = currentGoldPrice - previousGoldPrice;
+            const changePct = previousGoldPrice ? (change / previousGoldPrice * 100) : 0;
+            
+            const changeElement = document.getElementById('priceChange');
+            if (change !== 0) {
+                const arrow = change > 0 ? '↑' : '↓';
+                const colorClass = change > 0 ? 'text-green-300' : 'text-red-300';
+                changeElement.innerHTML = `
+                    <span class="${colorClass}">
+                        ${arrow} ${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)
+                    </span>
+                `;
+            }
+            
+            // Son güncelleme zamanı
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                `Son güncelleme: ${now.toLocaleTimeString('tr-TR')}`;
+        }
+    } catch (error) {
+        console.error('Fiyat güncelleme hatası:', error);
+    }
+}
 
 // Simülasyonları yükle
 async function loadSimulations() {
@@ -472,10 +594,18 @@ function updatePerformanceChart(performance) {
 function displayPriceColumn(pos) {
     if (pos.status === 'CLOSED') {
         return `${pos.exit_price.toFixed(2)}`;
-    } else if (pos.current_price) {
-        const priceChange = pos.current_price - pos.entry_price;
+    } else if (currentGoldPrice > 0) {
+        // Canlı fiyat kullan
+        const priceChange = currentGoldPrice - pos.entry_price;
         const priceClass = priceChange >= 0 ? 'text-green-400' : 'text-red-400';
-        return `<span class="${priceClass}">${pos.current_price.toFixed(2)}</span>`;
+        return `
+            <div class="text-right">
+                <span class="${priceClass} font-medium">${currentGoldPrice.toFixed(2)}</span>
+                <div class="text-xs ${priceClass} opacity-75">
+                    ${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}
+                </div>
+            </div>
+        `;
     }
     return '-';
 }
@@ -500,9 +630,27 @@ function displayPnL(pos) {
     const sign_gram = pnl_gram >= 0 ? '+' : '';
     const pnlClass = pnl_tl >= 0 ? 'positive' : 'negative';
     
+    // Önceki değerle karşılaştır
+    const posKey = `${pos.id}_${pos.sim_name}`;
+    let changeIndicator = '';
+    
+    if (pos.status === 'OPEN' && previousPnlValues[posKey] !== undefined) {
+        const prevValue = previousPnlValues[posKey];
+        if (pnl_tl > prevValue) {
+            changeIndicator = '<i class="fas fa-arrow-up arrow-up ml-1"></i>';
+        } else if (pnl_tl < prevValue) {
+            changeIndicator = '<i class="fas fa-arrow-down arrow-down ml-1"></i>';
+        }
+    }
+    
+    // Değeri sakla
+    previousPnlValues[posKey] = pnl_tl;
+    
     return `
-        <div class="text-right ${pnlClass}">
-            <div class="font-semibold">${sign_tl}${pnl_tl.toFixed(2)} ₺</div>
+        <div class="text-right ${pnlClass} pnl-change">
+            <div class="font-semibold">
+                ${sign_tl}${pnl_tl.toFixed(2)} ₺ ${changeIndicator}
+            </div>
             <div class="text-xs">${sign_gram}${pnl_gram.toFixed(3)}g</div>
             <div class="text-xs opacity-75">${sign_tl}${pnlPct.toFixed(2)}%</div>
         </div>
@@ -513,11 +661,21 @@ function displayPnL(pos) {
 document.addEventListener('DOMContentLoaded', function() {
     loadSimulations();
     loadDistributionChart();
+    updateGoldPrice(); // İlk fiyat güncellemesi
     
-    // Her 30 saniyede bir güncelle
+    // Fiyat güncellemeleri - 5 saniyede bir
+    setInterval(() => {
+        updateGoldPrice();
+    }, 5000);
+    
+    // Pozisyon güncellemeleri - 10 saniyede bir
+    setInterval(() => {
+        loadPositions();
+    }, 10000);
+    
+    // Simülasyon güncellemeleri - 30 saniyede bir
     setInterval(() => {
         loadSimulations();
-        loadPositions();
     }, 30000);
 });
 </script>
