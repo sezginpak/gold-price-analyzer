@@ -204,8 +204,7 @@ async def get_recent_signals():
                     stop_loss,
                     take_profit,
                     position_size,
-                    risk_reward,
-                    analysis_details
+                    risk_reward_ratio
                 FROM hybrid_analysis
                 WHERE timestamp > ?
                 ORDER BY timestamp DESC
@@ -214,7 +213,7 @@ async def get_recent_signals():
             
             signals = []
             for row in cursor.fetchall():
-                timestamp, timeframe, signal, confidence, gram_price, stop_loss, take_profit, position_size, risk_reward, details = row
+                timestamp, timeframe, signal, confidence, gram_price, stop_loss, take_profit, position_size, risk_reward = row
                 
                 # Sadece BUY/SELL sinyallerini al (HOLD hariç)
                 if signal in ['BUY', 'SELL']:
