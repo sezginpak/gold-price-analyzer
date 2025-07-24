@@ -125,6 +125,57 @@
         </div>
     </div>
     
+    <!-- Fiyat Göstergeleri -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4">
+        <!-- Gram Altın -->
+        <div class="glass-card rounded-lg p-3 lg:p-4 relative overflow-hidden bg-gradient-to-br from-amber-500/5 to-yellow-500/5 border border-amber-500/20">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-gray-400 text-xs">Gram Altın</span>
+                    <div class="text-lg lg:text-xl font-bold text-amber-400" id="miniGramPrice">-</div>
+                    <div class="text-xs mt-1" id="miniGramChange">-</div>
+                </div>
+                <i class="fas fa-coins text-2xl lg:text-3xl text-amber-400/20"></i>
+            </div>
+        </div>
+        
+        <!-- ONS/USD -->
+        <div class="glass-card rounded-lg p-3 lg:p-4 relative overflow-hidden bg-gradient-to-br from-blue-500/5 to-indigo-500/5 border border-blue-500/20">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-gray-400 text-xs">ONS/USD</span>
+                    <div class="text-lg lg:text-xl font-bold text-blue-400" id="miniOnsUsd">-</div>
+                    <div class="text-xs mt-1" id="miniOnsChange">-</div>
+                </div>
+                <i class="fas fa-globe text-2xl lg:text-3xl text-blue-400/20"></i>
+            </div>
+        </div>
+        
+        <!-- USD/TRY -->
+        <div class="glass-card rounded-lg p-3 lg:p-4 relative overflow-hidden bg-gradient-to-br from-emerald-500/5 to-green-500/5 border border-emerald-500/20">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-gray-400 text-xs">USD/TRY</span>
+                    <div class="text-lg lg:text-xl font-bold text-emerald-400" id="miniUsdTry">-</div>
+                    <div class="text-xs mt-1" id="miniUsdChange">-</div>
+                </div>
+                <i class="fas fa-dollar-sign text-2xl lg:text-3xl text-emerald-400/20"></i>
+            </div>
+        </div>
+        
+        <!-- Son Güncelleme -->
+        <div class="glass-card rounded-lg p-3 lg:p-4 relative overflow-hidden bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-gray-400 text-xs">Günlük Değişim</span>
+                    <div class="text-lg lg:text-xl font-bold text-purple-400" id="dailyChange">-</div>
+                    <div class="text-xs mt-1 text-gray-400">Son: <span id="lastUpdateTime">-</span></div>
+                </div>
+                <i class="fas fa-chart-line text-2xl lg:text-3xl text-purple-400/20"></i>
+            </div>
+        </div>
+    </div>
+    
     <!-- Simülasyon Kartları -->
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="simulationCards">
         <!-- JavaScript ile doldurulacak -->
@@ -230,6 +281,13 @@ Chart.defaults.color = '#94a3b8';
 Chart.defaults.borderColor = '#1e293b';
 Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
 
+// Günlük açılış fiyatlarını sakla
+let dailyOpenPrices = {
+    gram_altin: null,
+    ons_usd: null,
+    usd_try: null
+};
+
 // Anlık fiyat güncelleme
 async function updateGoldPrice() {
     try {
@@ -242,7 +300,7 @@ async function updateGoldPrice() {
             previousGoldPrice = currentGoldPrice || newPrice;
             currentGoldPrice = newPrice;
             
-            // Fiyat göstergesini güncelle
+            // Ana fiyat göstergesini güncelle
             const priceElement = document.getElementById('currentPrice');
             priceElement.innerHTML = `₺${currentGoldPrice.toFixed(2)}`;
             priceElement.className = 'text-xl lg:text-2xl font-bold text-yellow-400 slide-in';
@@ -262,10 +320,15 @@ async function updateGoldPrice() {
                 `;
             }
             
+            // Mini fiyat kartlarını güncelle
+            updateMiniPriceCards(data);
+            
             // Son güncelleme zamanı
             const now = new Date();
             document.getElementById('lastUpdate').textContent = 
                 `Son güncelleme: ${now.toLocaleTimeString('tr-TR')}`;
+            document.getElementById('lastUpdateTime').textContent = 
+                now.toLocaleTimeString('tr-TR');
         } else if (data && data.error) {
             document.getElementById('currentPrice').innerHTML = 
                 '<span class="text-sm">Veri bekleniyor...</span>';
@@ -275,6 +338,43 @@ async function updateGoldPrice() {
         document.getElementById('currentPrice').innerHTML = 
             '<span class="text-sm">Bağlantı hatası</span>';
     }
+}
+
+// Mini fiyat kartlarını güncelle
+function updateMiniPriceCards(data) {
+    // Günlük açılış fiyatlarını ayarla (ilk veri geldiğinde)
+    if (!dailyOpenPrices.gram_altin) {
+        dailyOpenPrices.gram_altin = data.gram_altin;
+        dailyOpenPrices.ons_usd = data.ons_usd;
+        dailyOpenPrices.usd_try = data.usd_try;
+    }
+    
+    // Gram Altın
+    document.getElementById('miniGramPrice').textContent = `₺${data.gram_altin.toFixed(2)}`;
+    const gramChange = ((data.gram_altin - dailyOpenPrices.gram_altin) / dailyOpenPrices.gram_altin * 100);
+    const gramChangeEl = document.getElementById('miniGramChange');
+    gramChangeEl.className = `text-xs mt-1 ${gramChange >= 0 ? 'text-green-400' : 'text-red-400'}`;
+    gramChangeEl.innerHTML = `${gramChange >= 0 ? '↑' : '↓'} ${gramChange >= 0 ? '+' : ''}${gramChange.toFixed(2)}%`;
+    
+    // ONS/USD
+    document.getElementById('miniOnsUsd').textContent = `$${data.ons_usd.toFixed(2)}`;
+    const onsChange = ((data.ons_usd - dailyOpenPrices.ons_usd) / dailyOpenPrices.ons_usd * 100);
+    const onsChangeEl = document.getElementById('miniOnsChange');
+    onsChangeEl.className = `text-xs mt-1 ${onsChange >= 0 ? 'text-green-400' : 'text-red-400'}`;
+    onsChangeEl.innerHTML = `${onsChange >= 0 ? '↑' : '↓'} ${onsChange >= 0 ? '+' : ''}${onsChange.toFixed(2)}%`;
+    
+    // USD/TRY
+    document.getElementById('miniUsdTry').textContent = `₺${data.usd_try.toFixed(4)}`;
+    const usdChange = ((data.usd_try - dailyOpenPrices.usd_try) / dailyOpenPrices.usd_try * 100);
+    const usdChangeEl = document.getElementById('miniUsdChange');
+    usdChangeEl.className = `text-xs mt-1 ${usdChange >= 0 ? 'text-green-400' : 'text-red-400'}`;
+    usdChangeEl.innerHTML = `${usdChange >= 0 ? '↑' : '↓'} ${usdChange >= 0 ? '+' : ''}${usdChange.toFixed(2)}%`;
+    
+    // Genel günlük değişim
+    const avgChange = (gramChange + onsChange + usdChange) / 3;
+    const dailyChangeEl = document.getElementById('dailyChange');
+    dailyChangeEl.className = `text-lg lg:text-xl font-bold ${avgChange >= 0 ? 'text-green-400' : 'text-red-400'}`;
+    dailyChangeEl.textContent = `${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%`;
 }
 
 // Simülasyonları yükle
