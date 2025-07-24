@@ -9,7 +9,7 @@ from datetime import timedelta, time
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
-from utils.timezone import now, utc_now, to_turkey_time
+from utils.timezone import now, utc_now, to_turkey_time, get_day_start
 
 from models.simulation import (
     SimulationConfig, SimulationPosition, SimulationStatus,
@@ -412,7 +412,7 @@ class SimulationManager:
             # Günlük risk kontrolü
             with self.storage.get_connection() as conn:
                 cursor = conn.cursor()
-                today = datetime.now().date()
+                today = now().date()
                 
                 cursor.execute("""
                     SELECT daily_pnl_pct FROM sim_daily_performance
@@ -466,7 +466,7 @@ class SimulationManager:
                 timeframe=timeframe,
                 position_type="LONG" if signal_data['signal'] == 'BUY' else "SHORT",
                 status=PositionStatus.OPEN,
-                entry_time=datetime.now(),
+                entry_time=now(),
                 entry_price=current_price,
                 entry_spread=spread_cost,
                 entry_commission=commission,
@@ -485,7 +485,7 @@ class SimulationManager:
             # Timeframe sermayesini güncelle
             tf_capital.in_position = True
             tf_capital.open_position_id = position_id
-            tf_capital.last_trade_time = datetime.now()
+            tf_capital.last_trade_time = now()
             
             # Timeframe capital'i veritabanında güncelle
             await self._update_timeframe_capital(sim_id, timeframe, tf_capital)
@@ -599,7 +599,7 @@ class SimulationManager:
             
             # Pozisyonu güncelle
             position.status = PositionStatus.CLOSED
-            position.exit_time = datetime.now()
+            position.exit_time = now()
             position.exit_price = exit_price
             position.exit_spread = exit_spread
             position.exit_commission = exit_commission
@@ -775,7 +775,7 @@ class SimulationManager:
                 open_positions = cursor.fetchone()[0]
                 
                 # Günlük performans
-                today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                today_start = get_day_start()
                 cursor.execute("""
                     SELECT COUNT(*), SUM(net_profit_loss)
                     FROM sim_positions
@@ -807,7 +807,7 @@ class SimulationManager:
                 avg_win_loss_ratio=sim_data['avg_win'] / sim_data['avg_loss'] if sim_data['avg_loss'] > 0 else 0,
                 start_date=datetime.fromisoformat(sim_data['start_date']),
                 last_update=datetime.fromisoformat(sim_data['last_update']),
-                running_days=(datetime.now() - datetime.fromisoformat(sim_data['start_date'])).days,
+                running_days=(now() - datetime.fromisoformat(sim_data['start_date'])).days,
                 daily_pnl=Decimal(str(daily_pnl or 0)),
                 daily_pnl_pct=float(daily_pnl or 0) / float(sim_data['current_capital']) * 100,
                 daily_trades=daily_trades or 0,
