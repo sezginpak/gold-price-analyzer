@@ -19,7 +19,10 @@ from utils.constants import (
     SignalType, RiskLevel, StrengthLevel,
     SIGNAL_STRENGTH_MULTIPLIERS, 
     RISK_POSITION_MULTIPLIERS,
-    CONFIDENCE_POSITION_MULTIPLIERS
+    CONFIDENCE_POSITION_MULTIPLIERS,
+    MIN_CONFIDENCE_THRESHOLDS,
+    MIN_VOLATILITY_THRESHOLD,
+    GLOBAL_TREND_MISMATCH_PENALTY
 )
 
 logger = logging.getLogger(__name__)
@@ -49,7 +52,7 @@ class HybridStrategy:
         }
     
     def analyze(self, gram_candles: List[GramAltinCandle], 
-                market_data: List[MarketData]) -> Dict[str, Any]:
+                market_data: List[MarketData], timeframe: str = "15m") -> Dict[str, Any]:
         """
         Tüm analizleri birleştirerek nihai sinyal üret
         
@@ -87,10 +90,15 @@ class HybridStrategy:
             # 5. Pattern tanıma
             pattern_analysis = self._analyze_patterns(gram_candles)
             
-            # 6. Sinyalleri birleştir
+            # 6. Volatilite kontrolü
+            current_price = float(gram_analysis.get('price', 0))
+            atr_value = gram_analysis.get('indicators', {}).get('atr', 1.0)
+            market_volatility = (atr_value / current_price * 100) if current_price > 0 else 0
+            
+            # 7. Sinyalleri birleştir
             combined_signal = self._combine_signals(
                 gram_analysis, global_analysis, currency_analysis,
-                advanced_indicators, pattern_analysis
+                advanced_indicators, pattern_analysis, timeframe, market_volatility
             )
             
             # 7. Kelly Criterion ile pozisyon boyutu hesapla
@@ -140,7 +148,8 @@ class HybridStrategy:
             return self._empty_result()
     
     def _combine_signals(self, gram: Dict, global_trend: Dict, 
-                        currency: Dict, advanced: Dict, patterns: Dict) -> Dict[str, Any]:
+                        currency: Dict, advanced: Dict, patterns: Dict, 
+                        timeframe: str, market_volatility: float) -> Dict[str, Any]:
         """Sinyalleri birleştir - Gelişmiş göstergeler ve pattern'ler dahil"""
         # Temel sinyaller
         gram_signal = gram.get("signal", "HOLD")
@@ -250,20 +259,43 @@ class HybridStrategy:
         
         logger.info(f"Confidence calculation: gram={gram_confidence:.3f}, score={score_confidence:.3f}, final={normalized_confidence:.3f}")
         
-        # Sinyal gücü
-        if final_signal != "HOLD":
-            strength = self._calculate_signal_strength(
-                normalized_confidence, global_direction, risk_level
-            )
+        # Volatilite filtresi
+        if market_volatility < MIN_VOLATILITY_THRESHOLD and final_signal != "HOLD":
+            logger.info(f"Volatility too low ({market_volatility:.2f}% < {MIN_VOLATILITY_THRESHOLD}%), converting to HOLD")
+            final_signal = "HOLD"
+            strength = "WEAK"
+        # Timeframe bazlı güven eşiği kontrolü
+        elif final_signal != "HOLD":
+            min_confidence = MIN_CONFIDENCE_THRESHOLDS.get(timeframe, 0.5)
+            if normalized_confidence < min_confidence:
+                logger.info(f"Confidence below threshold for {timeframe}: {normalized_confidence:.3f} < {min_confidence}")
+                final_signal = "HOLD"
+                strength = "WEAK"
+            else:
+                strength = self._calculate_signal_strength(
+                    normalized_confidence, global_direction, risk_level
+                )
         else:
             strength = "WEAK"
+        
+        # Global trend uyumsuzluk cezası
+        if final_signal != "HOLD":
+            # BUY sinyal ama global trend BEARISH
+            if final_signal == "BUY" and global_direction == "BEARISH":
+                normalized_confidence *= GLOBAL_TREND_MISMATCH_PENALTY
+                logger.info(f"Global trend mismatch penalty applied: confidence reduced to {normalized_confidence:.3f}")
+            # SELL sinyal ama global trend BULLISH
+            elif final_signal == "SELL" and global_direction == "BULLISH":
+                normalized_confidence *= GLOBAL_TREND_MISMATCH_PENALTY
+                logger.info(f"Global trend mismatch penalty applied: confidence reduced to {normalized_confidence:.3f}")
         
         return {
             "signal": final_signal,
             "confidence": normalized_confidence,
             "strength": strength,
             "scores": signal_scores,
-            "raw_confidence": signal_scores[final_signal]
+            "raw_confidence": signal_scores[final_signal],
+            "market_volatility": market_volatility
         }
     
     def _calculate_signal_strength(self, score: float, trend: str, risk: str) -> str:

@@ -116,10 +116,10 @@ class HybridGoldAnalyzer:
                 for candle in gram_candles
             ]
             
-            # Hibrit analiz
-            analysis_result = self.strategy.analyze(gram_candle_models, market_data)
+            # Hibrit analiz - timeframe parametresi ile
+            analysis_result = self.strategy.analyze(gram_candle_models, market_data, timeframe)
             
-            # Timeframe ekle
+            # Timeframe ekle (yedek)
             analysis_result["timeframe"] = timeframe
             
             # Sonucu kaydet

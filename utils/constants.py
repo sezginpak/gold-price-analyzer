@@ -89,3 +89,17 @@ INTERVAL_MINUTES_TO_STR: Dict[int, str] = {
     240: "4h",
     1440: "1d"
 }
+
+# Timeframe bazlı minimum güven eşikleri
+MIN_CONFIDENCE_THRESHOLDS: Dict[str, float] = {
+    "15m": 0.65,  # %65 - Kısa vadeli gürültüyü azaltmak için yüksek
+    "1h": 0.55,   # %55 - Orta vade dengesi
+    "4h": 0.50,   # %50 - Uzun vade için daha toleranslı
+    "1d": 0.45    # %45 - Günlük trendler için en toleranslı
+}
+
+# Minimum volatilite eşiği (%)
+MIN_VOLATILITY_THRESHOLD = 0.5  # %0.5'ten düşük volatilitede sinyal üretme
+
+# Global trend uyumsuzluk cezası
+GLOBAL_TREND_MISMATCH_PENALTY = 0.7  # Güven skoru %70'e düşer

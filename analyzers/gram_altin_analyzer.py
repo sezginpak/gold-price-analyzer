@@ -83,7 +83,8 @@ class GramAltinAnalyzer:
                 stochastic=stoch_result,
                 trend=trend,
                 trend_strength=trend_strength,
-                patterns=patterns
+                patterns=patterns,
+                resistance_levels=resistance_levels
             )
             
             # Risk hesaplama
@@ -248,6 +249,33 @@ class GramAltinAnalyzer:
                 sell_signals += 2
             total_weight += 2
         
+        # SELL sinyalı için ek kriterler
+        # RSI değerini kontrol et
+        if rsi_value is not None:
+            if rsi_value > 70:  # Aşırı alım
+                sell_signals += 1.5
+                total_weight += 1.5
+            elif rsi_value > 80:  # Kuvvetli aşırı alım
+                sell_signals += 1
+                total_weight += 1
+        
+        # MACD histogram negatif mi?
+        macd_hist = macd.get("histogram", 0)
+        if macd_hist is not None and macd_hist < 0:
+            sell_signals += 1
+            total_weight += 1
+            
+        # Fiyat direnç seviyesinde mi?
+        current_price = kwargs.get("current_price")
+        resistances = kwargs.get("resistance_levels", [])
+        if current_price and resistances:
+            for res in resistances[:2]:  # En yakın 2 direnç
+                price_diff = abs(float(current_price - res.level) / float(res.level))
+                if price_diff < 0.005:  # %0.5'ten yakın
+                    sell_signals += 1.5
+                    total_weight += 1.5
+                    break
+        
         # Trend uyumu
         trend = kwargs["trend"]
         if trend == TrendType.BULLISH and buy_signals > sell_signals:
@@ -264,7 +292,7 @@ class GramAltinAnalyzer:
             if trend == TrendType.BULLISH:
                 base_confidence = min(base_confidence * 1.2, 1.0)
             confidence = base_confidence
-        elif sell_signals > buy_signals and sell_signals >= total_weight * 0.25:  # %25 eşik
+        elif sell_signals > buy_signals and sell_signals >= total_weight * 0.35:  # %35 eşik - SELL sinyali için arttırıldı
             signal = "SELL"
             # BUY/SELL için basit güven hesabı
             base_confidence = sell_signals / total_weight
@@ -389,13 +417,13 @@ class GramAltinAnalyzer:
             atr_decimal = Decimal("10")
         
         if signal == "BUY":
-            # Stop Loss: En yakın desteğin altı veya ATR bazlı
+            # Stop Loss: En yakın desteğin altı veya ATR bazlı - ATR çarpanı 1.5'e çıkarıldı
             if support_levels:
                 sl_from_support = support_levels[0].level * Decimal("0.995")
-                sl_from_atr = current_price - (atr_decimal * 2)
+                sl_from_atr = current_price - (atr_decimal * Decimal("1.5"))
                 stop_loss = max(sl_from_support, sl_from_atr)  # Daha güvenli olanı seç
             else:
-                stop_loss = current_price - (atr_decimal * 2)
+                stop_loss = current_price - (atr_decimal * Decimal("1.5"))
             
             # Take Profit: Dinamik hesaplama
             # 1. Resistance varsa ve makul mesafedeyse kullan
@@ -406,24 +434,39 @@ class GramAltinAnalyzer:
                 
                 # Eğer resistance çok uzaksa (fiyatın %2'sinden fazla) ATR bazlı hesapla
                 if resistance_distance > Decimal("0.02"):
-                    take_profit = current_price + (atr_decimal * 3)
-                    logger.info(f"Resistance too far ({resistance_distance:.1%}), using ATR-based TP")
+                    # Volatiliteye göre dinamik TP çarpanı
+                    volatility = float(atr_decimal) / float(current_price) * 100
+                    if volatility < 0.5:  # Düşük volatilite
+                        tp_multiplier = Decimal("2.0")
+                    elif volatility > 1.0:  # Yüksek volatilite
+                        tp_multiplier = Decimal("3.5")
+                    else:
+                        tp_multiplier = Decimal("2.5")
+                    take_profit = current_price + (atr_decimal * tp_multiplier)
+                    logger.info(f"Resistance too far ({resistance_distance:.1%}), using dynamic ATR-based TP (vol={volatility:.2f}%, mult={tp_multiplier})")
                 else:
                     take_profit = nearest_resistance * Decimal("0.995")
                     logger.info(f"Using resistance-based TP at {take_profit}")
             else:
-                # Resistance yoksa ATR bazlı
-                take_profit = current_price + (atr_decimal * 3)
+                # Resistance yoksa volatilite bazlı dinamik TP
+                volatility = float(atr_decimal) / float(current_price) * 100
+                if volatility < 0.5:
+                    tp_multiplier = Decimal("2.0")
+                elif volatility > 1.0:
+                    tp_multiplier = Decimal("3.5")
+                else:
+                    tp_multiplier = Decimal("2.5")
+                take_profit = current_price + (atr_decimal * tp_multiplier)
                 logger.debug(f"No resistance found, using ATR-based TP")
                 
         else:  # SELL
-            # Stop Loss: En yakın direncin üstü veya ATR bazlı
+            # Stop Loss: En yakın direncin üstü veya ATR bazlı - ATR çarpanı 1.5'e çıkarıldı
             if resistance_levels:
                 sl_from_resistance = resistance_levels[0].level * Decimal("1.005")
-                sl_from_atr = current_price + (atr_decimal * 2)
+                sl_from_atr = current_price + (atr_decimal * Decimal("1.5"))
                 stop_loss = min(sl_from_resistance, sl_from_atr)
             else:
-                stop_loss = current_price + (atr_decimal * 2)
+                stop_loss = current_price + (atr_decimal * Decimal("1.5"))
             
             # Take Profit: Dinamik hesaplama
             if support_levels:
@@ -432,13 +475,29 @@ class GramAltinAnalyzer:
                 
                 # Eğer destek çok uzaksa ATR bazlı hesapla
                 if support_distance > Decimal("0.02"):
-                    take_profit = current_price - (atr_decimal * 3)
-                    logger.debug(f"Support too far ({support_distance:.1%}), using ATR-based TP")
+                    # Volatiliteye göre dinamik TP çarpanı
+                    volatility = float(atr_decimal) / float(current_price) * 100
+                    if volatility < 0.5:
+                        tp_multiplier = Decimal("2.0")
+                    elif volatility > 1.0:
+                        tp_multiplier = Decimal("3.5")
+                    else:
+                        tp_multiplier = Decimal("2.5")
+                    take_profit = current_price - (atr_decimal * tp_multiplier)
+                    logger.debug(f"Support too far ({support_distance:.1%}), using dynamic ATR-based TP (vol={volatility:.2f}%, mult={tp_multiplier})")
                 else:
                     take_profit = nearest_support * Decimal("1.005")
                     logger.debug(f"Using support-based TP at {take_profit}")
             else:
-                take_profit = current_price - (atr_decimal * 3)
+                # Support yoksa volatilite bazlı dinamik TP
+                volatility = float(atr_decimal) / float(current_price) * 100
+                if volatility < 0.5:
+                    tp_multiplier = Decimal("2.0")
+                elif volatility > 1.0:
+                    tp_multiplier = Decimal("3.5")
+                else:
+                    tp_multiplier = Decimal("2.5")
+                take_profit = current_price - (atr_decimal * tp_multiplier)
                 logger.debug(f"No support found, using ATR-based TP")
         
         # Risk/Reward kontrolü - minimum 1.5:1 olmalı
