@@ -37,7 +37,7 @@ from utils import timezone
 logger = logging.getLogger(__name__)
 
 class DivergenceDetector:
-    """RSI ve MACD divergence tespiti"""
+    """Tüm göstergeler için divergence tespiti ve skorlama"""
     
     def __init__(self, lookback_period: int = 5, min_swing_strength: float = 0.02):
         """
@@ -47,6 +47,15 @@ class DivergenceDetector:
         """
         self.lookback_period = lookback_period
         self.min_swing_strength = min_swing_strength
+        
+        # Divergence skorlama ağırlıkları
+        self.divergence_weights = {
+            'RSI': 2,
+            'MACD': 3,
+            'Stochastic': 2,
+            'MFI': 2,
+            'CCI': 1
+        }
     
     def detect_rsi_divergence(self, prices: List[float], rsi_values: List[float]) -> Dict[str, Any]:
         """
@@ -307,6 +316,147 @@ class DivergenceDetector:
         # Implementation için regular divergence'a benzer mantık
         # Ancak ters koşullar aranır
         pass  # TODO: Implement
+    
+    def divergence_scoring_system(self, candles: List, indicators: Dict) -> Dict[str, Any]:
+        """
+        Tüm göstergelerin divergence'larını puanlar ve birleştirir
+        
+        Returns:
+            {
+                'total_score': float (0-10),
+                'divergence_type': str (BULLISH/BEARISH/NONE),
+                'divergences_found': Dict[str, Dict],
+                'strength': str (STRONG/MODERATE/WEAK),
+                'confidence': float (0-1),
+                'recommendation': str
+            }
+        """
+        divergences_found = {}
+        bullish_score = 0
+        bearish_score = 0
+        
+        # Fiyat verisi hazırla
+        prices = [float(c.close) for c in candles]
+        
+        # 1. RSI Divergence
+        if 'rsi' in indicators and indicators['rsi'] is not None:
+            rsi_div = self.detect_rsi_divergence(prices, indicators['rsi_values'])
+            if rsi_div['bullish_divergence']:
+                bullish_score += self.divergence_weights['RSI']
+                divergences_found['RSI'] = {'type': 'bullish', 'strength': rsi_div['divergence_strength']}
+            elif rsi_div['bearish_divergence']:
+                bearish_score += self.divergence_weights['RSI']
+                divergences_found['RSI'] = {'type': 'bearish', 'strength': rsi_div['divergence_strength']}
+        
+        # 2. MACD Divergence
+        if 'macd' in indicators and indicators['macd'].get('histogram') is not None:
+            macd_div = self._detect_macd_divergence(prices, indicators['macd']['histogram_values'])
+            if macd_div['bullish']:
+                bullish_score += self.divergence_weights['MACD']
+                divergences_found['MACD'] = {'type': 'bullish', 'strength': macd_div['strength']}
+            elif macd_div['bearish']:
+                bearish_score += self.divergence_weights['MACD']
+                divergences_found['MACD'] = {'type': 'bearish', 'strength': macd_div['strength']}
+        
+        # 3. Stochastic Divergence
+        if 'stochastic' in indicators and indicators['stochastic'].get('k') is not None:
+            stoch_div = self._detect_stochastic_divergence(prices, indicators['stochastic']['k_values'])
+            if stoch_div['bullish']:
+                bullish_score += self.divergence_weights['Stochastic']
+                divergences_found['Stochastic'] = {'type': 'bullish', 'strength': stoch_div['strength']}
+            elif stoch_div['bearish']:
+                bearish_score += self.divergence_weights['Stochastic']
+                divergences_found['Stochastic'] = {'type': 'bearish', 'strength': stoch_div['strength']}
+        
+        # 4. MFI Divergence (volume simülasyonu ile)
+        if 'mfi' in indicators and indicators['mfi'].get('value') is not None:
+            mfi_div = self._detect_mfi_divergence(prices, indicators['mfi']['values'])
+            if mfi_div['bullish']:
+                bullish_score += self.divergence_weights['MFI']
+                divergences_found['MFI'] = {'type': 'bullish', 'strength': mfi_div['strength']}
+            elif mfi_div['bearish']:
+                bearish_score += self.divergence_weights['MFI']
+                divergences_found['MFI'] = {'type': 'bearish', 'strength': mfi_div['strength']}
+        
+        # 5. CCI Divergence
+        if 'cci' in indicators and indicators['cci'].get('value') is not None:
+            cci_div = self._detect_cci_divergence(prices, indicators['cci']['values'])
+            if cci_div['bullish']:
+                bullish_score += self.divergence_weights['CCI']
+                divergences_found['CCI'] = {'type': 'bullish', 'strength': cci_div['strength']}
+            elif cci_div['bearish']:
+                bearish_score += self.divergence_weights['CCI']
+                divergences_found['CCI'] = {'type': 'bearish', 'strength': cci_div['strength']}
+        
+        # Toplam skor ve tip belirleme
+        total_score = max(bullish_score, bearish_score)
+        divergence_type = 'NONE'
+        
+        if bullish_score > bearish_score and bullish_score >= 3:
+            divergence_type = 'BULLISH'
+        elif bearish_score > bullish_score and bearish_score >= 3:
+            divergence_type = 'BEARISH'
+        
+        # Güç belirleme
+        if total_score >= 6:
+            strength = 'STRONG'
+        elif total_score >= 4:
+            strength = 'MODERATE'
+        elif total_score >= 2:
+            strength = 'WEAK'
+        else:
+            strength = 'NONE'
+        
+        # Güven skoru
+        max_possible_score = sum(self.divergence_weights.values())
+        confidence = total_score / max_possible_score if max_possible_score > 0 else 0
+        
+        # Öneri
+        if strength == 'STRONG':
+            if divergence_type == 'BULLISH':
+                recommendation = "GÜÇLÜ ALIŞ - Çoklu bullish divergence tespit edildi"
+            elif divergence_type == 'BEARISH':
+                recommendation = "GÜÇLÜ SATIŞ - Çoklu bearish divergence tespit edildi"
+            else:
+                recommendation = "BEKLE - Karışık sinyaller"
+        elif strength == 'MODERATE':
+            if divergence_type == 'BULLISH':
+                recommendation = "DİKKATLİ ALIŞ - Orta güçte bullish divergence"
+            elif divergence_type == 'BEARISH':
+                recommendation = "DİKKATLİ SATIŞ - Orta güçte bearish divergence"
+            else:
+                recommendation = "BEKLE - Yeterli güç yok"
+        else:
+            recommendation = "BEKLE - Divergence sinyali zayıf veya yok"
+        
+        return {
+            'total_score': total_score,
+            'divergence_type': divergence_type,
+            'divergences_found': divergences_found,
+            'strength': strength,
+            'confidence': confidence,
+            'recommendation': recommendation,
+            'bullish_score': bullish_score,
+            'bearish_score': bearish_score
+        }
+    
+    # Yardımcı metodlar (basitleştirilmiş örnekler)
+    def _detect_macd_divergence(self, prices: List[float], macd_hist_values: List[float]) -> Dict:
+        """MACD histogram divergence tespiti"""
+        # Basitleştirilmiş implementasyon
+        return {'bullish': False, 'bearish': False, 'strength': 0}
+    
+    def _detect_stochastic_divergence(self, prices: List[float], stoch_k_values: List[float]) -> Dict:
+        """Stochastic divergence tespiti"""
+        return {'bullish': False, 'bearish': False, 'strength': 0}
+    
+    def _detect_mfi_divergence(self, prices: List[float], mfi_values: List[float]) -> Dict:
+        """MFI divergence tespiti"""
+        return {'bullish': False, 'bearish': False, 'strength': 0}
+    
+    def _detect_cci_divergence(self, prices: List[float], cci_values: List[float]) -> Dict:
+        """CCI divergence tespiti"""
+        return {'bullish': False, 'bearish': False, 'strength': 0}
 ```
 
 ### 1.2 gram_altin_analyzer.py'ye Entegrasyon
@@ -324,23 +474,54 @@ class GramAltinAnalyzer:
     def analyze(self, candles: List[GramAltinCandle]) -> Dict[str, Any]:
         # Mevcut analiz kodları...
         
-        # Divergence analizi ekle
-        if len(prices) >= 20 and rsi_value is not None:
-            divergence_result = self.divergence_detector.detect_rsi_divergence(
-                prices.tolist()[-50:],  # Son 50 mum
-                self.rsi.get_values()[-50:]  # Son 50 RSI değeri
+        # Divergence Scoring System
+        if len(candles) >= 20:
+            # Tüm gösterge değerlerini topla
+            all_indicators = {
+                'rsi': rsi_value,
+                'rsi_values': self.rsi.get_values()[-50:] if hasattr(self.rsi, 'get_values') else [],
+                'macd': macd_result,
+                'macd': {
+                    'histogram': macd_result.get('histogram'),
+                    'histogram_values': macd_result.get('histogram_values', [])
+                },
+                'stochastic': stoch_result,
+                'stochastic': {
+                    'k': stoch_result.get('k'),
+                    'k_values': stoch_result.get('k_values', [])
+                },
+                'mfi': {'value': 50, 'values': []},  # MFI simülasyonu
+                'cci': {'value': 0, 'values': []},   # CCI placeholder
+                'atr': {'value': atr_value}
+            }
+            
+            divergence_score_result = self.divergence_detector.divergence_scoring_system(
+                candles[-50:],  # Son 50 mum
+                all_indicators
             )
         else:
-            divergence_result = self.divergence_detector._empty_divergence_result()
+            divergence_score_result = {
+                'total_score': 0,
+                'divergence_type': 'NONE',
+                'divergences_found': {},
+                'strength': 'NONE',
+                'confidence': 0
+            }
         
         # Sonuçlara ekle
-        result['divergence'] = divergence_result
+        result['divergence_score'] = divergence_score_result
         
         # Sinyal üretiminde kullan
-        if divergence_result['bullish_divergence'] and divergence_result['divergence_strength'] >= 3:
-            buy_signals += 3  # Güçlü bullish divergence
-        elif divergence_result['bearish_divergence'] and divergence_result['divergence_strength'] >= 3:
-            sell_signals += 3  # Güçlü bearish divergence
+        if divergence_score_result['divergence_type'] == 'BULLISH':
+            if divergence_score_result['strength'] == 'STRONG':
+                buy_signals += 4  # Güçlü çoklu bullish divergence
+            elif divergence_score_result['strength'] == 'MODERATE':
+                buy_signals += 2  # Orta güçte divergence
+        elif divergence_score_result['divergence_type'] == 'BEARISH':
+            if divergence_score_result['strength'] == 'STRONG':
+                sell_signals += 4  # Güçlü çoklu bearish divergence
+            elif divergence_score_result['strength'] == 'MODERATE':
+                sell_signals += 2  # Orta güçte divergence
 ```
 
 ## 📦 2. Multiple Timeframe Confluence Implementation
@@ -1069,16 +1250,16 @@ class MomentumExhaustionIndicator:
     
     def __init__(self, consecutive_threshold: int = 5, 
                  extreme_rsi: Tuple[float, float] = (30, 70),
-                 volume_spike_threshold: float = 2.0):
+                 atr_expansion_threshold: float = 1.5):
         """
         Args:
             consecutive_threshold: Ardışık mum eşiği
             extreme_rsi: RSI ekstrem seviyeleri (low, high)
-            volume_spike_threshold: Volume spike çarpanı
+            atr_expansion_threshold: ATR expansion çarpanı (volatilite spike)
         """
         self.consecutive_threshold = consecutive_threshold
         self.extreme_rsi = extreme_rsi
-        self.volume_spike_threshold = volume_spike_threshold
+        self.atr_expansion_threshold = atr_expansion_threshold
     
     def analyze_exhaustion(self, candles: List, indicators: Dict) -> Dict[str, Any]:
         """
@@ -1112,12 +1293,12 @@ class MomentumExhaustionIndicator:
         # 3. Gösterge ekstrem kontrolü
         extreme_indicators = self._check_extreme_indicators(indicators)
         
-        # 4. Volume spike analizi
-        volume_analysis = self._analyze_volume_spike(candles)
+        # 4. ATR expansion analizi (volatilite spike)
+        volatility_analysis = self._analyze_atr_expansion(candles, indicators)
         
         # 5. Exhaustion skorlama
         exhaustion_score, exhaustion_type = self._calculate_exhaustion_score(
-            consecutive, candle_anomaly, extreme_indicators, volume_analysis
+            consecutive, candle_anomaly, extreme_indicators, volatility_analysis
         )
         
         # 6. Reversal olasılığı
@@ -1127,7 +1308,7 @@ class MomentumExhaustionIndicator:
         
         # Exhaustion sinyalleri topla
         signals = self._collect_exhaustion_signals(
-            consecutive, candle_anomaly, extreme_indicators, volume_analysis
+            consecutive, candle_anomaly, extreme_indicators, volatility_analysis
         )
         
         return {
@@ -1137,7 +1318,7 @@ class MomentumExhaustionIndicator:
             'consecutive_candles': consecutive,
             'candle_anomaly': candle_anomaly,
             'extreme_indicators': extreme_indicators,
-            'volume_analysis': volume_analysis,
+            'volatility_analysis': volatility_analysis,
             'exhaustion_score': exhaustion_score,
             'reversal_probability': reversal_prob
         }
@@ -1289,49 +1470,79 @@ class MomentumExhaustionIndicator:
             'exhaustion_direction': self._determine_exhaustion_direction(indicators)
         }
     
-    def _analyze_volume_spike(self, candles: List) -> Dict[str, Any]:
-        """Volume spike analizi"""
+    def _analyze_atr_expansion(self, candles: List, indicators: Dict) -> Dict[str, Any]:
+        """ATR expansion (volatilite spike) analizi"""
         if len(candles) < 20:
-            return {'volume_spike': False, 'spike_ratio': 1.0}
+            return {'volatility_spike': False, 'spike_ratio': 1.0}
         
-        # Volume verisi kontrolü
-        volumes = []
-        for candle in candles[-20:]:
-            if hasattr(candle, 'volume') and candle.volume is not None:
-                volumes.append(float(candle.volume))
-        
-        if not volumes or len(volumes) < 10:
-            return {'volume_spike': False, 'spike_ratio': 1.0}
-        
-        # Ortalama volume
-        avg_volume = np.mean(volumes[:-1])  # Son hariç
-        last_volume = volumes[-1]
+        # ATR değerini al
+        atr_value = indicators.get('atr', {}).get('value', 0)
+        if not atr_value or atr_value == 0:
+            # ATR yoksa basit volatilite hesapla
+            volatilities = []
+            for i in range(1, min(20, len(candles))):
+                candle = candles[-i]
+                volatility = float(candle.high - candle.low)
+                volatilities.append(volatility)
+            
+            if not volatilities:
+                return {'volatility_spike': False, 'spike_ratio': 1.0}
+            
+            avg_volatility = np.mean(volatilities[1:])  # Son hariç
+            current_volatility = volatilities[0]
+        else:
+            # Son 20 ATR değerini hesapla (basitleştirilmiş)
+            atr_values = []
+            for i in range(min(20, len(candles))):
+                if i == 0:
+                    atr_values.append(atr_value)
+                else:
+                    # Basit TR hesabı
+                    candle = candles[-(i+1)]
+                    tr = max(
+                        float(candle.high - candle.low),
+                        abs(float(candle.high - candles[-i].close)),
+                        abs(float(candle.low - candles[-i].close))
+                    )
+                    atr_values.append(tr)
+            
+            avg_volatility = np.mean(atr_values[1:]) if len(atr_values) > 1 else atr_value
+            current_volatility = atr_value
         
         # Spike kontrolü
-        if avg_volume > 0:
-            spike_ratio = last_volume / avg_volume
-            is_spike = spike_ratio >= self.volume_spike_threshold
+        if avg_volatility > 0:
+            spike_ratio = current_volatility / avg_volatility
+            is_spike = spike_ratio >= self.atr_expansion_threshold
         else:
             spike_ratio = 1.0
             is_spike = False
         
+        # Bollinger Band squeeze kontrolü
+        bb_data = indicators.get('bollinger', {})
+        bb_squeeze = False
+        if bb_data:
+            band_width = bb_data.get('band_width', 0)
+            if band_width > 0 and band_width < 1.0:  # %1'den dar band
+                bb_squeeze = True
+        
         return {
-            'volume_spike': is_spike,
+            'volatility_spike': is_spike,
             'spike_ratio': spike_ratio,
-            'last_volume': last_volume,
-            'average_volume': avg_volume,
-            'spike_strength': min(1.0, (spike_ratio - 1) / 2) if is_spike else 0
+            'current_volatility': current_volatility,
+            'average_volatility': avg_volatility,
+            'spike_strength': min(1.0, (spike_ratio - 1) / 2) if is_spike else 0,
+            'bb_squeeze': bb_squeeze
         }
     
     def _calculate_exhaustion_score(self, consecutive: Dict, anomaly: Dict,
-                                   indicators: Dict, volume: Dict) -> Tuple[float, str]:
+                                   indicators: Dict, volatility: Dict) -> Tuple[float, str]:
         """Exhaustion skorunu hesapla"""
         score = 0
         weights = {
             'consecutive': 0.3,
             'anomaly': 0.2,
             'indicators': 0.3,
-            'volume': 0.2
+            'volatility': 0.2
         }
         
         # 1. Ardışık mum skoru
@@ -1347,9 +1558,12 @@ class MomentumExhaustionIndicator:
             indicator_score = min(1.0, indicators['extreme_count'] / 3)
             score += weights['indicators'] * indicator_score
         
-        # 4. Volume spike skoru
-        if volume['volume_spike']:
-            score += weights['volume'] * volume['spike_strength']
+        # 4. Volatilite spike skoru
+        if volatility['volatility_spike']:
+            score += weights['volatility'] * volatility['spike_strength']
+        # BB squeeze bonus
+        elif volatility.get('bb_squeeze', False):
+            score += weights['volatility'] * 0.5
         
         # Exhaustion tipi belirle
         if score >= 0.5:
@@ -1421,7 +1635,7 @@ class MomentumExhaustionIndicator:
             return 'neutral'
     
     def _collect_exhaustion_signals(self, consecutive: Dict, anomaly: Dict,
-                                   indicators: Dict, volume: Dict) -> List[str]:
+                                   indicators: Dict, volatility: Dict) -> List[str]:
         """Exhaustion sinyallerini topla"""
         signals = []
         
@@ -1434,8 +1648,10 @@ class MomentumExhaustionIndicator:
         if indicators['extreme_indicators']:
             signals.extend(indicators['extreme_indicators'])
         
-        if volume['volume_spike']:
-            signals.append(f"Volume spike (x{volume['spike_ratio']:.1f})")
+        if volatility['volatility_spike']:
+            signals.append(f"Volatilite spike (ATR x{volatility['spike_ratio']:.1f})")
+        if volatility.get('bb_squeeze', False):
+            signals.append("Bollinger Band squeeze tespit edildi")
         
         return signals
     
@@ -1448,7 +1664,7 @@ class MomentumExhaustionIndicator:
             'consecutive_candles': {'bullish': 0, 'bearish': 0, 'current_streak': 0},
             'candle_anomaly': {'anomaly_detected': False},
             'extreme_indicators': {'extreme_count': 0, 'extreme_indicators': []},
-            'volume_analysis': {'volume_spike': False, 'spike_ratio': 1.0},
+            'volatility_analysis': {'volatility_spike': False, 'spike_ratio': 1.0},
             'exhaustion_score': 0,
             'reversal_probability': 0
         }
@@ -1968,44 +2184,73 @@ def analyze(self, gram_candles, market_data, timeframe="15m"):
     
     # Tüm konfirmasyonları say
     confirmations = 0
-    if gram_analysis.get('divergence', {}).get('bullish_divergence'):
-        confirmations += 1
-    if structure_analysis['structure_break']:
-        confirmations += 1
-    if exhaustion['exhaustion_detected']:
-        confirmations += 1
-    if smart_money['stop_hunt_detected']:
-        confirmations += 2  # Çift ağırlık
-    if confluence.get('confluence_score', 0) > 70:
+    
+    # 1. Divergence Scoring System kontrolü
+    divergence_score = gram_analysis.get('divergence_score', {})
+    if divergence_score.get('strength') == 'STRONG':
+        confirmations += 2
+    elif divergence_score.get('strength') == 'MODERATE':
         confirmations += 1
     
-    # GÜÇLÜ SİNYAL kontrolü
+    # 2. Market Structure Break
+    if structure_analysis['structure_break']:
+        confirmations += 1
+        if structure_analysis.get('pullback_zone'):
+            confirmations += 0.5  # Pullback zone bonus
+    
+    # 3. Momentum Exhaustion
+    if exhaustion['exhaustion_detected']:
+        confirmations += 1
+        if exhaustion.get('volatility_analysis', {}).get('bb_squeeze'):
+            confirmations += 0.5  # BB squeeze bonus
+    
+    # 4. Smart Money Concepts
+    if smart_money['stop_hunt_detected']:
+        confirmations += 2  # Çift ağırlık
+    elif smart_money.get('order_blocks') and not smart_money['order_blocks'][0].get('tested'):
+        confirmations += 1  # Test edilmemiş order block
+    
+    # 5. Timeframe Confluence
+    if confluence.get('confluence_score', 0) > 80:
+        confirmations += 2
+    elif confluence.get('confluence_score', 0) > 60:
+        confirmations += 1
+    
+    # GÜÇLÜ SİNYAL kontrolü (4+ konfirmasyon)
     if confirmations < 4 and combined_signal["signal"] != "HOLD":
         combined_signal["confidence"] *= 0.7
         logger.info(f"Weak confirmation ({confirmations}), reducing confidence")
+    elif confirmations >= 6:
+        combined_signal["confidence"] = min(0.95, combined_signal["confidence"] * 1.2)
+        logger.info(f"Very strong confirmation ({confirmations}), boosting confidence")
 ```
 
 ## 📝 Test Senaryoları
 
-1. **Divergence Testi**
-   - 5+ mumda fiyat/RSI uyumsuzluğu
-   - Hidden divergence kontrolü
+1. **Divergence Scoring System Testi**
+   - RSI + MACD + Stochastic çoklu divergence
+   - MFI simülasyonu ile divergence
+   - Toplam skor >= 6 durumu
 
 2. **Confluence Testi**
    - Alt TF sinyali + Üst TF onayı
    - Çelişkili TF durumu
+   - Major timeframe destek/direnç seviyeleri
 
 3. **Structure Break Testi**
    - HH/HL → LL dönüşümü
    - Pullback zone entry
+   - Key level tespiti
 
 4. **Exhaustion Testi**
    - 7+ ardışık mum + RSI > 80
-   - Volume spike kontrolü
+   - ATR expansion kontrolü (x1.5)
+   - Bollinger Band squeeze tespiti
 
 5. **Smart Money Testi**
    - Stop hunt pattern
    - Order block bounce
+   - Fair Value Gap doldurma
 
 ## ⚠️ Kritik Uyarılar
 
@@ -2013,6 +2258,6 @@ def analyze(self, gram_candles, market_data, timeframe="15m"):
 2. **Timeframe uyumu şart** - Alt TF, üst TF'e ters olamaz
 3. **Stop hunt'ta acele etme** - Reversal konfirmasyonu bekle
 4. **Test edilmemiş order block** öncelikli
-5. **Volume onayı** her zaman kontrol et
+5. **ATR expansion + MFI divergence** volatilite onayı için kontrol et
 
 Bu implementation guide'ı takip ederek tüm stratejileri entegre edebilirsiniz. Her modül bağımsız test edilebilir ve kademeli olarak sisteme eklenebilir.

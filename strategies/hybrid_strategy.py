@@ -25,13 +25,22 @@ from utils.constants import (
     GLOBAL_TREND_MISMATCH_PENALTY
 )
 
+# Modüler bileşenler
+from .hybrid.signal_combiner import SignalCombiner
+from .hybrid.confluence_manager import ConfluenceManager
+from .hybrid.divergence_manager import DivergenceManager
+from .hybrid.structure_manager import StructureManager
+from .hybrid.momentum_manager import MomentumManager
+from .hybrid.smart_money_manager import SmartMoneyManager
+
 logger = logging.getLogger(__name__)
 
 
 class HybridStrategy:
-    """Tüm analizleri birleştiren hibrit strateji"""
+    """Tüm analizleri birleştiren hibrit strateji - Orchestrator"""
     
-    def __init__(self):
+    def __init__(self, storage=None):
+        # Ana analizörler
         self.gram_analyzer = GramAltinAnalyzer()
         self.global_analyzer = GlobalTrendAnalyzer()
         self.currency_analyzer = CurrencyRiskAnalyzer()
@@ -42,14 +51,16 @@ class HybridStrategy:
         self.pattern_recognizer = AdvancedPatternRecognition()
         self.risk_manager = KellyRiskManager()
         
-        # Güncellenmiş ağırlıklar
-        self.weights = {
-            "gram_analysis": 0.35,      # %35 - Ana sinyal
-            "global_trend": 0.20,       # %20 - Trend doğrulama
-            "currency_risk": 0.15,      # %15 - Risk ayarlama
-            "advanced_indicators": 0.20, # %20 - CCI + MFI
-            "pattern_recognition": 0.10  # %10 - Pattern bonus
-        }
+        # Modüler bileşenler
+        self.signal_combiner = SignalCombiner()
+        self.confluence_manager = ConfluenceManager(storage)
+        self.divergence_manager = DivergenceManager()
+        self.structure_manager = StructureManager()
+        self.momentum_manager = MomentumManager()
+        self.smart_money_manager = SmartMoneyManager()
+        
+        # Storage referansı
+        self.storage = storage
     
     def analyze(self, gram_candles: List[GramAltinCandle], 
                 market_data: List[MarketData], timeframe: str = "15m") -> Dict[str, Any]:
@@ -90,12 +101,48 @@ class HybridStrategy:
             # 5. Pattern tanıma
             pattern_analysis = self._analyze_patterns(gram_candles)
             
-            # 6. Volatilite kontrolü
+            # 6. Divergence analizi
+            divergence_analysis = self.divergence_manager.analyze_divergences(
+                gram_candles, gram_analysis.get('indicators', {})
+            )
+            
+            # 7. Confluence analizi
+            confluence_analysis = self.confluence_manager.analyze_confluence(
+                timeframe, 
+                gram_analysis.get('signal', 'HOLD'),
+                gram_analysis
+            )
+            
+            # 8. Market structure analizi
+            structure_analysis = self.structure_manager.analyze_market_structure(
+                gram_candles, 
+                float(gram_analysis.get('price', 0))
+            )
+            
+            # 9. Momentum exhaustion analizi
+            momentum_analysis = self.momentum_manager.analyze_momentum_exhaustion(
+                gram_candles,
+                gram_analysis.get('indicators', {})
+            )
+            
+            # 10. Smart money analizi
+            key_levels = structure_analysis.get('key_levels', {})
+            smart_money_analysis = self.smart_money_manager.analyze_smart_money(
+                gram_candles,
+                key_levels
+            )
+            
+            # 11. Volatilite kontrolü
             current_price = float(gram_analysis.get('price', 0))
-            atr_value = gram_analysis.get('indicators', {}).get('atr', 1.0)
+            atr_data = gram_analysis.get('indicators', {}).get('atr', {})
+            # ATR bir dict ise value'sunu al, değilse direkt kullan
+            if isinstance(atr_data, dict):
+                atr_value = atr_data.get('value', 1.0)
+            else:
+                atr_value = atr_data if atr_data else 1.0
             market_volatility = (atr_value / current_price * 100) if current_price > 0 else 0
             
-            # 7. Sinyalleri birleştir
+            # 12. Sinyalleri birleştir
             combined_signal = self._combine_signals(
                 gram_analysis, global_analysis, currency_analysis,
                 advanced_indicators, pattern_analysis, timeframe, market_volatility
@@ -133,6 +180,11 @@ class HybridStrategy:
                 "currency_risk": currency_analysis,
                 "advanced_indicators": advanced_indicators,
                 "pattern_analysis": pattern_analysis,
+                "divergence_analysis": divergence_analysis,
+                "confluence_analysis": confluence_analysis,
+                "structure_analysis": structure_analysis,
+                "momentum_analysis": momentum_analysis,
+                "smart_money_analysis": smart_money_analysis,
                 
                 # Özet ve öneriler
                 "summary": self._create_summary(
@@ -150,173 +202,16 @@ class HybridStrategy:
     def _combine_signals(self, gram: Dict, global_trend: Dict, 
                         currency: Dict, advanced: Dict, patterns: Dict, 
                         timeframe: str, market_volatility: float) -> Dict[str, Any]:
-        """Sinyalleri birleştir - Gelişmiş göstergeler ve pattern'ler dahil"""
-        # Temel sinyaller
-        gram_signal = gram.get("signal", "HOLD")
-        gram_confidence = gram.get("confidence", 0)
-        global_direction = global_trend.get("trend_direction", "NEUTRAL")
-        risk_level = currency.get("risk_level", "MEDIUM")
-        
-        # Sinyal puanları - defaultdict kullanarak optimize et
-        signal_scores = defaultdict(float)
-        
-        # 1. Gram altın sinyali (ana ağırlık)
-        signal_scores[gram_signal] += self.weights["gram_analysis"] * (gram_confidence if gram_signal != "HOLD" else 1.0)
-        
-        # 2. Global trend uyumu - lookup table ile optimize et
-        trend_weight = self.weights["global_trend"]
-        trend_signal_map = {
-            ("BULLISH", "BUY"): ("BUY", 1.0),
-            ("BEARISH", "SELL"): ("SELL", 1.0),
-            ("BULLISH", "SELL"): ("HOLD", 0.5),
-            ("BEARISH", "BUY"): ("HOLD", 0.5),
-        }
-        
-        signal_to_add, multiplier = trend_signal_map.get(
-            (global_direction, gram_signal), 
-            ("HOLD", 0.3)
+        """Sinyalleri birleştir - Modüler signal combiner kullan"""
+        return self.signal_combiner.combine_signals(
+            gram_signal=gram,
+            global_trend=global_trend,
+            currency_risk=currency,
+            advanced_indicators=advanced,
+            patterns=patterns,
+            timeframe=timeframe,
+            market_volatility=market_volatility
         )
-        signal_scores[signal_to_add] += trend_weight * multiplier
-        
-        # 3. Kur riski etkisi
-        risk_weight = self.weights["currency_risk"]
-        is_high_risk = risk_level in ["HIGH", "EXTREME"]
-        
-        if is_high_risk:
-            signal_scores["HOLD"] += risk_weight * 0.7
-            # Mevcut sinyalleri zayıflat
-            for sig in ["BUY", "SELL"]:
-                signal_scores[sig] *= 0.7
-        elif gram_signal in ["BUY", "SELL"]:
-            signal_scores[gram_signal] += risk_weight * 0.5
-        
-        # 4. Gelişmiş göstergeler (CCI + MFI)
-        advanced_weight = self.weights["advanced_indicators"]
-        advanced_signal = advanced.get("combined_signal", "NEUTRAL")
-        advanced_confidence = advanced.get("combined_confidence", 0)
-        
-        if advanced_signal != "NEUTRAL":
-            signal_scores[advanced_signal] += advanced_weight * advanced_confidence
-            
-            # Divergence varsa ekstra güç
-            if advanced.get("divergence"):
-                signal_scores[advanced_signal] += advanced_weight * 0.3
-        
-        # 5. Pattern tanıma bonusu
-        pattern_weight = self.weights["pattern_recognition"]
-        if patterns.get("pattern_found"):
-            pattern_signal = patterns.get("signal", "NEUTRAL")
-            pattern_confidence = patterns.get("confidence", 0)
-            
-            if pattern_signal != "NEUTRAL":
-                signal_scores[pattern_signal] += pattern_weight * pattern_confidence
-                
-                # Head & Shoulders gibi güçlü pattern'ler için ekstra bonus
-                best_pattern = patterns.get("best_pattern", {})
-                if best_pattern.get("pattern") in ["HEAD_AND_SHOULDERS", "INVERSE_HEAD_AND_SHOULDERS"]:
-                    signal_scores[pattern_signal] += pattern_weight * 0.5
-        
-        # Nihai sinyal - daha optimize
-        max_score = max(signal_scores.values())
-        final_signal = max(signal_scores.items(), key=lambda x: x[1])[0]
-        
-        # Debug log ekle
-        logger.info(f"Signal scores: {signal_scores}")
-        logger.info(f"Final signal: {final_signal}, max_score: {max_score}")
-        
-        # Güven skorunu hesapla - gram analizörünün güven değerini de kullan
-        gram_confidence = gram.get("confidence", 0.5)
-        
-        # Hibrit güven hesaplaması:
-        # 1. Sinyal skoru bazlı güven - sadece o sinyali destekleyen analizörlerin ağırlıklarını kullan
-        supporting_analyzers_weight = 0
-        if gram.get("signal") == final_signal:
-            supporting_analyzers_weight += self.weights["gram_analysis"]
-        # Global trend'in doğrudan sinyali yok, yön kontrolü yap
-        if (final_signal == "BUY" and global_trend.get("trend_direction") == "BULLISH") or \
-           (final_signal == "SELL" and global_trend.get("trend_direction") == "BEARISH"):
-            supporting_analyzers_weight += self.weights["global_trend"]
-        # Currency risk'in de doğrudan sinyali yok, risk seviyesi kontrolü yap
-        if final_signal == "HOLD" and currency.get("risk_level") in ["HIGH", "EXTREME"]:
-            supporting_analyzers_weight += self.weights["currency_risk"]
-        
-        # En az bir analizör destekliyorsa, destekleyen analizörlerin toplam ağırlığına göre hesapla
-        if supporting_analyzers_weight > 0:
-            score_confidence = min(signal_scores[final_signal] / supporting_analyzers_weight, 1.0)
-        else:
-            score_confidence = 0.3  # Hiçbir analizör desteklemiyorsa düşük güven
-        
-        # 2. Final güven: Gram güveni ve skor güveninin ağırlıklı ortalaması
-        if final_signal == "HOLD":
-            # HOLD için gram analizörünün güveni daha önemli
-            normalized_confidence = (gram_confidence * 0.7) + (score_confidence * 0.3)
-        else:
-            # BUY/SELL için gram güveni ve skor güveni daha dengeli
-            # Ayrıca minimum güven seviyesi belirle
-            normalized_confidence = (gram_confidence * 0.6) + (score_confidence * 0.4)
-            # BUY/SELL sinyalleri için minimum %40 güven
-            normalized_confidence = max(normalized_confidence, 0.4)
-        
-        logger.info(f"Confidence calculation: gram={gram_confidence:.3f}, score={score_confidence:.3f}, final={normalized_confidence:.3f}")
-        
-        # Volatilite filtresi
-        if market_volatility < MIN_VOLATILITY_THRESHOLD and final_signal != "HOLD":
-            logger.info(f"Volatility too low ({market_volatility:.2f}% < {MIN_VOLATILITY_THRESHOLD}%), converting to HOLD")
-            final_signal = "HOLD"
-            strength = "WEAK"
-        # Timeframe bazlı güven eşiği kontrolü
-        elif final_signal != "HOLD":
-            min_confidence = MIN_CONFIDENCE_THRESHOLDS.get(timeframe, 0.5)
-            if normalized_confidence < min_confidence:
-                logger.info(f"Confidence below threshold for {timeframe}: {normalized_confidence:.3f} < {min_confidence}")
-                final_signal = "HOLD"
-                strength = "WEAK"
-            else:
-                strength = self._calculate_signal_strength(
-                    normalized_confidence, global_direction, risk_level
-                )
-        else:
-            strength = "WEAK"
-        
-        # Global trend uyumsuzluk cezası
-        if final_signal != "HOLD":
-            # BUY sinyal ama global trend BEARISH
-            if final_signal == "BUY" and global_direction == "BEARISH":
-                normalized_confidence *= GLOBAL_TREND_MISMATCH_PENALTY
-                logger.info(f"Global trend mismatch penalty applied: confidence reduced to {normalized_confidence:.3f}")
-            # SELL sinyal ama global trend BULLISH
-            elif final_signal == "SELL" and global_direction == "BULLISH":
-                normalized_confidence *= GLOBAL_TREND_MISMATCH_PENALTY
-                logger.info(f"Global trend mismatch penalty applied: confidence reduced to {normalized_confidence:.3f}")
-        
-        return {
-            "signal": final_signal,
-            "confidence": normalized_confidence,
-            "strength": strength,
-            "scores": signal_scores,
-            "raw_confidence": signal_scores[final_signal],
-            "market_volatility": market_volatility
-        }
-    
-    def _calculate_signal_strength(self, score: float, trend: str, risk: str) -> str:
-        """Sinyal gücünü hesapla - güven skoruna dayalı"""
-        # Güven skoruna göre temel güç
-        if score >= 0.75:
-            base_strength = "STRONG"
-        elif score >= 0.55:
-            base_strength = "MODERATE"
-        else:
-            base_strength = "WEAK"
-        
-        # Risk seviyesine göre ayarlama (trend uyumu bonusu kaldırıldı)
-        if risk in ["HIGH", "EXTREME"]:
-            # Yüksek risk durumunda güç seviyesini düşür
-            if base_strength == "STRONG":
-                return "MODERATE"
-            elif base_strength == "MODERATE":
-                return "WEAK"
-        
-        return base_strength
     
     def _calculate_position_size(self, signal: Dict, currency: Dict) -> Dict[str, Any]:
         """Risk ayarlı pozisyon büyüklüğü hesapla"""
