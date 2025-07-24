@@ -7,7 +7,6 @@ from decimal import Decimal
 from typing import List, Optional, Dict, Tuple, Any
 import logging
 from utils import timezone
-from datetime import datetime
 from contextlib import contextmanager
 from models.price_data import PriceData, PriceCandle
 from models.analysis_result import AnalysisResult, TrendType, TrendStrength
@@ -247,7 +246,7 @@ class SQLiteStorage:
                 )
         return None
     
-    def get_price_range(self, start_time: datetime, end_time: datetime) -> List[PriceData]:
+    def get_price_range(self, start_time, end_time) -> List[PriceData]:
         """Belirli zaman aralığındaki fiyatları getir"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -436,7 +435,7 @@ class SQLiteStorage:
     
     def cleanup_old_data(self, days_to_keep: int = 30):
         """Eski verileri temizle"""
-        cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+        cutoff_date = timezone.now() - timedelta(days=days_to_keep)
         
         with self.get_connection() as conn:
             cursor = conn.cursor()
