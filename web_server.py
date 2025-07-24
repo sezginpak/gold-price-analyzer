@@ -570,8 +570,11 @@ async def get_simulation_positions(sim_id: int, status: str = "all"):
                 elif pos['status'] == 'CLOSED' and pos.get('net_profit_loss'):
                     # TL cinsinden kar/zarar zaten var
                     # Çıkış fiyatını kullanarak gram'a çevir
-                    exit_price = float(pos.get('exit_price', entry_price))
-                    pos['net_profit_loss_gram'] = float(pos['net_profit_loss']) / exit_price
+                    exit_price = float(pos.get('exit_price', pos.get('entry_price', current_price)))
+                    if exit_price and exit_price > 0:
+                        pos['net_profit_loss_gram'] = float(pos['net_profit_loss']) / exit_price
+                    else:
+                        pos['net_profit_loss_gram'] = 0
                 
                 positions.append(pos)
             
