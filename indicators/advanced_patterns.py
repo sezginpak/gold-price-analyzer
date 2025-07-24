@@ -9,9 +9,36 @@ import numpy as np
 from typing import List, Dict, Optional, Tuple
 from decimal import Decimal
 import logging
-from scipy.signal import find_peaks
 import warnings
 warnings.filterwarnings('ignore')
+
+# Scipy opsiyonel - yoksa basit implementasyon kullan
+try:
+    from scipy.signal import find_peaks
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
+    # Basit peak bulma fonksiyonu
+    def find_peaks(data, **kwargs):
+        """Scipy olmadan basit peak bulma"""
+        peaks = []
+        distance = kwargs.get('distance', 5)
+        
+        for i in range(1, len(data) - 1):
+            if i < distance or i >= len(data) - distance:
+                continue
+                
+            # Local maximum kontrolü
+            is_peak = True
+            for j in range(max(0, i - distance), min(len(data), i + distance)):
+                if j != i and data[j] >= data[i]:
+                    is_peak = False
+                    break
+            
+            if is_peak:
+                peaks.append(i)
+        
+        return (peaks,)
 
 logger = logging.getLogger(__name__)
 
