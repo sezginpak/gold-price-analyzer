@@ -131,10 +131,16 @@ async def get_stats():
 @app.get("/api/prices/latest")
 async def get_latest_prices():
     """Son 30 dakikalık gram altın fiyat verisi"""
-    end_time = timezone.now()
-    start_time = end_time - timedelta(minutes=30)  # 30 dakika geriye git
+    # Önce son 100 kayıdı al, sonra 30 dakikalık filtrele
+    latest_prices = storage.get_latest_prices(100)
     
-    prices = storage.get_price_range(start_time, end_time)
+    # Son 30 dakikalık olanları filtrele
+    if latest_prices:
+        end_time = timezone.now()
+        start_time = end_time - timedelta(minutes=30)
+        prices = [p for p in latest_prices if p.timestamp >= start_time]
+    else:
+        prices = []
     
     return {
         "prices": [
