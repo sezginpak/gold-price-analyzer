@@ -319,6 +319,81 @@
             </div>
         </div>
 
+        <!-- Detaylı Göstergeler -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6">
+            <!-- Teknik Göstergeler -->
+            <div class="glass-card rounded-lg p-4 lg:p-6">
+                <h3 class="text-base lg:text-lg font-bold mb-4 text-blue-400 flex items-center">
+                    <i class="fas fa-chart-line mr-2"></i>
+                    Teknik Göstergeler
+                </h3>
+                <div class="grid grid-cols-2 gap-3" id="technical-indicators">
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">RSI</p>
+                        <p class="text-lg font-bold" id="rsi-value">-</p>
+                        <p class="text-xs" id="rsi-signal">-</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">MACD</p>
+                        <p class="text-lg font-bold" id="macd-value">-</p>
+                        <p class="text-xs" id="macd-trend">-</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">Stochastic</p>
+                        <p class="text-lg font-bold" id="stoch-value">-</p>
+                        <p class="text-xs" id="stoch-zone">-</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">ATR</p>
+                        <p class="text-lg font-bold" id="atr-value">-</p>
+                        <p class="text-xs" id="atr-volatility">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bollinger & Pattern -->
+            <div class="glass-card rounded-lg p-4 lg:p-6">
+                <h3 class="text-base lg:text-lg font-bold mb-4 text-purple-400 flex items-center">
+                    <i class="fas fa-layer-group mr-2"></i>
+                    Bollinger & Pattern
+                </h3>
+                <div class="space-y-3">
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">Bollinger Position</p>
+                        <p class="text-lg font-bold" id="bb-position">-</p>
+                        <p class="text-xs" id="bb-signal">-</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">Pattern</p>
+                        <p class="text-sm font-bold" id="pattern-name">-</p>
+                        <p class="text-xs" id="pattern-confidence">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Support/Resistance Levels -->
+        <div class="glass-card rounded-lg p-4 lg:p-6 mb-6">
+            <h3 class="text-base lg:text-lg font-bold mb-4 text-orange-400 flex items-center">
+                <i class="fas fa-layer-group mr-2"></i>
+                Destek/Direnç Seviyeleri
+            </h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                    <h4 class="text-sm font-semibold text-green-400 mb-2">Destek Seviyeleri</h4>
+                    <div id="support-levels" class="space-y-2">
+                        <!-- Dinamik olarak doldurulacak -->
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-red-400 mb-2">Direnç Seviyeleri</h4>
+                    <div id="resistance-levels" class="space-y-2">
+                        <!-- Dinamik olarak doldurulacak -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Hibrit Analiz Geçmişi -->
         <div class="glass-card rounded-lg p-4 lg:p-6">
             <div class="flex flex-wrap items-center justify-between mb-4">
@@ -368,15 +443,39 @@
         // Hibrit analiz verilerini yükle
         async function loadHybridAnalysisData() {
             try {
+                // Hem analiz geçmişini hem de detaylı verileri al
                 const timeframe = document.getElementById('timeframe-selector').value;
-                const url = timeframe ? `/api/analysis/history?timeframe=${timeframe}` : '/api/analysis/history';
-                const response = await fetch(url);
+                const historyUrl = timeframe ? `/api/analysis/history?timeframe=${timeframe}` : '/api/analysis/history';
+                const detailsUrl = timeframe ? `/api/analysis/details?timeframe=${timeframe}` : '/api/analysis/details';
                 
-                if (!response.ok) {
+                const [historyResponse, detailsResponse] = await Promise.all([
+                    fetch(historyUrl),
+                    fetch(detailsUrl)
+                ]);
+                
+                if (!historyResponse.ok || !detailsResponse.ok) {
                     throw new Error('API hatası');
                 }
                 
-                const data = await response.json();
+                const historyData = await historyResponse.json();
+                const detailsData = await detailsResponse.json();
+                
+                // Geçmiş verileri yükle
+                loadHistoryData(historyData);
+                
+                // Detaylı göstergeleri yükle
+                if (detailsData.analyses && detailsData.analyses.length > 0) {
+                    updateDetailedIndicators(detailsData.analyses[0]);
+                }
+                
+            } catch (error) {
+                console.error('Veri yükleme hatası:', error);
+            }
+        }
+        
+        // Geçmiş verilerini yükle
+        function loadHistoryData(data) {
+            try {
                 
                 if (data.analyses && data.analyses.length > 0) {
                     // En son analizi göster
@@ -546,6 +645,104 @@
                     pos.adjusted_confidence ? `%${(pos.adjusted_confidence * 100).toFixed(0)}` : '-';
                 document.getElementById('market-volatility').textContent = 
                     pos.market_volatility ? `%${pos.market_volatility.toFixed(1)}` : '-';
+            }
+        }
+
+        // Detaylı göstergeleri güncelle
+        function updateDetailedIndicators(analysis) {
+            try {
+                const gramAnalysis = analysis.gram_analysis || {};
+                const indicators = gramAnalysis.indicators || {};
+                const patterns = gramAnalysis.patterns || [];
+                const supportLevels = gramAnalysis.support_levels || [];
+                const resistanceLevels = gramAnalysis.resistance_levels || [];
+                
+                // RSI
+                if (indicators.rsi !== undefined) {
+                    document.getElementById('rsi-value').textContent = indicators.rsi.toFixed(1);
+                    document.getElementById('rsi-signal').textContent = indicators.rsi_signal || 'neutral';
+                } else {
+                    document.getElementById('rsi-value').textContent = '-';
+                    document.getElementById('rsi-signal').textContent = '-';
+                }
+                
+                // MACD
+                if (indicators.macd) {
+                    const macd = indicators.macd;
+                    document.getElementById('macd-value').textContent = 
+                        macd.macd_line !== null ? macd.macd_line.toFixed(2) : '-';
+                    document.getElementById('macd-trend').textContent = macd.trend || '-';
+                } else {
+                    document.getElementById('macd-value').textContent = '-';
+                    document.getElementById('macd-trend').textContent = '-';
+                }
+                
+                // Stochastic
+                if (indicators.stochastic) {
+                    const stoch = indicators.stochastic;
+                    document.getElementById('stoch-value').textContent = 
+                        `K:${stoch.k ? stoch.k.toFixed(1) : '-'}`;
+                    document.getElementById('stoch-zone').textContent = stoch.zone || '-';
+                } else {
+                    document.getElementById('stoch-value').textContent = '-';
+                    document.getElementById('stoch-zone').textContent = '-';
+                }
+                
+                // ATR
+                if (indicators.atr) {
+                    const atr = indicators.atr;
+                    document.getElementById('atr-value').textContent = 
+                        atr.atr ? atr.atr.toFixed(2) : '-';
+                    document.getElementById('atr-volatility').textContent = 
+                        atr.volatility_level || '-';
+                } else {
+                    document.getElementById('atr-value').textContent = '-';
+                    document.getElementById('atr-volatility').textContent = '-';
+                }
+                
+                // Bollinger Bands
+                if (indicators.bollinger) {
+                    const bb = indicators.bollinger;
+                    document.getElementById('bb-position').textContent = bb.position || '-';
+                    document.getElementById('bb-signal').textContent = bb.signal || '-';
+                } else {
+                    document.getElementById('bb-position').textContent = '-';
+                    document.getElementById('bb-signal').textContent = '-';
+                }
+                
+                // Pattern
+                if (patterns.length > 0) {
+                    const pattern = patterns[0]; // En güvenilir pattern
+                    document.getElementById('pattern-name').textContent = pattern.name || '-';
+                    document.getElementById('pattern-confidence').textContent = 
+                        pattern.confidence ? `%${(pattern.confidence * 100).toFixed(0)}` : '-';
+                } else {
+                    document.getElementById('pattern-name').textContent = 'Yok';
+                    document.getElementById('pattern-confidence').textContent = '-';
+                }
+                
+                // Support Levels
+                const supportHtml = supportLevels.slice(0, 5).map(level => 
+                    `<div class="bg-slate-800/50 rounded p-2">
+                        <span class="text-green-400">₺${level.level.toFixed(2)}</span>
+                        <span class="text-xs text-gray-400 ml-2">${level.strength}</span>
+                    </div>`
+                ).join('');
+                document.getElementById('support-levels').innerHTML = 
+                    supportHtml || '<div class="text-gray-400 text-sm">Veri yok</div>';
+                
+                // Resistance Levels
+                const resistanceHtml = resistanceLevels.slice(0, 5).map(level => 
+                    `<div class="bg-slate-800/50 rounded p-2">
+                        <span class="text-red-400">₺${level.level.toFixed(2)}</span>
+                        <span class="text-xs text-gray-400 ml-2">${level.strength}</span>
+                    </div>`
+                ).join('');
+                document.getElementById('resistance-levels').innerHTML = 
+                    resistanceHtml || '<div class="text-gray-400 text-sm">Veri yok</div>';
+                
+            } catch (error) {
+                console.error('Detaylı gösterge güncellemesi hatası:', error);
             }
         }
 

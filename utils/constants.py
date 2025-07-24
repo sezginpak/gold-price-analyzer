@@ -92,10 +92,10 @@ INTERVAL_MINUTES_TO_STR: Dict[int, str] = {
 
 # Timeframe bazlı minimum güven eşikleri
 MIN_CONFIDENCE_THRESHOLDS: Dict[str, float] = {
-    "15m": 0.65,  # %65 - Kısa vadeli gürültüyü azaltmak için yüksek
-    "1h": 0.55,   # %55 - Orta vade dengesi
-    "4h": 0.50,   # %50 - Uzun vade için daha toleranslı
-    "1d": 0.45    # %45 - Günlük trendler için en toleranslı
+    "15m": 0.35,  # %35 - Daha fazla sinyal için düşürüldü
+    "1h": 0.40,   # %40 - Orta vade için uygun
+    "4h": 0.45,   # %45 - Uzun vade için dengeli
+    "1d": 0.40    # %40 - Günlük trendler için
 }
 
 # Minimum volatilite eşiği (%)
