@@ -17,7 +17,7 @@ from indicators.atr import ATRIndicator
 from indicators.pattern_recognition import PatternRecognition
 from models.analysis_result import TrendType, TrendStrength, SupportResistanceLevel
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("gold_analyzer")
 
 
 class GramAltinAnalyzer:

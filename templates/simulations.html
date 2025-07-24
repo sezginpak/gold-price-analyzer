@@ -326,7 +326,7 @@ function displaySimulationCards() {
                 <div class="space-y-3">
                     <div>
                         <div class="text-gray-400 text-xs">Sermaye</div>
-                        <div class="metric-value">${sim.current_capital.toFixed(1)}g</div>
+                        <div class="metric-value">${sim.current_capital.toFixed(2)}g</div>
                     </div>
                     
                     <div>
@@ -409,8 +409,11 @@ function loadPerformanceChart() {
                     beginAtZero: false,
                     ticks: {
                         callback: function(value) {
-                            return value + 'g';
-                        }
+                            // Gram değerini maksimum 2 ondalık basamakla göster
+                            return value.toFixed(2) + 'g';
+                        },
+                        // Tick sayısını sınırla
+                        maxTicksLimit: 8
                     }
                 }
             }
@@ -675,6 +678,11 @@ function updatePerformanceChart(performance) {
             backgroundColor: '#ffd70020',
             tension: 0.4
         }]
+    };
+    
+    // Y ekseni formatını güncelle
+    performanceChart.options.scales.y.ticks.callback = function(value) {
+        return value.toFixed(2) + 'g';
     };
     
     performanceChart.update();
