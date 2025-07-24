@@ -556,8 +556,8 @@
             if (!priceChart) return;
             
             const time = new Date(price.timestamp);
-            const trTime = new Date(time.getTime() + (3 * 60 * 60 * 1000));
-            const timeStr = trTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            // Timestamp zaten Türkiye saatinde geliyor, ekleme yapma
+            const timeStr = time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
             
             priceChart.data.labels.push(timeStr);
             priceChart.data.datasets[0].data.push(price.gram_altin);
