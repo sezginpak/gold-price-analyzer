@@ -204,7 +204,7 @@ function displaySimulationCards() {
                                 ${sim.total_profit_loss >= 0 ? '+' : ''}${sim.total_profit_loss.toFixed(2)} ₺
                             </div>
                             <div class="text-xs">
-                                ${sim.total_profit_loss >= 0 ? '+' : ''}${sim.total_profit_loss_gram.toFixed(3)}g
+                                ${sim.total_profit_loss >= 0 ? '+' : ''}${(sim.total_profit_loss_gram || 0).toFixed(3)}g
                             </div>
                             <div class="text-xs opacity-75">
                                 (${sim.total_profit_loss_pct.toFixed(2)}%)
