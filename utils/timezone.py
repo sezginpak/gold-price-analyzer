@@ -158,6 +158,52 @@ def get_day_end(dt: Optional[datetime] = None) -> datetime:
     return TURKEY_TZ.localize(datetime(dt.year, dt.month, dt.day, 23, 59, 59, 999999))
 
 
+def parse_timestamp(timestamp_str: Union[str, datetime]) -> datetime:
+    """
+    Parse timestamp string or datetime object to Turkey timezone.
+    
+    Args:
+        timestamp_str: Timestamp string or datetime object
+        
+    Returns:
+        datetime: Timezone-aware datetime in Turkey timezone
+    """
+    if isinstance(timestamp_str, datetime):
+        return to_turkey_time(timestamp_str)
+    
+    # Try different formats
+    formats = [
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%SZ"
+    ]
+    
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(timestamp_str, fmt)
+            # If no timezone info, assume UTC
+            if dt.tzinfo is None:
+                dt = UTC_TZ.localize(dt)
+            return dt.astimezone(TURKEY_TZ)
+        except ValueError:
+            continue
+    
+    # If none worked, try with dateutil parser as fallback
+    try:
+        from dateutil.parser import parse
+        dt = parse(timestamp_str)
+        if dt.tzinfo is None:
+            dt = UTC_TZ.localize(dt)
+        return dt.astimezone(TURKEY_TZ)
+    except (ImportError, ValueError):
+        pass
+    
+    raise ValueError(f"Could not parse timestamp: {timestamp_str}")
+
+
 # For backward compatibility
 def get_turkey_time() -> datetime:
     """Deprecated: Use now() instead."""

@@ -1,9 +1,0 @@
-[Unit]
-Description=Gold Price Analyzer Smart Git Updater
-After=network.target
-
-[Service]
-Type=oneshot
-WorkingDirectory=/root/gold-price-analyzer
-ExecStart=/bin/bash -c 'BEFORE=$(git rev-parse HEAD) && git pull && AFTER=$(git rev-parse HEAD) && if [ "$BEFORE" != "$AFTER" ]; then echo "Code updated, restarting services..."; systemctl restart gold-analyzer && systemctl restart gold-web; else echo "No changes, skipping restart."; fi'
-User=root

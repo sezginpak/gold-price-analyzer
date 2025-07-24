@@ -80,8 +80,8 @@ class SimulationManager:
                     float(config.spread),
                     config.commission_rate,
                     float(config.initial_capital),
-                    datetime.now(),
-                    datetime.now(),
+                    now(),
+                    now(),
                     json.dumps(config.to_dict())
                 ))
                 
@@ -243,10 +243,10 @@ class SimulationManager:
     
     async def _process_simulations(self):
         """Tüm aktif simülasyonları işle"""
-        current_time = datetime.now()
+        current_time = now()
         
         # Türkiye saatine çevir (UTC+3)
-        tr_time = current_time.replace(hour=(current_time.hour + 3) % 24)
+        tr_time = current_time
         
         logger.info(f"Processing simulations - Current time: {current_time}, TR time: {tr_time}, Trading hours: {self._is_trading_hours(tr_time)}")
         
