@@ -579,17 +579,22 @@ class SimulationManager:
             exit_spread = config.spread
             exit_commission = exit_price * position.position_size * Decimal(str(config.commission_rate))
             
-            # PnL hesapla
+            # PnL hesapla (TL cinsinden)
             if position.position_type == "LONG":
-                gross_pnl = (exit_price - position.entry_price) * position.position_size
+                gross_pnl_tl = (exit_price - position.entry_price) * position.position_size
             else:
-                gross_pnl = (position.entry_price - exit_price) * position.position_size
+                gross_pnl_tl = (position.entry_price - exit_price) * position.position_size
             
-            # Net PnL (tüm maliyetler dahil)
+            # Net PnL (TL cinsinden, tüm maliyetler dahil)
             total_costs = (position.entry_spread + position.entry_commission + 
                           exit_spread + exit_commission)
-            net_pnl = gross_pnl - total_costs
-            pnl_pct = (net_pnl / position.allocated_capital) * 100
+            net_pnl_tl = gross_pnl_tl - total_costs
+            
+            # PnL'yi gram cinsine çevir (sermaye güncellemesi için)
+            net_pnl_gram = net_pnl_tl / exit_price
+            gross_pnl = gross_pnl_tl  # Database için TL olarak sakla
+            net_pnl = net_pnl_tl  # Database için TL olarak sakla
+            pnl_pct = (net_pnl_tl / position.allocated_capital) * 100
             
             # Pozisyonu güncelle
             position.status = PositionStatus.CLOSED
@@ -609,9 +614,9 @@ class SimulationManager:
             # Veritabanında güncelle
             await self._update_position_close(position)
             
-            # Timeframe sermayesini güncelle
+            # Timeframe sermayesini güncelle (gram cinsinden)
             tf_capital = self.timeframe_capitals[sim_id][position.timeframe]
-            tf_capital.update_capital(net_pnl)
+            tf_capital.update_capital(net_pnl_gram)  # Gram cinsinden güncelle
             tf_capital.in_position = False
             tf_capital.open_position_id = None
             await self._update_timeframe_capital(sim_id, position.timeframe, tf_capital)
