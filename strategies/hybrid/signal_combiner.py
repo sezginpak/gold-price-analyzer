@@ -112,6 +112,7 @@ class SignalCombiner:
         )
         
         # Nihai sinyal belirleme
+        logger.debug(f"📊 Before determine_final_signal - Scores: {dict(signal_scores)}")
         final_signal = self._determine_final_signal(signal_scores)
         logger.debug(f"🎯 After determine_final_signal: {final_signal}")
         logger.debug(f"📊 Signal scores: {dict(signal_scores)}")
@@ -135,14 +136,16 @@ class SignalCombiner:
         
         # Volatilite ve timeframe filtreleri
         original_signal = final_signal
+        logger.debug(f"🔍 BEFORE FILTERS: signal={final_signal}, conf={confidence:.3f}, volatility={market_volatility:.3f}")
+        logger.debug(f"   Timeframe: {timeframe}, Min threshold: {MIN_CONFIDENCE_THRESHOLDS.get(timeframe, 0.5):.3f}")
         final_signal, strength = self._apply_filters(
             final_signal, confidence, market_volatility, 
             timeframe, global_direction, risk_level, dip_score
         )
         
         if original_signal != final_signal:
-            logger.debug(f"🔄 Filter changed signal: {original_signal} -> {final_signal}")
-        logger.debug(f"⚡ Final signal: {final_signal}, strength: {strength}")
+            logger.info(f"🔄 FILTER CHANGED SIGNAL: {original_signal} -> {final_signal} (conf={confidence:.3f})")
+        logger.debug(f"⚡ Final signal: {final_signal}, strength: {strength}, confidence: {confidence:.3f}")
         
         # Global trend uyumsuzluk cezası
         if final_signal != "HOLD":
