@@ -21,10 +21,10 @@ class SignalCombiner:
     def __init__(self):
         # Ağırlıklar - toplam 1.0 olmalı
         self.weights = {
-            "gram_analysis": 0.35,      # %35 - Ana sinyal
-            "global_trend": 0.20,       # %20 - Trend doğrulama
-            "currency_risk": 0.15,      # %15 - Risk ayarlama
-            "advanced_indicators": 0.20, # %20 - CCI + MFI
+            "gram_analysis": 0.50,      # %50 - Ana sinyal (artırıldı)
+            "global_trend": 0.15,       # %15 - Trend doğrulama (azaltıldı)
+            "currency_risk": 0.10,      # %10 - Risk ayarlama (azaltıldı)
+            "advanced_indicators": 0.15, # %15 - CCI + MFI (azaltıldı)
             "pattern_recognition": 0.10  # %10 - Pattern bonus
         }
         
@@ -113,7 +113,14 @@ class SignalCombiner:
         
         # Nihai sinyal belirleme
         logger.debug(f"📊 Before determine_final_signal - Scores: {dict(signal_scores)}")
-        final_signal = self._determine_final_signal(signal_scores)
+        
+        # Gram override - eğer gram güçlü sinyal veriyorsa direkt kullan
+        if gram_signal_type in ["BUY", "SELL"] and gram_confidence >= 0.40:
+            logger.info(f"🎯 GRAM OVERRIDE: Using gram signal {gram_signal_type} (conf={gram_confidence:.2%})")
+            final_signal = gram_signal_type
+        else:
+            final_signal = self._determine_final_signal(signal_scores)
+            
         logger.debug(f"🎯 After determine_final_signal: {final_signal}")
         logger.debug(f"📊 Signal scores: {dict(signal_scores)}")
         
