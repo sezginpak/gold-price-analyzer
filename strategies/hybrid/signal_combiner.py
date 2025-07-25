@@ -115,9 +115,11 @@ class SignalCombiner:
         logger.debug(f"📊 Before determine_final_signal - Scores: {dict(signal_scores)}")
         
         # Gram override - eğer gram güçlü sinyal veriyorsa direkt kullan
+        gram_override_applied = False
         if gram_signal_type in ["BUY", "SELL"] and gram_confidence >= 0.40:
             logger.info(f"🎯 GRAM OVERRIDE: Using gram signal {gram_signal_type} (conf={gram_confidence:.2%})")
             final_signal = gram_signal_type
+            gram_override_applied = True
         else:
             final_signal = self._determine_final_signal(signal_scores)
             
@@ -125,10 +127,15 @@ class SignalCombiner:
         logger.debug(f"📊 Signal scores: {dict(signal_scores)}")
         
         # Güven skoru hesaplama
-        confidence = self._calculate_confidence(
-            final_signal, signal_scores, gram_confidence, 
-            global_trend, currency_risk
-        )
+        if gram_override_applied:
+            # Override durumunda gram confidence'ı direkt kullan
+            confidence = gram_confidence
+            logger.info(f"📊 GRAM OVERRIDE: Using gram confidence directly: {confidence:.2%}")
+        else:
+            confidence = self._calculate_confidence(
+                final_signal, signal_scores, gram_confidence, 
+                global_trend, currency_risk
+            )
         logger.debug(f"🔢 Calculated confidence: {confidence:.3f}")
         
         # Dip yakalama override - BEARISH trend'de güçlü dip sinyali varsa
