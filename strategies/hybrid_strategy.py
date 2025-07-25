@@ -147,7 +147,8 @@ class HybridStrategy:
             logger.debug(f"🔄 HYBRID: Gram signal = {gram_analysis.get('signal')}")
             combined_signal = self._combine_signals(
                 gram_analysis, global_analysis, currency_analysis,
-                advanced_indicators, pattern_analysis, timeframe, market_volatility
+                advanced_indicators, pattern_analysis, timeframe, market_volatility,
+                divergence_analysis, momentum_analysis, smart_money_analysis
             )
             logger.debug(f"🔄 HYBRID: Combined signal = {combined_signal.get('signal')}")
             
@@ -189,6 +190,9 @@ class HybridStrategy:
                 "momentum_analysis": momentum_analysis,
                 "smart_money_analysis": smart_money_analysis,
                 
+                # Dip Detection bilgileri
+                "dip_detection": combined_signal.get("dip_detection", {}),
+                
                 # Özet ve öneriler
                 "summary": self._create_summary(
                     combined_signal, gram_analysis, global_analysis, currency_analysis
@@ -204,7 +208,9 @@ class HybridStrategy:
     
     def _combine_signals(self, gram: Dict, global_trend: Dict, 
                         currency: Dict, advanced: Dict, patterns: Dict, 
-                        timeframe: str, market_volatility: float) -> Dict[str, Any]:
+                        timeframe: str, market_volatility: float,
+                        divergence: Dict = None, momentum: Dict = None,
+                        smart_money: Dict = None) -> Dict[str, Any]:
         """Sinyalleri birleştir - Modüler signal combiner kullan"""
         return self.signal_combiner.combine_signals(
             gram_signal=gram,
@@ -213,7 +219,10 @@ class HybridStrategy:
             advanced_indicators=advanced,
             patterns=patterns,
             timeframe=timeframe,
-            market_volatility=market_volatility
+            market_volatility=market_volatility,
+            divergence_data=divergence,
+            momentum_data=momentum,
+            smart_money_data=smart_money
         )
     
     def _calculate_position_size(self, signal: Dict, currency: Dict) -> Dict[str, Any]:
@@ -312,6 +321,11 @@ class HybridStrategy:
         else:
             parts.append("Bekleme pozisyonunda kalın")
         
+        # Dip detection varsa ekle
+        dip_detection = signal.get("dip_detection", {})
+        if dip_detection.get("is_dip_opportunity"):
+            parts.append(f"DIP FIRSAT TESPİTİ (skor: {dip_detection.get('score', 0):.2f})")
+            
         # Gram altın durumu
         gram_trend = gram.get("trend", "NEUTRAL")
         parts.append(f"Gram altın {gram_trend} trendinde")
@@ -333,8 +347,19 @@ class HybridStrategy:
         """İşlem önerileri"""
         recommendations = []
         
-        # Sinyal önerisi
-        if signal["signal"] == "BUY":
+        # Dip detection özel durumu
+        dip_detection = signal.get("dip_detection", {})
+        if dip_detection.get("is_dip_opportunity") and signal["signal"] == "BUY":
+            recommendations.append("🎯 DIP YAKALAMA FIRSATI - Güçlü alım sinyali")
+            if signal.get("position_size_recommendation"):
+                recommendations.append(f"Önerilen pozisyon: %{signal['position_size_recommendation']*100:.0f}")
+            if signal.get("stop_loss_recommendation"):
+                recommendations.append(signal["stop_loss_recommendation"])
+            # Dip sinyallerini ekle
+            for dip_signal in dip_detection.get("signals", []):
+                recommendations.append(f"• {dip_signal}")
+        # Normal sinyal önerisi
+        elif signal["signal"] == "BUY":
             recommendations.append("Gram altın alımı yapabilirsiniz")
         elif signal["signal"] == "SELL":
             recommendations.append("Gram altın satışı düşünebilirsiniz")

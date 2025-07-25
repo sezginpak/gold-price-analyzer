@@ -1,7 +1,7 @@
 """
 Signal Combiner - Tüm sinyalleri birleştirip nihai sinyal üreten modül
 """
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from decimal import Decimal
 import logging
 from collections import defaultdict
@@ -28,6 +28,14 @@ class SignalCombiner:
             "pattern_recognition": 0.10  # %10 - Pattern bonus
         }
         
+        # Dip yakalama parametreleri
+        self.dip_detection_weights = {
+            "divergence": 0.35,          # %35 - Divergence en güçlü sinyal
+            "oversold_rsi": 0.25,        # %25 - RSI < 30
+            "momentum_exhaustion": 0.20, # %20 - Momentum tükenmesi
+            "smart_money": 0.20          # %20 - Kurumsal alım
+        }
+        
     def combine_signals(self, 
                        gram_signal: Dict,
                        global_trend: Dict,
@@ -35,7 +43,10 @@ class SignalCombiner:
                        advanced_indicators: Dict,
                        patterns: Dict,
                        timeframe: str,
-                       market_volatility: float) -> Dict[str, Any]:
+                       market_volatility: float,
+                       divergence_data: Dict = None,
+                       momentum_data: Dict = None,
+                       smart_money_data: Dict = None) -> Dict[str, Any]:
         """
         Tüm sinyalleri birleştir ve nihai sinyal üret
         
@@ -63,6 +74,13 @@ class SignalCombiner:
         logger.debug(f"   Global trend: {global_trend.get('trend')} (dir: {global_direction})")
         logger.debug(f"   Currency risk: {risk_level}")
         logger.debug(f"   Market volatility: {market_volatility:.3f}")
+        
+        # Dip detection analizi
+        dip_score, dip_signals = self._analyze_dip_opportunity(
+            global_direction, divergence_data, momentum_data, 
+            smart_money_data, advanced_indicators
+        )
+        logger.debug(f"📊 Dip Detection Score: {dip_score:.2f}, Signals: {dip_signals}")
         
         # Sinyal puanları
         signal_scores = defaultdict(float)
@@ -105,11 +123,21 @@ class SignalCombiner:
         )
         logger.debug(f"🔢 Calculated confidence: {confidence:.3f}")
         
+        # Dip yakalama override - BEARISH trend'de güçlü dip sinyali varsa
+        if global_direction == "BEARISH" and dip_score >= 0.6:
+            logger.info(f"🎯 DIP DETECTION OVERRIDE: Score={dip_score:.2f}, Original signal={final_signal}")
+            final_signal = "BUY"
+            confidence = max(confidence, dip_score)  # Dip skorunu güven olarak kullan
+            
+            # Pozisyon boyutu önerisi ekle
+            position_size = self._calculate_dip_position_size(dip_score, risk_level)
+            logger.info(f"💰 Recommended position size: {position_size:.0%}")
+        
         # Volatilite ve timeframe filtreleri
         original_signal = final_signal
         final_signal, strength = self._apply_filters(
             final_signal, confidence, market_volatility, 
-            timeframe, global_direction, risk_level
+            timeframe, global_direction, risk_level, dip_score
         )
         
         if original_signal != final_signal:
@@ -122,14 +150,27 @@ class SignalCombiner:
                 final_signal, global_direction, confidence
             )
         
-        return {
+        # Dip detection bilgileri ekle
+        result = {
             "signal": final_signal,
             "confidence": confidence,
             "strength": strength,
             "scores": dict(signal_scores),
             "raw_confidence": signal_scores[final_signal],
-            "market_volatility": market_volatility
+            "market_volatility": market_volatility,
+            "dip_detection": {
+                "score": dip_score,
+                "signals": dip_signals,
+                "is_dip_opportunity": dip_score >= 0.6
+            }
         }
+        
+        # BEARISH trend'de dip yakaladıysak pozisyon boyutu önerisi ekle
+        if global_direction == "BEARISH" and dip_score >= 0.6 and final_signal == "BUY":
+            result["position_size_recommendation"] = self._calculate_dip_position_size(dip_score, risk_level)
+            result["stop_loss_recommendation"] = "Tight stop-loss: %1-2 below entry"
+            
+        return result
     
     def _apply_global_trend_score(self, scores: defaultdict, 
                                   global_dir: str, gram_signal: str):
@@ -244,7 +285,8 @@ class SignalCombiner:
     
     def _apply_filters(self, signal: str, confidence: float, 
                       volatility: float, timeframe: str,
-                      global_dir: str, risk_level: str) -> Tuple[str, str]:
+                      global_dir: str, risk_level: str,
+                      dip_score: float = 0) -> Tuple[str, str]:
         """Volatilite ve timeframe filtrelerini uygula"""
         logger.debug(f"🔍 FILTER CHECK: signal={signal}, conf={confidence:.3f}, vol={volatility:.3f}, tf={timeframe}")
         
@@ -270,8 +312,8 @@ class SignalCombiner:
     def _apply_trend_mismatch_penalty(self, signal: str, global_dir: str,
                                      confidence: float) -> float:
         """Global trend uyumsuzluk cezası uygula"""
-        # BUY sinyal ama global trend BEARISH
-        if signal == "BUY" and global_dir == "BEARISH":
+        # BUY sinyal ama global trend BEARISH - Dip detection yoksa ceza uygula
+        if signal == "BUY" and global_dir == "BEARISH" and dip_score < 0.6:
             confidence *= GLOBAL_TREND_MISMATCH_PENALTY
             logger.info(f"Trend mismatch penalty: confidence reduced to {confidence:.3f}")
         # SELL sinyal ama global trend BULLISH
@@ -324,3 +366,102 @@ class SignalCombiner:
             return True
         
         return False
+    
+    def _analyze_dip_opportunity(self, global_direction: str, 
+                                divergence_data: Dict, momentum_data: Dict,
+                                smart_money_data: Dict, advanced_indicators: Dict) -> Tuple[float, List[str]]:
+        """BEARISH trend'de dip yakalama fırsatı analizi"""
+        dip_score = 0.0
+        dip_signals = []
+        
+        # Sadece BEARISH trend'de dip ara
+        if global_direction != "BEARISH":
+            return 0.0, []
+        
+        # 1. Bullish Divergence kontrolü
+        if divergence_data and divergence_data.get('divergence_type') == 'BULLISH':
+            div_strength = divergence_data.get('strength', 'WEAK')
+            if div_strength == 'STRONG':
+                dip_score += self.dip_detection_weights['divergence'] * 1.0
+                dip_signals.append("Strong bullish divergence detected")
+            elif div_strength == 'MODERATE':
+                dip_score += self.dip_detection_weights['divergence'] * 0.7
+                dip_signals.append("Moderate bullish divergence")
+            else:
+                dip_score += self.dip_detection_weights['divergence'] * 0.4
+                dip_signals.append("Weak bullish divergence")
+        
+        # 2. RSI Oversold kontrolü
+        rsi_value = advanced_indicators.get('rsi')
+        if rsi_value and rsi_value < 30:
+            oversold_severity = (30 - rsi_value) / 30  # 0'a ne kadar yakın
+            dip_score += self.dip_detection_weights['oversold_rsi'] * (0.7 + oversold_severity * 0.3)
+            dip_signals.append(f"RSI oversold at {rsi_value:.1f}")
+        elif rsi_value and rsi_value < 35:
+            dip_score += self.dip_detection_weights['oversold_rsi'] * 0.5
+            dip_signals.append(f"RSI approaching oversold at {rsi_value:.1f}")
+        
+        # 3. Momentum Exhaustion kontrolü
+        if momentum_data and momentum_data.get('exhaustion_detected'):
+            if momentum_data.get('exhaustion_type') == 'BULLISH':  # Bearish exhaustion = Bullish reversal
+                exhaustion_score = momentum_data.get('exhaustion_score', 0)
+                dip_score += self.dip_detection_weights['momentum_exhaustion'] * exhaustion_score
+                dip_signals.append(f"Momentum exhaustion detected (score: {exhaustion_score:.2f})")
+                
+                # Volume spike bonus
+                vol_analysis = momentum_data.get('volatility_analysis', {})
+                if vol_analysis.get('volatility_spike'):
+                    dip_score += 0.1  # Bonus
+                    dip_signals.append("Volume spike confirms exhaustion")
+        
+        # 4. Smart Money Accumulation kontrolü
+        if smart_money_data:
+            sm_direction = smart_money_data.get('smart_money_direction')
+            if sm_direction == 'BULLISH':
+                manipulation_score = smart_money_data.get('manipulation_score', 0)
+                dip_score += self.dip_detection_weights['smart_money'] * manipulation_score
+                dip_signals.append(f"Smart money accumulation detected (score: {manipulation_score:.2f})")
+                
+                # Stop hunt bonus
+                if smart_money_data.get('stop_hunt_detected'):
+                    stop_hunt_type = smart_money_data.get('stop_hunt_details', {}).get('type')
+                    if 'BULLISH' in stop_hunt_type:
+                        dip_score += 0.15  # Bonus
+                        dip_signals.append("Bullish stop hunt confirmed")
+        
+        # Support bounce bonus (pattern_recognition'dan gelirse)
+        # Bu kısım patterns verisiyle genişletilebilir
+        
+        # Normalize score (0-1 arası)
+        dip_score = min(dip_score, 1.0)
+        
+        # Eğer hiç sinyal yoksa ama RSI düşükse minimal skor ver
+        if dip_score == 0 and rsi_value and rsi_value < 40:
+            dip_score = 0.2
+            dip_signals.append("Potential oversold bounce setup")
+        
+        return round(dip_score, 3), dip_signals
+    
+    def _calculate_dip_position_size(self, dip_score: float, risk_level: str) -> float:
+        """Dip yakalama için pozisyon boyutu önerisi"""
+        # Base position size dip skoruna göre
+        if dip_score >= 0.8:
+            base_size = 0.7  # %70
+        elif dip_score >= 0.6:
+            base_size = 0.5  # %50
+        else:
+            base_size = 0.3  # %30
+        
+        # Risk seviyesine göre ayarla
+        risk_multipliers = {
+            "LOW": 1.2,
+            "MEDIUM": 1.0,
+            "HIGH": 0.7,
+            "EXTREME": 0.5
+        }
+        
+        risk_multiplier = risk_multipliers.get(risk_level, 1.0)
+        final_size = base_size * risk_multiplier
+        
+        # Min-max limits
+        return max(0.2, min(0.8, final_size))
