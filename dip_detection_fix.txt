@@ -1,0 +1,18 @@
+
+# signal_combiner.py - _analyze_dip_opportunity içinde
+# RSI Oversold kontrolü - daha geniş aralık
+rsi_value = advanced_indicators.get('rsi')
+if not rsi_value and hasattr(self, '_gram_indicators'):
+    # Gram analizinden RSI'ı al
+    rsi_value = self._gram_indicators.get('rsi')
+    
+if rsi_value:
+    if rsi_value < 25:  # Extreme oversold
+        dip_score += self.dip_detection_weights['oversold_rsi'] * 1.0
+        dip_signals.append(f"EXTREME oversold RSI {rsi_value:.1f}")
+    elif rsi_value < 35:  # Normal oversold
+        dip_score += self.dip_detection_weights['oversold_rsi'] * 0.7
+        dip_signals.append(f"Oversold RSI {rsi_value:.1f}")
+    elif rsi_value < 40:  # Near oversold
+        dip_score += self.dip_detection_weights['oversold_rsi'] * 0.4
+        dip_signals.append(f"Near oversold RSI {rsi_value:.1f}")

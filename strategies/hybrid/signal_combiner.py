@@ -290,18 +290,28 @@ class SignalCombiner:
         """Volatilite ve timeframe filtrelerini uygula"""
         logger.debug(f"🔍 FILTER CHECK: signal={signal}, conf={confidence:.3f}, vol={volatility:.3f}, tf={timeframe}")
         
-        # Volatilite filtresi
-        if volatility < MIN_VOLATILITY_THRESHOLD and signal != "HOLD":
-            logger.debug(f"🔄 FILTER: Low volatility ({volatility:.3f}% < {MIN_VOLATILITY_THRESHOLD}%), converting {signal} to HOLD")
+        # Volatilite filtresi - sadece extreme düşük durumda uygula
+        if volatility < MIN_VOLATILITY_THRESHOLD * 0.5 and signal != "HOLD":  # 0.15 altında
+            logger.debug(f"🔄 FILTER: Extreme low volatility ({volatility:.3f}% < {MIN_VOLATILITY_THRESHOLD * 0.5}%), converting {signal} to HOLD")
             return "HOLD", "WEAK"
         
         # Timeframe güven eşiği
         if signal != "HOLD":
             min_confidence = MIN_CONFIDENCE_THRESHOLDS.get(timeframe, 0.5)
+            
+            # Dip detection veya extreme RSI durumunda eşiği düşür
+            if dip_score > 0.2 or (global_dir == "BEARISH" and signal == "BUY"):
+                min_confidence *= 0.8  # %20 azalt
+                logger.debug(f"🎯 FILTER: Lowering threshold for dip/bearish buy: {min_confidence:.3f}")
+            
             logger.debug(f"🔍 FILTER: Checking confidence {confidence:.3f} >= {min_confidence:.3f} for {timeframe}")
             if confidence < min_confidence:
-                logger.debug(f"🔄 FILTER: Low confidence for {timeframe}: {confidence:.3f} < {min_confidence}, converting {signal} to HOLD")
-                return "HOLD", "WEAK"
+                # Eğer çok yakınsa (5% fark) ve güçlü sinyaller varsa geçir
+                if confidence >= min_confidence * 0.95:
+                    logger.debug(f"🔍 FILTER: Near threshold ({confidence:.3f} vs {min_confidence:.3f}), allowing signal")
+                else:
+                    logger.debug(f"🔄 FILTER: Low confidence for {timeframe}: {confidence:.3f} < {min_confidence}, converting {signal} to HOLD")
+                    return "HOLD", "WEAK"
         
         # Sinyal gücü belirleme
         strength = self._calculate_signal_strength(confidence, risk_level)
