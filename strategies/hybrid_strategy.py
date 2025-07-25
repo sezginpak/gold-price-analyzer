@@ -78,6 +78,7 @@ class HybridStrategy:
             # 1. Gram altın analizi (ana sinyal)
             logger.info(f"Gram analizi başlıyor. Mum sayısı: {len(gram_candles)}")
             gram_analysis = self.gram_analyzer.analyze(gram_candles)
+            self._last_gram_analysis = gram_analysis  # RSI için sakla
             logger.info(f"Gram analizi tamamlandı. Fiyat: {gram_analysis.get('price')}")
             
             # Fiyat kontrolü - eğer None veya 0 ise son mum fiyatını kullan
@@ -445,12 +446,18 @@ class HybridStrategy:
                     combined_signal = mfi_analysis['signal']
                     combined_confidence = mfi_analysis['confidence']
             
+            # Gram analizinden RSI değerini al
+            rsi_value = None
+            if hasattr(self, '_last_gram_analysis') and self._last_gram_analysis:
+                rsi_value = self._last_gram_analysis.get('indicators', {}).get('rsi')
+            
             return {
                 'cci': cci_analysis,
                 'mfi': mfi_analysis,
                 'combined_signal': combined_signal,
                 'combined_confidence': combined_confidence,
-                'divergence': cci_analysis.get('divergence') or mfi_analysis.get('divergence')
+                'divergence': cci_analysis.get('divergence') or mfi_analysis.get('divergence'),
+                'rsi': rsi_value  # RSI değerini ekle
             }
             
         except Exception as e:

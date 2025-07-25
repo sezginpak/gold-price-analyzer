@@ -147,7 +147,7 @@ class SignalCombiner:
         # Global trend uyumsuzluk cezası
         if final_signal != "HOLD":
             confidence = self._apply_trend_mismatch_penalty(
-                final_signal, global_direction, confidence
+                final_signal, global_direction, confidence, dip_score
             )
         
         # Dip detection bilgileri ekle
@@ -310,7 +310,7 @@ class SignalCombiner:
         return signal, strength
     
     def _apply_trend_mismatch_penalty(self, signal: str, global_dir: str,
-                                     confidence: float) -> float:
+                                     confidence: float, dip_score: float = 0) -> float:
         """Global trend uyumsuzluk cezası uygula"""
         # BUY sinyal ama global trend BEARISH - Dip detection yoksa ceza uygula
         if signal == "BUY" and global_dir == "BEARISH" and dip_score < 0.6:
