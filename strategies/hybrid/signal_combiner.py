@@ -164,8 +164,8 @@ class SignalCombiner:
             logger.info(f"🔄 FILTER CHANGED SIGNAL: {original_signal} -> {final_signal} (conf={confidence:.3f})")
         logger.debug(f"⚡ Final signal: {final_signal}, strength: {strength}, confidence: {confidence:.3f}")
         
-        # Global trend uyumsuzluk cezası
-        if final_signal != "HOLD":
+        # Global trend uyumsuzluk cezası - Override durumunda uygulama
+        if final_signal != "HOLD" and not gram_override_applied:
             confidence = self._apply_trend_mismatch_penalty(
                 final_signal, global_direction, confidence, dip_score
             )
