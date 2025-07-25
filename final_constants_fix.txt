@@ -1,0 +1,8 @@
+
+# Timeframe bazlı minimum güven eşikleri
+MIN_CONFIDENCE_THRESHOLDS: Dict[str, float] = {
+    "15m": 0.25,  # %25 - Agresif sinyal üretimi
+    "1h": 0.30,   # %30 - Dengeli
+    "4h": 0.35,   # %35 - Uzun vade
+    "1d": 0.30    # %30 - Günlük
+}
