@@ -151,14 +151,19 @@ class SignalCombiner:
             position_size = self._calculate_dip_position_size(dip_score, risk_level)
             logger.info(f"💰 Recommended position size: {position_size:.0%}")
         
-        # Volatilite ve timeframe filtreleri
+        # Volatilite ve timeframe filtreleri - Override durumunda atlama
         original_signal = final_signal
         logger.debug(f"🔍 BEFORE FILTERS: signal={final_signal}, conf={confidence:.3f}, volatility={market_volatility:.3f}")
         logger.debug(f"   Timeframe: {timeframe}, Min threshold: {MIN_CONFIDENCE_THRESHOLDS.get(timeframe, 0.5):.3f}")
-        final_signal, strength = self._apply_filters(
-            final_signal, confidence, market_volatility, 
-            timeframe, global_direction, risk_level, dip_score
-        )
+        
+        if gram_override_applied:
+            logger.info(f"🎯 GRAM OVERRIDE: Skipping filters for {final_signal}")
+            strength = self._calculate_signal_strength(confidence, risk_level)
+        else:
+            final_signal, strength = self._apply_filters(
+                final_signal, confidence, market_volatility, 
+                timeframe, global_direction, risk_level, dip_score
+            )
         
         if original_signal != final_signal:
             logger.info(f"🔄 FILTER CHANGED SIGNAL: {original_signal} -> {final_signal} (conf={confidence:.3f})")
