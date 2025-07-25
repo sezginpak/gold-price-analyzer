@@ -124,10 +124,10 @@ class SignalCombiner:
         logger.debug(f"🔢 Calculated confidence: {confidence:.3f}")
         
         # Dip yakalama override - BEARISH trend'de güçlü dip sinyali varsa
-        if global_direction == "BEARISH" and dip_score >= 0.6:
+        if global_direction == "BEARISH" and dip_score >= 0.4:
             logger.info(f"🎯 DIP DETECTION OVERRIDE: Score={dip_score:.2f}, Original signal={final_signal}")
             final_signal = "BUY"
-            confidence = max(confidence, dip_score)  # Dip skorunu güven olarak kullan
+            confidence = max(confidence, dip_score * 1.2)  # Dip skorunu %20 boost ile güven olarak kullan
             
             # Pozisyon boyutu önerisi ekle
             position_size = self._calculate_dip_position_size(dip_score, risk_level)
