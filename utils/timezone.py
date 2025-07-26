@@ -192,10 +192,20 @@ def parse_timestamp(timestamp_str: Union[str, datetime]) -> datetime:
     if isinstance(timestamp_str, datetime):
         return to_turkey_time(timestamp_str)
     
+    # Normalize timezone offset format (+03:00 to +0300)
+    if isinstance(timestamp_str, str) and ('+' in timestamp_str or '-' in timestamp_str[-6:]):
+        # Replace '+03:00' with '+0300' format
+        import re
+        timestamp_str = re.sub(r'([+-]\d{2}):(\d{2})$', r'\1\2', timestamp_str)
+    
     # Try different formats
     formats = [
+        "%Y-%m-%d %H:%M:%S.%f%z",    # With microseconds and timezone offset
+        "%Y-%m-%d %H:%M:%S%z",        # With timezone offset
         "%Y-%m-%d %H:%M:%S.%f",
         "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f%z",    # ISO with timezone offset
+        "%Y-%m-%dT%H:%M:%S%z",        # ISO with timezone offset
         "%Y-%m-%dT%H:%M:%S.%f",
         "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%dT%H:%M:%S.%fZ",

@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Optional, Dict
 import json
 
-from utils.timezone import utc_now, parse_datetime
+from utils.timezone import utc_now, parse_timestamp
 from models.simulation import (
     SimulationPosition, 
     PositionStatus,
@@ -86,7 +86,7 @@ class PositionManager:
                     timeframe=data['timeframe'],
                     position_type=data['position_type'],
                     status=PositionStatus(data['status']),
-                    entry_time=parse_datetime(data['entry_time']),
+                    entry_time=parse_timestamp(data['entry_time']),
                     entry_price=Decimal(str(data['entry_price'])),
                     entry_spread=Decimal(str(data['entry_spread'])),
                     entry_commission=Decimal(str(data['entry_commission'])),

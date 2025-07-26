@@ -272,6 +272,82 @@
         </div>
     </div>
     
+    <!-- Hybrid Analysis History -->
+    <div class="glass-card mb-lg">
+        <div class="glass-card__header d-flex justify-between items-center">
+            <h2 class="glass-card__title">
+                <i class="fas fa-history text-purple"></i>
+                Hibrit Analiz Geçmişi
+            </h2>
+            <div class="d-flex items-center gap-md">
+                <!-- Timeframe Filter -->
+                <select id="hybrid-timeframe-filter" class="bg-slate-700 text-white px-3 py-1 rounded text-sm">
+                    <option value="">Tüm Timeframe</option>
+                    <option value="15m">15 Dakika</option>
+                    <option value="1h">1 Saat</option>
+                    <option value="4h">4 Saat</option>
+                    <option value="1d">Günlük</option>
+                </select>
+                <a href="/analysis" class="text-xs text-muted hover:text-yellow transition-colors">
+                    Detaylı Analiz →
+                </a>
+            </div>
+        </div>
+        <div class="glass-card__body">
+            <style>
+                /* Timeframe renkleri - Dashboard için */
+                .hybrid-tf-15m {
+                    background-color: rgba(59, 130, 246, 0.15);
+                    border-left: 3px solid rgb(59, 130, 246);
+                }
+                .hybrid-tf-1h {
+                    background-color: rgba(16, 185, 129, 0.15);
+                    border-left: 3px solid rgb(16, 185, 129);
+                }
+                .hybrid-tf-4h {
+                    background-color: rgba(217, 70, 239, 0.15);
+                    border-left: 3px solid rgb(217, 70, 239);
+                }
+                .hybrid-tf-1d {
+                    background-color: rgba(251, 146, 60, 0.15);
+                    border-left: 3px solid rgb(251, 146, 60);
+                }
+                .hybrid-tf-badge {
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    font-weight: 600;
+                    font-size: 0.75rem;
+                }
+                .badge-15m { background-color: rgb(59, 130, 246); color: white; }
+                .badge-1h { background-color: rgb(16, 185, 129); color: white; }
+                .badge-4h { background-color: rgb(217, 70, 239); color: white; }
+                .badge-1d { background-color: rgb(251, 146, 60); color: white; }
+            </style>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-700">
+                            <th class="text-left py-2">Zaman</th>
+                            <th class="text-left py-2">TF</th>
+                            <th class="text-left py-2">Fiyat</th>
+                            <th class="text-left py-2">Sinyal</th>
+                            <th class="text-left py-2">Güven</th>
+                            <th class="text-left py-2 hidden sm:table-cell">Trend</th>
+                            <th class="text-left py-2 hidden md:table-cell">Risk</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hybrid-history-table">
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-gray-400">
+                                <i class="fas fa-spinner fa-spin"></i> Yükleniyor...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
     <!-- Signals -->
     <div class="glass-card mb-lg">
         <div class="glass-card__header d-flex justify-between items-center">
@@ -1445,6 +1521,84 @@
             }
         }
 
+        // Hibrit analiz geçmişini yükle
+        async function loadHybridAnalysisHistory(timeframe = '') {
+            try {
+                const params = new URLSearchParams();
+                params.append('limit', '10'); // Son 10 analiz
+                if (timeframe) {
+                    params.append('timeframe', timeframe);
+                }
+                
+                const response = await fetch(`/api/analysis/history?${params.toString()}`);
+                const data = await response.json();
+                
+                const tbody = document.getElementById('hybrid-history-table');
+                
+                if (data.analyses && data.analyses.length > 0) {
+                    const historyHtml = data.analyses.map(analysis => {
+                        const time = new Date(analysis.timestamp);
+                        const tfClass = `hybrid-tf-${analysis.timeframe}`;
+                        const badgeClass = `badge-${analysis.timeframe}`;
+                        
+                        const signalColor = analysis.signal === 'BUY' ? 'text-green-400' : 
+                                          analysis.signal === 'SELL' ? 'text-red-400' : 
+                                          'text-gray-400';
+                        
+                        const trendIcon = analysis.global_trend === 'BULLISH' ? '↗️' :
+                                        analysis.global_trend === 'BEARISH' ? '↘️' : '➡️';
+                        
+                        const riskColor = analysis.currency_risk === 'LOW' ? 'text-green-400' :
+                                        analysis.currency_risk === 'MEDIUM' ? 'text-yellow-400' :
+                                        analysis.currency_risk === 'HIGH' ? 'text-red-400' : 'text-gray-400';
+                        
+                        return `
+                            <tr class="${tfClass} border-b border-gray-700 hover:bg-slate-800/30 transition-all cursor-pointer" onclick="window.location.href='/analysis'">
+                                <td class="py-2 text-xs">
+                                    ${time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                </td>
+                                <td class="py-2">
+                                    <span class="hybrid-tf-badge ${badgeClass}">${analysis.timeframe}</span>
+                                </td>
+                                <td class="py-2 text-xs">₺${analysis.price.toFixed(2)}</td>
+                                <td class="py-2">
+                                    <span class="${signalColor} font-semibold text-xs">
+                                        ${analysis.signal === 'BUY' ? 'ALIŞ' : 
+                                          analysis.signal === 'SELL' ? 'SATIŞ' : 
+                                          'BEKLE'}
+                                    </span>
+                                </td>
+                                <td class="py-2 text-xs">%${(analysis.confidence * 100).toFixed(0)}</td>
+                                <td class="py-2 hidden sm:table-cell text-xs">${trendIcon}</td>
+                                <td class="py-2 hidden md:table-cell">
+                                    <span class="${riskColor} text-xs">${analysis.currency_risk}</span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                    
+                    tbody.innerHTML = historyHtml;
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-gray-400">
+                                Henüz analiz geçmişi yok
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Hibrit analiz geçmişi yüklenemedi:', error);
+                document.getElementById('hybrid-history-table').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-red-400">
+                            Yüklenirken hata oluştu
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
         // Paralel veri yükleme fonksiyonu
         async function loadAllData() {
             try {
@@ -1460,7 +1614,8 @@
                 // 2. Kısa gecikme sonrası kritik veriler (500ms bekle)
                 setTimeout(async () => {
                     const criticalData = await Promise.allSettled([
-                        loadHybridAnalysis()
+                        loadHybridAnalysis(),
+                        loadHybridAnalysisHistory() // Yeni eklendi
                     ]);
                     console.log('✅ Hibrit analiz yüklendi');
                 }, 500);
@@ -1503,6 +1658,12 @@
             // Tüm verileri paralel yükle
             loadAllData();
             
+            // Timeframe filter event listener
+            document.getElementById('hybrid-timeframe-filter').addEventListener('change', function() {
+                const selectedTimeframe = this.value;
+                loadHybridAnalysisHistory(selectedTimeframe);
+            });
+            
             // Periyodik güncellemeler - daha uzun intervaller
             setInterval(loadStats, 45000);  // 45 saniye
             setInterval(loadActiveAlerts, 30000);  // 30 saniye - uyarılar daha sık kontrol edilmeli
@@ -1519,6 +1680,7 @@
                 }
             }, 90000);  // 90 saniye
             setInterval(loadHybridAnalysis, 90000);  // 90 saniye
+            setInterval(loadHybridAnalysisHistory, 90000);  // 90 saniye - Yeni eklendi
             setInterval(loadSignals, 90000);  // 90 saniye
             setInterval(loadLogStats, 120000);  // 2 dakika
             setInterval(loadRecentErrors, 60000);  // 1 dakika

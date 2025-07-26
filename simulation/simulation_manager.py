@@ -5,11 +5,11 @@ Gerçek zamanlı sinyal takibi ve otomatik trading simülasyonu
 import asyncio
 import logging
 import json
-from datetime import timedelta, time
+from datetime import timedelta, time, datetime
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
-from utils.timezone import now, utc_now, to_turkey_time, get_day_start
+from utils.timezone import now, utc_now, to_turkey_time, get_day_start, parse_timestamp
 
 from models.simulation import (
     SimulationConfig, SimulationPosition, SimulationStatus,
@@ -805,9 +805,9 @@ class SimulationManager:
                 avg_win=sim_data['avg_win'],
                 avg_loss=sim_data['avg_loss'],
                 avg_win_loss_ratio=sim_data['avg_win'] / sim_data['avg_loss'] if sim_data['avg_loss'] > 0 else 0,
-                start_date=datetime.fromisoformat(sim_data['start_date']),
-                last_update=datetime.fromisoformat(sim_data['last_update']),
-                running_days=(now() - datetime.fromisoformat(sim_data['start_date'])).days,
+                start_date=parse_timestamp(sim_data['start_date']),
+                last_update=parse_timestamp(sim_data['last_update']),
+                running_days=(now() - parse_timestamp(sim_data['start_date'])).days,
                 daily_pnl=Decimal(str(daily_pnl or 0)),
                 daily_pnl_pct=float(daily_pnl or 0) / float(sim_data['current_capital']) * 100,
                 daily_trades=daily_trades or 0,

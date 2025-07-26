@@ -15,30 +15,52 @@
         .strength-moderate { color: #f59e0b; }
         .strength-weak { color: #6b7280; }
         
-        /* Timeframe renkleri */
+        /* Timeframe renkleri - Daha ayırt edici */
         .timeframe-15m {
-            background-color: rgba(59, 130, 246, 0.1); /* Mavi */
+            background-color: rgba(59, 130, 246, 0.2); /* Parlak Mavi */
+            border-left: 3px solid rgb(59, 130, 246);
         }
         .timeframe-1h {
-            background-color: rgba(34, 197, 94, 0.1); /* Yeşil */
+            background-color: rgba(16, 185, 129, 0.2); /* Zümrüt Yeşili */
+            border-left: 3px solid rgb(16, 185, 129);
         }
         .timeframe-4h {
-            background-color: rgba(168, 85, 247, 0.1); /* Mor */
+            background-color: rgba(217, 70, 239, 0.2); /* Mor/Fuşya */
+            border-left: 3px solid rgb(217, 70, 239);
         }
         .timeframe-1d {
-            background-color: rgba(251, 146, 60, 0.1); /* Turuncu */
+            background-color: rgba(251, 146, 60, 0.2); /* Turuncu */
+            border-left: 3px solid rgb(251, 146, 60);
         }
         .timeframe-15m:hover {
-            background-color: rgba(59, 130, 246, 0.2);
+            background-color: rgba(59, 130, 246, 0.3);
         }
         .timeframe-1h:hover {
-            background-color: rgba(34, 197, 94, 0.2);
+            background-color: rgba(16, 185, 129, 0.3);
         }
         .timeframe-4h:hover {
-            background-color: rgba(168, 85, 247, 0.2);
+            background-color: rgba(217, 70, 239, 0.3);
         }
         .timeframe-1d:hover {
-            background-color: rgba(251, 146, 60, 0.2);
+            background-color: rgba(251, 146, 60, 0.3);
+        }
+        
+        /* Timeframe badge renkleri */
+        .tf-badge-15m {
+            background-color: rgb(59, 130, 246);
+            color: white;
+        }
+        .tf-badge-1h {
+            background-color: rgb(16, 185, 129);
+            color: white;
+        }
+        .tf-badge-4h {
+            background-color: rgb(217, 70, 239);
+            color: white;
+        }
+        .tf-badge-1d {
+            background-color: rgb(251, 146, 60);
+            color: white;
         }
     </style>
 {% endblock %}
@@ -403,10 +425,10 @@
                 </h3>
                 <div class="flex items-center gap-2 text-xs mt-2 lg:mt-0">
                     <span class="text-gray-400">Renk kodları:</span>
-                    <span class="px-2 py-1 rounded timeframe-15m">15D</span>
-                    <span class="px-2 py-1 rounded timeframe-1h">1S</span>
-                    <span class="px-2 py-1 rounded timeframe-4h">4S</span>
-                    <span class="px-2 py-1 rounded timeframe-1d">1G</span>
+                    <span class="px-2 py-1 rounded tf-badge-15m font-semibold">15D</span>
+                    <span class="px-2 py-1 rounded tf-badge-1h font-semibold">1S</span>
+                    <span class="px-2 py-1 rounded tf-badge-4h font-semibold">4S</span>
+                    <span class="px-2 py-1 rounded tf-badge-1d font-semibold">1G</span>
                 </div>
             </div>
             
