@@ -92,9 +92,9 @@ class SignalCombiner:
         )
         logger.debug(f"📈 After gram signal: {dict(signal_scores)}")
         
-        # 2. Global trend uyumu
+        # 2. Global trend uyumu - Artık teknik göstergeler de dahil
         self._apply_global_trend_score(
-            signal_scores, global_direction, gram_signal_type
+            signal_scores, global_direction, gram_signal_type, global_trend
         )
         
         # 3. Kur riski etkisi
@@ -215,8 +215,9 @@ class SignalCombiner:
         return result
     
     def _apply_global_trend_score(self, scores: defaultdict, 
-                                  global_dir: str, gram_signal: str):
-        """Global trend skorunu uygula"""
+                                  global_dir: str, gram_signal: str,
+                                  global_trend: Dict = None):
+        """Global trend skorunu uygula - Artık teknik göstergeler de var"""
         trend_weight = self.weights["global_trend"]
         
         # Trend uyum tablosu
@@ -231,7 +232,23 @@ class SignalCombiner:
             (global_dir, gram_signal), 
             ("HOLD", 0.3)
         )
-        scores[signal_to_add] += trend_weight * multiplier
+        
+        # Temel trend skoru
+        scores[signal_to_add] += trend_weight * multiplier * 0.6  # %60 trend direction
+        
+        # ONS/USD teknik göstergelerinden gelen sinyal
+        if global_trend and 'indicator_signal' in global_trend:
+            indicator_signal = global_trend['indicator_signal']
+            signal_type = indicator_signal.get('signal', 'NEUTRAL')
+            confidence = indicator_signal.get('confidence', 0)
+            
+            # Teknik gösterge sinyalini ekle (%40 ağırlık)
+            if 'BUY' in signal_type:
+                scores['BUY'] += trend_weight * confidence * 0.4
+            elif 'SELL' in signal_type:
+                scores['SELL'] += trend_weight * confidence * 0.4
+            else:
+                scores['HOLD'] += trend_weight * 0.4 * 0.5
     
     def _apply_currency_risk_score(self, scores: defaultdict, 
                                    risk_level: str, gram_signal: str):

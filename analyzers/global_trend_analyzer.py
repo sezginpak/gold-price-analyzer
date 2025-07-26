@@ -8,6 +8,10 @@ import numpy as np
 from utils.timezone import utc_now
 
 from models.market_data import MarketData
+from indicators.rsi import RSIIndicator
+from indicators.macd import MACDIndicator
+from indicators.bollinger_bands import BollingerBandsIndicator
+from indicators.stochastic import StochasticIndicator
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,12 @@ class GlobalTrendAnalyzer:
             "medium": 50,  # 50 günlük
             "long": 200    # 200 günlük
         }
+        
+        # Teknik göstergeler
+        self.rsi = RSIIndicator(period=14)
+        self.macd = MACDIndicator(fast=12, slow=26, signal=9)
+        self.bollinger = BollingerBandsIndicator(period=20, std_dev=2)
+        self.stochastic = StochasticIndicator(k_period=14, d_period=3)
     
     def analyze(self, market_data: List[MarketData]) -> Dict[str, Any]:
         """
@@ -58,6 +68,12 @@ class GlobalTrendAnalyzer:
             # Önemli seviyeler
             key_levels = self._find_key_levels(ons_prices)
             
+            # Teknik göstergeler
+            technical_indicators = self._calculate_technical_indicators(ons_prices)
+            
+            # Gösterge bazlı sinyal
+            indicator_signal = self._determine_indicator_signal(technical_indicators)
+            
             return {
                 "timestamp": utc_now(),
                 "ons_usd_price": Decimal(str(current_price)),
@@ -67,8 +83,10 @@ class GlobalTrendAnalyzer:
                 "momentum": momentum,
                 "volatility": volatility,
                 "key_levels": key_levels,
+                "technical_indicators": technical_indicators,
+                "indicator_signal": indicator_signal,
                 "analysis": self._create_trend_analysis(
-                    trend_direction, trend_strength, ma_values, momentum
+                    trend_direction, trend_strength, ma_values, momentum, technical_indicators
                 )
             }
             
@@ -212,10 +230,17 @@ class GlobalTrendAnalyzer:
         }
     
     def _create_trend_analysis(self, direction: str, strength: str, 
-                              ma_values: Dict, momentum: Dict) -> Dict[str, str]:
+                              ma_values: Dict, momentum: Dict,
+                              technical_indicators: Dict = None) -> Dict[str, str]:
         """Trend analizi özeti"""
+        tech_summary = ""
+        if technical_indicators:
+            indicator_signal = technical_indicators.get('indicator_signal', {})
+            if indicator_signal:
+                tech_summary = f", teknik göstergeler {indicator_signal.get('signal', 'NEUTRAL')} sinyali veriyor"
+        
         analysis = {
-            "summary": f"Global altın trendi {direction} yönde ve {strength} güçte",
+            "summary": f"Global altın trendi {direction} yönde ve {strength} güçte{tech_summary}",
             "ma_analysis": self._ma_analysis_text(ma_values),
             "momentum_analysis": f"Momentum {momentum.get('signal', 'belirsiz')}",
             "recommendation": self._get_recommendation(direction, strength, momentum)
@@ -249,6 +274,146 @@ class GlobalTrendAnalyzer:
         else:
             return "Karışık sinyaller, pozisyon boyutunu azaltın"
     
+    def _calculate_technical_indicators(self, prices: List[float]) -> Dict[str, Any]:
+        """ONS/USD için teknik göstergeleri hesapla"""
+        indicators = {}
+        
+        try:
+            # RSI
+            if len(prices) >= 15:
+                rsi_values = self.rsi.calculate(prices)
+                if rsi_values:
+                    current_rsi = rsi_values[-1]
+                    indicators['rsi'] = current_rsi
+                    indicators['rsi_signal'] = self._interpret_rsi(current_rsi)
+            
+            # MACD
+            if len(prices) >= 35:
+                macd_result = self.macd.calculate(prices)
+                if macd_result['macd_line']:
+                    indicators['macd'] = {
+                        'macd_line': macd_result['macd_line'][-1],
+                        'signal_line': macd_result['signal_line'][-1] if macd_result['signal_line'] else None,
+                        'histogram': macd_result['histogram'][-1] if macd_result['histogram'] else None,
+                        'trend': macd_result['trend'],
+                        'divergence': macd_result.get('divergence', False)
+                    }
+            
+            # Bollinger Bands
+            if len(prices) >= 20:
+                bb_result = self.bollinger.calculate(prices)
+                if bb_result['middle_band']:
+                    current_price = prices[-1]
+                    indicators['bollinger'] = {
+                        'upper': bb_result['upper_band'][-1],
+                        'middle': bb_result['middle_band'][-1],
+                        'lower': bb_result['lower_band'][-1],
+                        'width': bb_result['band_width'][-1] if bb_result['band_width'] else None,
+                        'position': bb_result['position'],
+                        'signal': bb_result['signal']
+                    }
+            
+            # Stochastic
+            if len(prices) >= 20:
+                # Stochastic için high/low verileri lazım, şimdilik basit bir yaklaşım
+                highs = [max(prices[max(0,i-5):i+1]) for i in range(len(prices))]
+                lows = [min(prices[max(0,i-5):i+1]) for i in range(len(prices))]
+                stoch_result = self.stochastic.calculate(highs, lows, prices)
+                if stoch_result['k_values']:
+                    indicators['stochastic'] = {
+                        'k': stoch_result['k_values'][-1],
+                        'd': stoch_result['d_values'][-1] if stoch_result['d_values'] else None,
+                        'zone': stoch_result['zone'],
+                        'signal': stoch_result['signal']
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Teknik gösterge hesaplama hatası: {e}")
+            
+        return indicators
+    
+    def _determine_indicator_signal(self, indicators: Dict[str, Any]) -> Dict[str, Any]:
+        """Göstergelere dayalı sinyal üret"""
+        buy_signals = 0
+        sell_signals = 0
+        neutral_signals = 0
+        
+        # RSI sinyali
+        rsi_signal = indicators.get('rsi_signal')
+        if rsi_signal == 'oversold':
+            buy_signals += 1
+        elif rsi_signal == 'overbought':
+            sell_signals += 1
+        else:
+            neutral_signals += 1
+        
+        # MACD sinyali
+        macd = indicators.get('macd', {})
+        if macd.get('trend') == 'bullish':
+            buy_signals += 1
+        elif macd.get('trend') == 'bearish':
+            sell_signals += 1
+        else:
+            neutral_signals += 1
+        
+        # Bollinger sinyali
+        bb = indicators.get('bollinger', {})
+        if bb.get('signal') == 'oversold':
+            buy_signals += 1
+        elif bb.get('signal') == 'overbought':
+            sell_signals += 1
+        else:
+            neutral_signals += 1
+        
+        # Stochastic sinyali
+        stoch = indicators.get('stochastic', {})
+        if stoch.get('signal') == 'oversold':
+            buy_signals += 1
+        elif stoch.get('signal') == 'overbought':
+            sell_signals += 1
+        else:
+            neutral_signals += 1
+        
+        # Toplam sinyal
+        total_indicators = buy_signals + sell_signals + neutral_signals
+        
+        if total_indicators > 0:
+            if buy_signals >= 3:
+                signal = "STRONG_BUY"
+                confidence = buy_signals / total_indicators
+            elif buy_signals >= 2:
+                signal = "BUY"
+                confidence = buy_signals / total_indicators
+            elif sell_signals >= 3:
+                signal = "STRONG_SELL"
+                confidence = sell_signals / total_indicators
+            elif sell_signals >= 2:
+                signal = "SELL"
+                confidence = sell_signals / total_indicators
+            else:
+                signal = "NEUTRAL"
+                confidence = 0.5
+        else:
+            signal = "NEUTRAL"
+            confidence = 0
+            
+        return {
+            "signal": signal,
+            "confidence": confidence,
+            "buy_count": buy_signals,
+            "sell_count": sell_signals,
+            "neutral_count": neutral_signals
+        }
+    
+    def _interpret_rsi(self, rsi: float) -> str:
+        """RSI değerini yorumla"""
+        if rsi < 30:
+            return "oversold"
+        elif rsi > 70:
+            return "overbought"
+        else:
+            return "neutral"
+    
     def _empty_analysis(self) -> Dict[str, Any]:
         """Boş analiz sonucu"""
         return {
@@ -260,5 +425,7 @@ class GlobalTrendAnalyzer:
             "momentum": {},
             "volatility": {"level": "UNKNOWN"},
             "key_levels": {},
+            "technical_indicators": {},
+            "indicator_signal": {"signal": "NEUTRAL", "confidence": 0},
             "analysis": {"summary": "Yetersiz veri"}
         }
