@@ -5,272 +5,165 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dezy - Gold Price Analyzer{% endblock %}</title>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Custom Styles -->
-    <style>
-        body { 
-            background-color: #0a0e1a; 
-            color: #e2e8f0;
-            background-image: 
-                radial-gradient(at 20% 80%, #1e3a8a 0%, transparent 50%),
-                radial-gradient(at 80% 20%, #312e81 0%, transparent 50%),
-                radial-gradient(at 40% 40%, #1e1b4b 0%, transparent 50%);
-        }
-        
-        .glass-card {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(16px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        
-        .gradient-text {
-            background: linear-gradient(135deg, #ffd700, #ffed4e, #ffd700);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-size: 200% 200%;
-            animation: gradientShift 3s ease infinite;
-        }
-        
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        
-        .signal-buy { color: #10b981; }
-        .signal-sell { color: #f43f5e; }
-        .signal-hold { color: #94a3b8; }
-        
-        /* Mobile menu animation */
-        .mobile-menu {
-            transform: translateX(-100%);
-            transition: transform 0.3s ease-in-out;
-        }
-        
-        .mobile-menu.active {
-            transform: translateX(0);
-        }
-        
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #1e293b;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-        }
-        
-        /* Active nav item */
-        .nav-item.active {
-            background: rgba(250, 204, 21, 0.1);
-        }
-        
-        .nav-item.active .fa-chart-line,
-        .nav-item.active .fa-brain,
-        .nav-item.active .fa-bell,
-        .nav-item.active .fa-robot,
-        .nav-item.active .fa-file-lines,
-        .nav-item.active .fa-code {
-            color: #fbbf24;
-        }
-        
-        .nav-item.active span {
-            color: white;
-        }
-        
-        /* Navbar animations */
-        @keyframes slideDown {
-            from {
-                transform: translateY(-100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        nav {
-            animation: slideDown 0.3s ease-out;
-        }
-    </style>
+    <!-- CSS Modules -->
+    <link rel="stylesheet" href="/static/css/main.css">
     
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen">
     <!-- Desktop Navigation -->
-    <nav class="hidden lg:block sticky top-0 z-50 backdrop-blur-xl bg-slate-900/70 border-b border-yellow-400/10 shadow-xl">
-        <div class="container mx-auto px-6">
-            <div class="flex justify-between items-center h-16">
-                <!-- Logo Section -->
-                <div class="flex items-center space-x-4">
-                    <div class="relative">
-                        <div class="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg blur opacity-25"></div>
-                        <div class="relative flex items-center space-x-3 bg-slate-800 px-4 py-2 rounded-lg">
-                            <i class="fas fa-coins text-yellow-400 text-xl"></i>
-                            <h1 class="text-xl font-bold">
-                                <span class="gradient-text">Dezy</span>
-                            </h1>
-                        </div>
-                    </div>
+    <nav class="nav desktop-nav">
+        <div class="nav__container">
+            <!-- Logo Section -->
+            <div class="nav__logo">
+                <div class="nav__logo-wrapper">
+                    <i class="fas fa-coins nav__logo-icon"></i>
+                    <h1 class="nav__logo-text">Dezy</h1>
                 </div>
-                
-                <!-- Nav Links -->
-                <div class="flex items-center space-x-2">
-                    <a href="/" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-chart-line text-yellow-400 group-hover:text-yellow-300"></i>
-                            <span class="text-gray-300 group-hover:text-white font-medium">Dashboard</span>
-                        </div>
-                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-                    </a>
-                    
-                    <a href="/analysis" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-brain text-yellow-400 group-hover:text-yellow-300"></i>
-                            <span class="text-gray-300 group-hover:text-white font-medium">Analizler</span>
-                        </div>
-                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-                    </a>
-                    
-                    <a href="/signals" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-bell text-yellow-400 group-hover:text-yellow-300"></i>
-                            <span class="text-gray-300 group-hover:text-white font-medium">Sinyaller</span>
-                        </div>
-                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-                    </a>
-                    
-                    <a href="/simulations" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-robot text-yellow-400 group-hover:text-yellow-300"></i>
-                            <span class="text-gray-300 group-hover:text-white font-medium">Simülasyon</span>
-                        </div>
-                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-                    </a>
-                    
-                    <a href="/logs" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-file-lines text-yellow-400 group-hover:text-yellow-300"></i>
-                            <span class="text-gray-300 group-hover:text-white font-medium">Loglar</span>
-                        </div>
-                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-                    </a>
-                    
-                    <a href="/api/docs" class="nav-item group relative px-4 py-2 rounded-lg hover:bg-yellow-400/10 transition-all duration-300">
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-code text-yellow-400 group-hover:text-yellow-300"></i>
-                            <span class="text-gray-300 group-hover:text-white font-medium">API</span>
-                        </div>
-                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-                    </a>
-                    
-                    <!-- Live Status -->
-                    <div class="ml-4 flex items-center space-x-2 bg-slate-800/50 px-4 py-2 rounded-lg border border-yellow-400/20">
-                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                        <span class="text-xs text-gray-400">Live</span>
+            </div>
+            
+            <!-- Nav Links -->
+            <div class="nav__links">
+                <a href="/" class="nav__item">
+                    <div class="nav__link">
+                        <i class="fas fa-chart-line nav__icon"></i>
+                        <span class="nav__text">Dashboard</span>
                     </div>
+                    <div class="nav__underline"></div>
+                </a>
+                
+                <a href="/analysis" class="nav__item">
+                    <div class="nav__link">
+                        <i class="fas fa-brain nav__icon"></i>
+                        <span class="nav__text">Analizler</span>
+                    </div>
+                    <div class="nav__underline"></div>
+                </a>
+                
+                <a href="/signals" class="nav__item">
+                    <div class="nav__link">
+                        <i class="fas fa-bell nav__icon"></i>
+                        <span class="nav__text">Sinyaller</span>
+                    </div>
+                    <div class="nav__underline"></div>
+                </a>
+                
+                <a href="/simulations" class="nav__item">
+                    <div class="nav__link">
+                        <i class="fas fa-robot nav__icon"></i>
+                        <span class="nav__text">Simülasyon</span>
+                    </div>
+                    <div class="nav__underline"></div>
+                </a>
+                
+                <a href="/logs" class="nav__item">
+                    <div class="nav__link">
+                        <i class="fas fa-file-lines nav__icon"></i>
+                        <span class="nav__text">Loglar</span>
+                    </div>
+                    <div class="nav__underline"></div>
+                </a>
+                
+                <a href="/api/docs" class="nav__item">
+                    <div class="nav__link">
+                        <i class="fas fa-code nav__icon"></i>
+                        <span class="nav__text">API</span>
+                    </div>
+                    <div class="nav__underline"></div>
+                </a>
+                
+                <!-- Live Status -->
+                <div class="nav__status">
+                    <div class="nav__status-dot"></div>
+                    <span class="nav__status-text">Live</span>
                 </div>
             </div>
         </div>
     </nav>
     
     <!-- Mobile Navigation Bar -->
-    <nav class="lg:hidden sticky top-0 z-40 backdrop-blur-xl bg-slate-900/70 border-b border-yellow-400/10 shadow-xl">
-        <div class="flex justify-between items-center h-16 px-4">
-            <button id="mobile-menu-btn" class="p-2 rounded-lg hover:bg-yellow-400/10 transition-all">
-                <i class="fas fa-bars text-xl text-yellow-400"></i>
+    <nav class="mobile-nav__bar">
+        <div class="mobile-nav__container">
+            <button id="mobile-menu-btn" class="mobile-nav__toggle">
+                <i class="fas fa-bars text-xl"></i>
             </button>
             
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-coins text-yellow-400"></i>
-                <span class="font-bold gradient-text">Dezy</span>
+            <div class="nav__logo">
+                <i class="fas fa-coins nav__logo-icon"></i>
+                <span class="nav__logo-text">Dezy</span>
             </div>
             
-            <div class="flex items-center space-x-2">
-                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span class="text-xs text-gray-400">Live</span>
+            <div class="nav__status">
+                <div class="nav__status-dot"></div>
+                <span class="nav__status-text">Live</span>
             </div>
         </div>
     </nav>
     
     <!-- Mobile Menu Overlay -->
-    <div id="mobile-menu-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 hidden"></div>
+    <div id="mobile-menu-overlay" class="mobile-menu__overlay"></div>
     
     <!-- Mobile Menu -->
-    <nav id="mobile-menu" class="mobile-menu fixed lg:hidden top-0 left-0 w-72 h-full bg-slate-900/95 backdrop-blur-xl z-50 shadow-2xl border-r border-yellow-400/10">
-        <div class="p-6 h-full flex flex-col">
+    <nav id="mobile-menu" class="mobile-menu">
+        <div class="mobile-menu__container p-lg h-full d-flex flex-column">
             <!-- Header -->
-            <div class="flex justify-between items-center mb-8">
-                <div class="flex items-center space-x-3">
-                    <i class="fas fa-coins text-yellow-400 text-2xl"></i>
-                    <h2 class="text-xl font-bold gradient-text">Dezy</h2>
+            <div class="mobile-menu__header d-flex justify-between items-center mb-xl">
+                <div class="nav__logo">
+                    <i class="fas fa-coins nav__logo-icon text-2xl"></i>
+                    <h2 class="nav__logo-text">Dezy</h2>
                 </div>
-                <button id="mobile-menu-close" class="p-2 rounded-lg hover:bg-slate-800 transition-all">
-                    <i class="fas fa-times text-xl text-gray-400"></i>
+                <button id="mobile-menu-close" class="mobile-nav__toggle">
+                    <i class="fas fa-times text-xl text-muted"></i>
                 </button>
             </div>
             
             <!-- Menu Items -->
-            <div class="flex-1 overflow-y-auto">
-                <div class="space-y-2">
-                    <a href="/" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
-                        <i class="fas fa-chart-line text-yellow-400 w-5 text-center"></i>
-                        <span class="text-gray-300 group-hover:text-white font-medium">Dashboard</span>
+            <div class="mobile-menu__body flex-1 overflow-y-auto">
+                <div class="mobile-menu__links">
+                    <a href="/" class="mobile-menu__item">
+                        <i class="fas fa-chart-line nav__icon"></i>
+                        <span class="mobile-menu__text">Dashboard</span>
                     </a>
-                    <a href="/analysis" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
-                        <i class="fas fa-brain text-yellow-400 w-5 text-center"></i>
-                        <span class="text-gray-300 group-hover:text-white font-medium">Analizler</span>
+                    <a href="/analysis" class="mobile-menu__item">
+                        <i class="fas fa-brain nav__icon"></i>
+                        <span class="mobile-menu__text">Analizler</span>
                     </a>
-                    <a href="/signals" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
-                        <i class="fas fa-bell text-yellow-400 w-5 text-center"></i>
-                        <span class="text-gray-300 group-hover:text-white font-medium">Sinyaller</span>
+                    <a href="/signals" class="mobile-menu__item">
+                        <i class="fas fa-bell nav__icon"></i>
+                        <span class="mobile-menu__text">Sinyaller</span>
                     </a>
-                    <a href="/simulations" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
-                        <i class="fas fa-robot text-yellow-400 w-5 text-center"></i>
-                        <span class="text-gray-300 group-hover:text-white font-medium">Simülasyon</span>
+                    <a href="/simulations" class="mobile-menu__item">
+                        <i class="fas fa-robot nav__icon"></i>
+                        <span class="mobile-menu__text">Simülasyon</span>
                     </a>
-                    <a href="/logs" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
-                        <i class="fas fa-file-lines text-yellow-400 w-5 text-center"></i>
-                        <span class="text-gray-300 group-hover:text-white font-medium">Loglar</span>
+                    <a href="/logs" class="mobile-menu__item">
+                        <i class="fas fa-file-lines nav__icon"></i>
+                        <span class="mobile-menu__text">Loglar</span>
                     </a>
-                    <a href="/api/docs" class="flex items-center space-x-3 py-3 px-4 rounded-lg bg-gradient-to-r hover:from-yellow-400/10 hover:to-yellow-600/10 transition-all group">
-                        <i class="fas fa-code text-yellow-400 w-5 text-center"></i>
-                        <span class="text-gray-300 group-hover:text-white font-medium">API Dokümantasyon</span>
+                    <a href="/api/docs" class="mobile-menu__item">
+                        <i class="fas fa-code nav__icon"></i>
+                        <span class="mobile-menu__text">API Dokümantasyon</span>
                     </a>
                 </div>
                 
                 <!-- Live Status -->
-                <div class="mt-8 p-4 bg-slate-800/50 rounded-lg border border-yellow-400/20">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-sm text-gray-400">Sistem Durumu</span>
-                        <div class="flex items-center space-x-2">
-                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                            <span class="text-xs text-green-400">Aktif</span>
+                <div class="mobile-menu__status mt-xl">
+                    <div class="d-flex justify-between items-center mb-md">
+                        <span class="text-sm text-muted">Sistem Durumu</span>
+                        <div class="d-flex items-center gap-sm">
+                            <div class="nav__status-dot"></div>
+                            <span class="text-xs text-success">Aktif</span>
                         </div>
                     </div>
                 </div>
             </div>
             
             <!-- Footer -->
-            <div class="mt-4 pt-4 border-t border-gray-800">
-                <p class="text-xs text-gray-500 text-center">
+            <div class="mobile-menu__footer mt-md pt-md border-top">
+                <p class="text-xs text-muted text-center">
                     Dezy © 2024
                 </p>
             </div>
@@ -278,12 +171,12 @@
     </nav>
     
     <!-- Main Content -->
-    <main class="lg:container lg:mx-auto px-4 py-8 lg:py-12">
+    <main class="main-content">
         {% block content %}{% endblock %}
     </main>
     
     <!-- Footer -->
-    <footer class="mt-auto py-6 text-center text-gray-400 text-sm">
+    <footer class="footer">
         <p>Dezy - Gold Price Analyzer © 2024 | Kuyumcu Yönetim Sistemi</p>
     </footer>
     
@@ -315,7 +208,7 @@
         // Highlight active page
         function highlightActivePage() {
             const currentPath = window.location.pathname;
-            const navItems = document.querySelectorAll('.nav-item');
+            const navItems = document.querySelectorAll('.nav__item');
             
             navItems.forEach(item => {
                 const href = item.getAttribute('href');
@@ -327,13 +220,13 @@
             });
             
             // Mobile menu active highlight
-            const mobileLinks = document.querySelectorAll('#mobile-menu a');
+            const mobileLinks = document.querySelectorAll('.mobile-menu__item');
             mobileLinks.forEach(link => {
                 const href = link.getAttribute('href');
                 if (currentPath === href || (currentPath === '/' && href === '/')) {
-                    link.classList.add('bg-yellow-400/10', 'border-l-4', 'border-yellow-400');
+                    link.classList.add('active');
                 } else if (currentPath.startsWith(href) && href !== '/') {
-                    link.classList.add('bg-yellow-400/10', 'border-l-4', 'border-yellow-400');
+                    link.classList.add('active');
                 }
             });
         }

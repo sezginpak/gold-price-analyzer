@@ -5,270 +5,266 @@
 {% block extra_head %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <style>
-        .positive { color: #10b981; }
-        .negative { color: #ef4444; }
-        .log-line { font-family: monospace; font-size: 12px; }
-        .error-log { color: #ef4444; }
-        
-        .analysis-summary {
-            white-space: pre-line;
-        }
-        
-        .analysis-summary strong,
-        .analysis-summary b {
-            font-weight: 600;
-            color: #f8fafc;
-        }
-    </style>
 {% endblock %}
 
 {% block content %}
     <!-- Header Stats -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="glass-card rounded-lg p-4">
-            <h3 class="text-xs lg:text-sm text-gray-400 mb-1">Sistem Uptime</h3>
-            <p class="text-xl lg:text-2xl font-bold" id="uptime">-</p>
+    <div class="dashboard-grid dashboard-grid--stats">
+        <div class="stat-card">
+            <h3 class="stat-card__label">Sistem Uptime</h3>
+            <p class="stat-card__value" id="uptime">-</p>
         </div>
-        <div class="glass-card rounded-lg p-4">
-            <h3 class="text-xs lg:text-sm text-gray-400 mb-1">Toplam Kayıt</h3>
-            <p class="text-xl lg:text-2xl font-bold" id="total-records">-</p>
+        <div class="stat-card">
+            <h3 class="stat-card__label">Toplam Kayıt</h3>
+            <p class="stat-card__value" id="total-records">-</p>
         </div>
-        <div class="glass-card rounded-lg p-4">
-            <h3 class="text-xs lg:text-sm text-gray-400 mb-1">Bugünkü Sinyal</h3>
-            <p class="text-xl lg:text-2xl font-bold" id="today-signals">-</p>
+        <div class="stat-card">
+            <h3 class="stat-card__label">Bugünkü Sinyal</h3>
+            <p class="stat-card__value" id="today-signals">-</p>
         </div>
-        <div class="glass-card rounded-lg p-4">
-            <h3 class="text-xs lg:text-sm text-gray-400 mb-1">WebSocket</h3>
-            <p class="text-sm lg:text-base flex items-center">
-                <span class="inline-block w-2 h-2 bg-red-500 rounded-full mr-2" id="ws-status"></span>
+        <div class="stat-card">
+            <h3 class="stat-card__label">WebSocket</h3>
+            <p class="d-flex items-center gap-sm">
+                <span class="nav__status-dot bg-error" id="ws-status"></span>
                 <span id="status-text">Bağlanıyor...</span>
             </p>
         </div>
     </div>
 
     <!-- Current Prices -->
-    <div class="glass-card rounded-lg p-4 lg:p-6 mb-6">
-        <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-            <i class="fas fa-coins mr-2 text-yellow-400"></i>
-            Anlık Fiyatlar
-        </h2>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-gradient-to-br from-amber-500/10 to-yellow-500/10 rounded-lg p-3 relative overflow-hidden border border-amber-500/20">
-                <span class="text-gray-400 text-xs lg:text-sm">Gram Altın</span>
-                <div class="text-xl lg:text-2xl font-bold text-amber-400" id="gram-altin">-</div>
-                <div class="text-xs mt-1 flex items-center" id="gram-change">
-                    <span class="mr-1">-</span>
+    <div class="glass-card mb-lg">
+        <div class="glass-card__header">
+            <h2 class="glass-card__title">
+                <i class="fas fa-coins text-yellow"></i>
+                Anlık Fiyatlar
+            </h2>
+        </div>
+        <div class="glass-card__body">
+            <div class="price-cards">
+                <div class="price-card price-card--gold">
+                    <span class="price-card__label">Gram Altın</span>
+                    <div class="price-card__value" id="gram-altin">-</div>
+                    <div class="price-card__change" id="gram-change">
+                        <span>-</span>
+                    </div>
+                    <i class="fas fa-coins price-card__icon"></i>
                 </div>
-                <div class="absolute top-0 right-0 opacity-20">
-                    <i class="fas fa-coins text-4xl text-amber-400"></i>
+                <div class="price-card price-card--blue">
+                    <span class="price-card__label">ONS/USD</span>
+                    <div class="price-card__value" id="ons-usd">-</div>
+                    <div class="price-card__change" id="ons-change">
+                        <span>-</span>
+                    </div>
+                    <i class="fas fa-globe price-card__icon"></i>
                 </div>
-            </div>
-            <div class="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-lg p-3 relative overflow-hidden border border-blue-500/20">
-                <span class="text-gray-400 text-xs lg:text-sm">ONS/USD</span>
-                <div class="text-xl lg:text-2xl font-bold text-blue-400" id="ons-usd">-</div>
-                <div class="text-xs mt-1 flex items-center" id="ons-change">
-                    <span class="mr-1">-</span>
+                <div class="price-card price-card--green">
+                    <span class="price-card__label">USD/TRY</span>
+                    <div class="price-card__value" id="usd-try">-</div>
+                    <div class="price-card__change" id="usd-change">
+                        <span>-</span>
+                    </div>
+                    <i class="fas fa-dollar-sign price-card__icon"></i>
                 </div>
-                <div class="absolute top-0 right-0 opacity-20">
-                    <i class="fas fa-globe text-4xl text-blue-400"></i>
-                </div>
-            </div>
-            <div class="bg-gradient-to-br from-emerald-500/10 to-green-500/10 rounded-lg p-3 relative overflow-hidden border border-emerald-500/20">
-                <span class="text-gray-400 text-xs lg:text-sm">USD/TRY</span>
-                <div class="text-xl lg:text-2xl font-bold text-emerald-400" id="usd-try">-</div>
-                <div class="text-xs mt-1 flex items-center" id="usd-change">
-                    <span class="mr-1">-</span>
-                </div>
-                <div class="absolute top-0 right-0 opacity-20">
-                    <i class="fas fa-dollar-sign text-4xl text-emerald-400"></i>
-                </div>
-            </div>
-            <div class="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-lg p-3 relative overflow-hidden border border-purple-500/20">
-                <span class="text-gray-400 text-xs lg:text-sm">ONS/TRY</span>
-                <div class="text-xl lg:text-2xl font-bold text-purple-400" id="ons-try">-</div>
-                <div class="text-xs mt-1 flex items-center" id="ons-try-change">
-                    <span class="mr-1">-</span>
-                </div>
-                <div class="absolute top-0 right-0 opacity-20">
-                    <i class="fas fa-lira-sign text-4xl text-purple-400"></i>
+                <div class="price-card price-card--purple">
+                    <span class="price-card__label">ONS/TRY</span>
+                    <div class="price-card__value" id="ons-try">-</div>
+                    <div class="price-card__change" id="ons-try-change">
+                        <span>-</span>
+                    </div>
+                    <i class="fas fa-lira-sign price-card__icon"></i>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Market Overview & Quick Indicators -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="grid grid--cols-3 mb-lg">
         <!-- Market Overview -->
-        <div class="glass-card rounded-lg p-4 lg:p-6">
-            <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-                <i class="fas fa-chart-pie mr-2 text-purple-400"></i>
+        <div class="market-overview">
+            <h2 class="market-overview__title">
+                <i class="fas fa-chart-pie text-purple"></i>
                 Piyasa Durumu
             </h2>
-            <div class="space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-sm">Genel Görünüm</span>
-                    <span class="font-bold" id="market-overview">-</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-sm">Volatilite</span>
-                    <span class="font-bold" id="market-volatility">-</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-sm">24s En Yüksek</span>
-                    <span class="font-bold text-green-400" id="daily-high">-</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-sm">24s En Düşük</span>
-                    <span class="font-bold text-red-400" id="daily-low">-</span>
-                </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">Genel Görünüm</span>
+                <span class="market-overview__value" id="market-overview">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">Volatilite</span>
+                <span class="market-overview__value" id="market-volatility">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">24s En Yüksek</span>
+                <span class="market-overview__value text-success" id="daily-high">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">24s En Düşük</span>
+                <span class="market-overview__value text-error" id="daily-low">-</span>
             </div>
         </div>
 
         <!-- Technical Indicators -->
-        <div class="glass-card rounded-lg p-4 lg:p-6">
-            <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-                <i class="fas fa-tachometer-alt mr-2 text-orange-400"></i>
+        <div class="market-overview">
+            <h2 class="market-overview__title">
+                <i class="fas fa-tachometer-alt text-warning"></i>
                 Teknik Göstergeler
             </h2>
-            <div class="space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-sm">RSI (14)</span>
-                    <span class="font-bold" id="rsi-value">-</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-sm">MACD</span>
-                    <span class="font-bold" id="macd-signal">-</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-sm">Bollinger</span>
-                    <span class="font-bold" id="bb-position">-</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-sm">Stochastic</span>
-                    <span class="font-bold" id="stoch-value">-</span>
-                </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">RSI (14)</span>
+                <span class="market-overview__value" id="rsi-value">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">MACD</span>
+                <span class="market-overview__value" id="macd-signal">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">Bollinger</span>
+                <span class="market-overview__value" id="bb-position">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">Stochastic</span>
+                <span class="market-overview__value" id="stoch-value">-</span>
             </div>
         </div>
 
         <!-- Quick Actions -->
-        <div class="glass-card rounded-lg p-4 lg:p-6">
-            <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-                <i class="fas fa-bolt mr-2 text-yellow-400"></i>
-                Hızlı İşlemler
-            </h2>
-            <div class="space-y-2">
-                <button onclick="runQuickAnalysis('15m')" class="w-full px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg text-sm transition-all duration-200 hover:scale-105 shadow-lg">
-                    <i class="fas fa-sync-alt mr-1"></i> 15D Analiz Yenile
-                </button>
-                <button onclick="runQuickAnalysis('1h')" class="w-full px-3 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 rounded-lg text-sm transition-all duration-200 hover:scale-105 shadow-lg">
-                    <i class="fas fa-sync-alt mr-1"></i> 1S Analiz Yenile
-                </button>
-                <button onclick="exportData()" class="w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-sm transition-all duration-200 hover:scale-105 shadow-lg">
-                    <i class="fas fa-download mr-1"></i> Veri İndir
-                </button>
-                <a href="/analysis" class="block w-full px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-lg text-sm transition-all duration-200 hover:scale-105 shadow-lg text-center">
-                    <i class="fas fa-chart-bar mr-1"></i> Detaylı Analiz
-                </a>
+        <div class="glass-card">
+            <div class="glass-card__body">
+                <h2 class="glass-card__title mb-md">
+                    <i class="fas fa-bolt text-yellow"></i>
+                    Hızlı İşlemler
+                </h2>
+                <div class="quick-actions">
+                    <button onclick="runQuickAnalysis('15m')" class="quick-actions__button quick-actions__button--analyze">
+                        <i class="fas fa-sync-alt"></i> 15D Analiz Yenile
+                    </button>
+                    <button onclick="runQuickAnalysis('1h')" class="quick-actions__button quick-actions__button--analyze">
+                        <i class="fas fa-sync-alt"></i> 1S Analiz Yenile
+                    </button>
+                    <button onclick="exportData()" class="quick-actions__button quick-actions__button--export">
+                        <i class="fas fa-download"></i> Veri İndir
+                    </button>
+                    <a href="/analysis" class="quick-actions__button quick-actions__button--details">
+                        <i class="fas fa-chart-bar"></i> Detaylı Analiz
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Charts Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="chart-grid chart-grid--2cols mb-lg">
         <!-- Price Chart -->
-        <div class="glass-card rounded-lg p-4 lg:p-6">
-            <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-                <i class="fas fa-chart-line mr-2 text-blue-400"></i>
-                Son 30 Dakika - Gram Altın
-            </h2>
-            <div class="relative h-64 lg:h-80">
-                <canvas id="priceChart"></canvas>
+        <div class="chart-container">
+            <div class="chart-container__header">
+                <h2 class="chart-container__title">
+                    <i class="fas fa-chart-line text-info"></i>
+                    Son 30 Dakika - Gram Altın
+                </h2>
+            </div>
+            <div class="chart-wrapper chart-height-lg">
+                <canvas id="priceChart" class="chart-canvas"></canvas>
             </div>
         </div>
         
         <!-- Candle Chart -->
-        <div class="glass-card rounded-lg p-4 lg:p-6">
-            <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-                <i class="fas fa-chart-area mr-2 text-green-400"></i>
-                Gram Altın OHLC
-            </h2>
-            <div class="mb-2 flex flex-wrap gap-2">
-                <button onclick="loadGramCandles('15m', this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors candle-btn">15D</button>
-                <button onclick="loadGramCandles('1h', this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors candle-btn">1S</button>
-                <button onclick="loadGramCandles('4h', this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors candle-btn">4S</button>
-                <button onclick="loadGramCandles('1d', this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors candle-btn">1G</button>
+        <div class="chart-container">
+            <div class="chart-container__header">
+                <h2 class="chart-container__title">
+                    <i class="fas fa-chart-area text-success"></i>
+                    Gram Altın OHLC
+                </h2>
+                <div class="chart-container__controls">
+                    <button onclick="loadGramCandles('15m', this)" class="chart-container__button candle-btn">15D</button>
+                    <button onclick="loadGramCandles('1h', this)" class="chart-container__button candle-btn">1S</button>
+                    <button onclick="loadGramCandles('4h', this)" class="chart-container__button candle-btn">4S</button>
+                    <button onclick="loadGramCandles('1d', this)" class="chart-container__button candle-btn">1G</button>
+                </div>
             </div>
-            <div id="candleChart" class="h-80 lg:h-96"></div>
+            <div id="candleChart" class="candle-chart chart-height-lg"></div>
         </div>
     </div>
 
     <!-- Hybrid Analysis -->
-    <div class="glass-card rounded-lg p-4 lg:p-6 mb-6">
-        <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-            <i class="fas fa-bullseye mr-2 text-yellow-400"></i>
-            Son Hibrit Analiz
-        </h2>
-        <div id="hybrid-analysis-container" class="space-y-2">
-            <p class="text-gray-400">Yükleniyor...</p>
+    <div class="glass-card mb-lg">
+        <div class="glass-card__header">
+            <h2 class="glass-card__title">
+                <i class="fas fa-bullseye text-yellow"></i>
+                Son Hibrit Analiz
+            </h2>
+        </div>
+        <div class="glass-card__body">
+            <div id="hybrid-analysis-container" class="analysis-summary">
+                <p class="text-muted">Yükleniyor...</p>
+            </div>
         </div>
     </div>
     
     <!-- Signals -->
-    <div class="glass-card rounded-lg p-4 lg:p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg lg:text-xl font-bold flex items-center">
-                <i class="fas fa-bell mr-2 text-yellow-400"></i>
+    <div class="glass-card mb-lg">
+        <div class="glass-card__header d-flex justify-between items-center">
+            <h2 class="glass-card__title">
+                <i class="fas fa-bell text-yellow"></i>
                 Son Trading Sinyalleri
             </h2>
-            <a href="/signals" class="text-xs text-gray-400 hover:text-yellow-400 transition-colors">
+            <a href="/signals" class="text-xs text-muted hover:text-yellow transition-colors">
                 Tümünü Gör →
             </a>
         </div>
-        <div id="signals-container" class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
-            <div class="text-center py-4">
-                <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
-                <p class="text-gray-400 text-sm mt-2">Yükleniyor...</p>
+        <div class="glass-card__body">
+            <div id="signals-container" class="signals-container custom-scrollbar">
+                <div class="text-center py-lg">
+                    <i class="fas fa-spinner animate-rotate text-2xl text-muted"></i>
+                    <p class="text-muted text-sm mt-sm">Yükleniyor...</p>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Logs Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid--cols-2">
         <!-- Log Stats -->
-        <div class="glass-card rounded-lg p-4 lg:p-6">
-            <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-                <i class="fas fa-folder mr-2 text-purple-400"></i>
-                Log Yönetimi
-            </h2>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-slate-800/50 rounded-lg p-3">
-                    <p class="text-gray-400 text-xs">Toplam Boyut</p>
-                    <p class="text-lg font-bold" id="log-total-size">-</p>
-                </div>
-                <div class="bg-slate-800/50 rounded-lg p-3">
-                    <p class="text-gray-400 text-xs">Dosya Sayısı</p>
-                    <p class="text-lg font-bold" id="log-file-count">-</p>
-                </div>
-                <div class="bg-slate-800/50 rounded-lg p-3">
-                    <p class="text-gray-400 text-xs">Sıkıştırılmış</p>
-                    <p class="text-lg font-bold" id="log-compressed">-</p>
-                </div>
-                <div class="bg-slate-800/50 rounded-lg p-3">
-                    <p class="text-gray-400 text-xs">En Eski</p>
-                    <p class="text-sm" id="log-oldest">-</p>
+        <div class="glass-card">
+            <div class="glass-card__header">
+                <h2 class="glass-card__title">
+                    <i class="fas fa-folder text-purple"></i>
+                    Log Yönetimi
+                </h2>
+            </div>
+            <div class="glass-card__body">
+                <div class="grid grid--cols-2 gap-md">
+                    <div class="stat-card">
+                        <p class="stat-card__label">Toplam Boyut</p>
+                        <p class="stat-card__value text-lg" id="log-total-size">-</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-card__label">Dosya Sayısı</p>
+                        <p class="stat-card__value text-lg" id="log-file-count">-</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-card__label">Sıkıştırılmış</p>
+                        <p class="stat-card__value text-lg" id="log-compressed">-</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-card__label">En Eski</p>
+                        <p class="text-sm" id="log-oldest">-</p>
+                    </div>
                 </div>
             </div>
         </div>
         
         <!-- Error Logs -->
-        <div class="glass-card rounded-lg p-4 lg:p-6">
-            <h2 class="text-lg lg:text-xl font-bold mb-4 flex items-center">
-                <i class="fas fa-exclamation-triangle mr-2 text-red-400"></i>
-                Son Hatalar
-            </h2>
-            <div id="error-logs" class="space-y-1 max-h-48 overflow-y-auto">
-                <p class="text-gray-400 text-sm">Yükleniyor...</p>
+        <div class="glass-card">
+            <div class="glass-card__header">
+                <h2 class="glass-card__title">
+                    <i class="fas fa-exclamation-triangle text-error"></i>
+                    Son Hatalar
+                </h2>
+            </div>
+            <div class="glass-card__body">
+                <div id="error-logs" class="custom-scrollbar" style="max-height: 200px; overflow-y: auto;">
+                    <p class="text-muted text-sm">Yükleniyor...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -296,14 +292,14 @@
             
             ws.onopen = () => {
                 document.getElementById('status-text').textContent = 'Bağlı';
-                document.getElementById('ws-status').classList.add('bg-green-500');
-                document.getElementById('ws-status').classList.remove('bg-red-500');
+                document.getElementById('ws-status').classList.add('bg-success');
+                document.getElementById('ws-status').classList.remove('bg-error');
             };
             
             ws.onclose = () => {
                 document.getElementById('status-text').textContent = 'Bağlantı koptu';
-                document.getElementById('ws-status').classList.remove('bg-green-500');
-                document.getElementById('ws-status').classList.add('bg-red-500');
+                document.getElementById('ws-status').classList.remove('bg-success');
+                document.getElementById('ws-status').classList.add('bg-error');
                 setTimeout(connectWebSocket, 5000);
             };
             

@@ -1,0 +1,288 @@
+/* Mobile Module - Mobile Responsive Styles */
+
+/* Mobile Breakpoints */
+/* 
+  - Mobile: < 768px
+  - Tablet: 768px - 1024px
+  - Desktop: > 1024px
+*/
+
+/* Mobile Base Adjustments */
+@media (max-width: 767px) {
+  /* Typography */
+  html {
+    font-size: 14px;
+  }
+  
+  /* Spacing Overrides */
+  .dashboard {
+    padding: var(--spacing-md);
+  }
+  
+  /* Container */
+  .container {
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+  }
+  
+  /* Cards */
+  .glass-card {
+    padding: var(--spacing-md);
+  }
+  
+  .glass-card__header {
+    padding: var(--spacing-md);
+  }
+  
+  .glass-card__body {
+    padding: var(--spacing-md);
+  }
+  
+  /* Grid Adjustments */
+  .dashboard-grid--stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+  
+  .price-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+  
+  /* Stat Cards */
+  .stat-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .stat-card__label {
+    font-size: 10px;
+  }
+  
+  .stat-card__value {
+    font-size: var(--text-lg);
+  }
+  
+  /* Price Cards */
+  .price-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .price-card__value {
+    font-size: var(--text-lg);
+  }
+  
+  .price-card__icon {
+    font-size: 2rem;
+  }
+  
+  /* Buttons */
+  .btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--text-xs);
+  }
+  
+  .quick-actions__button {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--text-xs);
+  }
+  
+  /* Charts */
+  .chart-container {
+    padding: var(--spacing-md);
+    min-height: 250px;
+  }
+  
+  .chart-height-sm {
+    height: 180px;
+  }
+  
+  .chart-height-md {
+    height: 250px;
+  }
+  
+  .chart-height-lg {
+    height: 300px;
+  }
+  
+  /* Signal Cards */
+  .signal-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .signal-card__details {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+  
+  /* Tables */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table {
+    font-size: var(--text-xs);
+  }
+  
+  /* Forms */
+  .form-control {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  /* Modals */
+  .modal {
+    margin: var(--spacing-md);
+  }
+  
+  .modal__content {
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+/* Small Mobile (< 375px) */
+@media (max-width: 374px) {
+  /* Even smaller adjustments */
+  .dashboard-grid--stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .price-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-card__value {
+    font-size: var(--text-base);
+  }
+  
+  .price-card__value {
+    font-size: var(--text-base);
+  }
+}
+
+/* Tablet Adjustments */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Grid Systems */
+  .dashboard-grid--main {
+    grid-template-columns: 1fr;
+  }
+  
+  .chart-grid--2cols {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Navigation */
+  .nav__links {
+    gap: var(--spacing-xs);
+  }
+  
+  .nav__text {
+    display: none;
+  }
+  
+  .nav__icon {
+    font-size: var(--text-lg);
+  }
+}
+
+/* Touch-friendly Adjustments */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase tap targets */
+  .btn,
+  .form-control,
+  .nav__item,
+  .signal-card,
+  .quick-actions__button {
+    min-height: 44px;
+  }
+  
+  /* Remove hover effects */
+  .btn:hover,
+  .signal-card:hover,
+  .stat-card:hover {
+    transform: none;
+  }
+  
+  /* Adjust tooltips */
+  .chart-tooltip {
+    display: none;
+  }
+}
+
+/* Landscape Mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  /* Reduce vertical spacing */
+  .dashboard {
+    padding-top: var(--spacing-sm);
+    padding-bottom: var(--spacing-sm);
+  }
+  
+  .dashboard-grid {
+    gap: var(--spacing-sm);
+  }
+  
+  /* Adjust chart heights */
+  .chart-height-md {
+    height: 200px;
+  }
+  
+  .chart-height-lg {
+    height: 250px;
+  }
+}
+
+/* Mobile-specific Utilities */
+@media (max-width: 767px) {
+  .mobile-hide {
+    display: none !important;
+  }
+  
+  .mobile-show {
+    display: block !important;
+  }
+  
+  .mobile-text-center {
+    text-align: center !important;
+  }
+  
+  .mobile-full-width {
+    width: 100% !important;
+  }
+  
+  .mobile-stack {
+    flex-direction: column !important;
+  }
+  
+  .mobile-gap-sm {
+    gap: var(--spacing-sm) !important;
+  }
+}
+
+/* Print Styles */
+@media print {
+  /* Hide non-essential elements */
+  .nav,
+  .mobile-nav,
+  .quick-actions,
+  .btn,
+  footer {
+    display: none !important;
+  }
+  
+  /* Adjust colors for print */
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .glass-card {
+    background: white;
+    border: 1px solid #ddd;
+    box-shadow: none;
+  }
+  
+  /* Ensure charts are visible */
+  .chart-wrapper {
+    break-inside: avoid;
+  }
+}

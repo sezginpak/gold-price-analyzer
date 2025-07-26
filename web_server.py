@@ -32,6 +32,9 @@ logger = setup_logger(
 
 app = FastAPI(title="Dezy - Gold Price Analyzer Dashboard")
 
+# Static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Templates
 templates = Jinja2Templates(directory="templates")
 
