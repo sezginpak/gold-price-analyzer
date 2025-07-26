@@ -123,16 +123,16 @@ class SmartMoneyManager:
         }
         
         # Son 5 mumda spike ve recovery kontrolü
-        for i in range(len(last_candles) - 2):
+        for i in range(len(last_candles) - 1):
             candle = last_candles[i]
             high = float(candle.high)
             low = float(candle.low)
             
             # Bullish stop hunt (support'u delip toparlanma)
-            if nearest_support:
+            if nearest_support and not stop_hunt['detected']:
                 support_distance = (nearest_support - low) / nearest_support
                 if support_distance > self.stop_hunt_threshold / 100:
-                    # Recovery kontrolü
+                    # Recovery kontrolü - sonraki mumlardan en az biri support üzerinde kapanmalı
                     recovery_candles = last_candles[i+1:]
                     for rec_candle in recovery_candles:
                         if float(rec_candle.close) > nearest_support:

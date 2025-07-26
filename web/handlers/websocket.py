@@ -5,7 +5,9 @@ from typing import List
 from fastapi import WebSocket
 import asyncio
 import logging
+from datetime import timedelta
 from storage.sqlite_storage import SQLiteStorage
+from utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,9 @@ class WebSocketManager:
         """Fiyat güncellemesi gönder"""
         latest_price = self.storage.get_latest_price()
         if latest_price:
+            # Günlük değişim hesapla
+            daily_change_pct = self._calculate_daily_change_percentage(latest_price)
+            
             data = {
                 "type": "price_update",
                 "data": {
@@ -45,7 +50,8 @@ class WebSocketManager:
                     "ons_usd": float(latest_price.ons_usd),
                     "usd_try": float(latest_price.usd_try),
                     "ons_try": float(latest_price.ons_try),
-                    "gram_altin": float(latest_price.gram_altin) if latest_price.gram_altin else None
+                    "gram_altin": float(latest_price.gram_altin) if latest_price.gram_altin else None,
+                    "daily_change_pct": daily_change_pct
                 }
             }
             await websocket.send_json(data)
@@ -83,3 +89,42 @@ class WebSocketManager:
     def get_connection_count(self) -> int:
         """Aktif bağlantı sayısını döndür"""
         return len(self.active_connections)
+    
+    def _calculate_daily_change_percentage(self, latest_price) -> float:
+        """
+        Günlük değişim yüzdesini hesapla
+        API endpoint'indeki mantığı kullanır
+        """
+        try:
+            if not latest_price or not latest_price.gram_altin:
+                return 0.0
+            
+            # 24 saat önceki fiyatı al
+            now = timezone.now()
+            yesterday = now - timedelta(hours=24)
+            
+            with self.storage.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT gram_altin FROM price_data 
+                    WHERE timestamp >= ? 
+                    ORDER BY timestamp ASC 
+                    LIMIT 1
+                """, (yesterday,))
+                
+                yesterday_price = cursor.fetchone()
+                
+                if yesterday_price and yesterday_price[0]:
+                    old_price = float(yesterday_price[0])
+                    new_price = float(latest_price.gram_altin)
+                    
+                    if old_price > 0:
+                        daily_change = new_price - old_price
+                        daily_change_pct = (daily_change / old_price) * 100
+                        return round(daily_change_pct, 2)
+                
+                return 0.0
+                
+        except Exception as e:
+            logger.error(f"Günlük değişim yüzdesi hesaplama hatası: {e}")
+            return 0.0

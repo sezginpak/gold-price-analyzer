@@ -114,8 +114,9 @@ def generate_stop_hunt_pattern(base_price: float, support_level: float) -> List[
     # Stop hunt spike (support'u delme)
     hunt_candle = MockCandle(
         open_price=candles[-1].close,
-        close_price=support_level + 2,
-        low_price=support_level - 5  # Support'u 5 puan del
+        close_price=support_level - 2,
+        low_price=support_level - 10,  # Support'u 10 puan del (daha belirgin)
+        high_price=candles[-1].close + 2
     )
     candles.append(hunt_candle)
     
@@ -162,6 +163,32 @@ def generate_divergence_pattern(base_price: float, count: int = 20) -> tuple:
         rsi_values.append(60 - i)
     
     return candles, rsi_values
+
+
+def generate_exhaustion_pattern(base_price: float, count: int = 30) -> List[MockCandle]:
+    """Exhaustion pattern oluştur - ardışık mumlar ve momentum artışı"""
+    candles = []
+    
+    # Normal mumlar
+    for i in range(count // 2):
+        price = base_price + i * 0.5
+        candle = MockCandle(open_price=price, close_price=price + 0.3)
+        candles.append(candle)
+    
+    # Exhaustion pattern - ardışık büyük yeşil mumlar
+    for i in range(8):  # 8 ardışık yeşil mum
+        price = candles[-1].close
+        # Giderek büyüyen mumlar
+        size = 2 + i * 0.5
+        candle = MockCandle(open_price=price, close_price=price + size)
+        candles.append(candle)
+    
+    # Son dev mum (spike)
+    last_price = candles[-1].close
+    spike_candle = MockCandle(open_price=last_price, close_price=last_price + 10)
+    candles.append(spike_candle)
+    
+    return candles
 
 
 def create_mock_indicators(rsi: float = 50, stoch_k: float = 50, 

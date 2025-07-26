@@ -32,23 +32,42 @@ class TestStructureManager(unittest.TestCase):
     
     def test_bullish_structure(self):
         """Bullish market structure testi (HH/HL)"""
-        # Bullish trend verisi oluştur
+        # Açık bullish trend verisi oluştur - higher highs ve higher lows
         candles = []
-        prices = [1950, 1940, 1960, 1945, 1980, 1965, 2000, 1985, 2020]
         
-        for i, price in enumerate(prices):
-            is_high = i % 2 == 0  # Tek indexler low, çift indexler high
-            if is_high:
-                candle = MockCandle(price - 5, price, price + 2, price - 7)
-            else:
-                candle = MockCandle(price + 5, price, price + 7, price - 2)
-            candles.append(candle)
+        # İlk swing low
+        candles.extend([
+            MockCandle(2000, 1995),
+            MockCandle(1995, 1990),
+            MockCandle(1990, 1985),  # Low point
+        ])
         
-        # Yeterli candle ekle
-        for _ in range(15):
-            candles.append(MockCandle(2000, 2005))
+        # İlk swing high
+        candles.extend([
+            MockCandle(1985, 1995),
+            MockCandle(1995, 2005),
+            MockCandle(2005, 2010),  # High point
+        ])
         
-        result = self.manager.analyze_market_structure(candles, 2010)
+        # Higher low
+        candles.extend([
+            MockCandle(2010, 2005),
+            MockCandle(2005, 2000),
+            MockCandle(2000, 1995),  # Higher low (1995 > 1985)
+        ])
+        
+        # Higher high
+        candles.extend([
+            MockCandle(1995, 2010),
+            MockCandle(2010, 2020),
+            MockCandle(2020, 2025),  # Higher high (2025 > 2010)
+        ])
+        
+        # Son birkaç mum
+        for _ in range(5):
+            candles.append(MockCandle(2020, 2022))
+        
+        result = self.manager.analyze_market_structure(candles, 2020)
         
         # Bullish structure beklentisi (son highs ve lows yükseliyor)
         if len(result['swing_points']) >= 4:

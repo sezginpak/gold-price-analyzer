@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Ana analiz servisi
+  gold-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gold-analyzer
+    restart: unless-stopped
+    environment:
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000}
+      - COLLECTION_INTERVAL=${COLLECTION_INTERVAL:-1}
+      - ANALYSIS_INTERVAL_15M=${ANALYSIS_INTERVAL_15M:-15}
+      - ANALYSIS_INTERVAL_1H=${ANALYSIS_INTERVAL_1H:-60}
+      - ANALYSIS_INTERVAL_4H=${ANALYSIS_INTERVAL_4H:-240}
+      - ANALYSIS_INTERVAL_DAILY=${ANALYSIS_INTERVAL_DAILY:-1440}
+      - MIN_CONFIDENCE_SCORE=${MIN_CONFIDENCE_SCORE:-0.7}
+      - RISK_TOLERANCE=${RISK_TOLERANCE:-medium}
+      - LOG_MAX_SIZE_MB=${LOG_MAX_SIZE_MB:-100}
+      - LOG_MAX_AGE_DAYS=${LOG_MAX_AGE_DAYS:-7}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./gold_prices.db:/app/gold_prices.db
+    command: python main.py
+    networks:
+      - gold-network
+
+  # Web dashboard servisi
+  gold-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gold-web
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000}
+      - MIN_CONFIDENCE_SCORE=${MIN_CONFIDENCE_SCORE:-0.7}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./gold_prices.db:/app/gold_prices.db
+    command: python web_server.py
+    depends_on:
+      - gold-analyzer
+    networks:
+      - gold-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Log rotation servisi (opsiyonel)
+  log-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gold-log-manager
+    restart: unless-stopped
+    environment:
+      - LOG_MAX_SIZE_MB=${LOG_MAX_SIZE_MB:-100}
+      - LOG_MAX_AGE_DAYS=${LOG_MAX_AGE_DAYS:-7}
+      - LOG_COMPRESS_AFTER_DAYS=${LOG_COMPRESS_AFTER_DAYS:-1}
+      - LOG_CHECK_INTERVAL_MINUTES=${LOG_CHECK_INTERVAL_MINUTES:-60}
+    volumes:
+      - ./logs:/app/logs
+    command: python -c "from utils.log_manager import LogManager; LogManager().start_monitoring()"
+    networks:
+      - gold-network
+
+networks:
+  gold-network:
+    driver: bridge
+
+volumes:
+  logs:
+  data:

@@ -14,14 +14,6 @@ class Settings(BaseSettings):
     api_base_url: str = os.getenv("API_BASE_URL", "http://localhost:8000")
     api_key: Optional[str] = os.getenv("API_KEY")
     
-    # MongoDB Configuration
-    mongodb_url: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-    mongodb_db: str = os.getenv("MONGODB_DB", "gold_price_analyzer")
-    
-    # Redis Configuration
-    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
-    redis_db: int = int(os.getenv("REDIS_DB", "0"))
-    
     # Data Collection
     collection_interval: int = int(os.getenv("COLLECTION_INTERVAL", "1"))  # Dakika cinsinden veri toplama (her dakika fiyat kaydet)
     analysis_interval_15m: int = int(os.getenv("ANALYSIS_INTERVAL_15M", "15"))  # 15 dakikalık analiz

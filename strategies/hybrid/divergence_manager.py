@@ -140,16 +140,16 @@ class DivergenceManager:
         price_trend = prices[-1] > prices[-10]
         
         # RSI extremes
-        if rsi_value < 30 and price_trend:
-            # Possible hidden bullish
+        if rsi_value < 30 and not price_trend:
+            # Fiyat düşüyor ama RSI oversold - bullish divergence
             return {
                 'found': True,
                 'type': 'bullish',
                 'strength': 0.7,
                 'description': 'RSI oversold divergence'
             }
-        elif rsi_value > 70 and not price_trend:
-            # Possible hidden bearish
+        elif rsi_value > 70 and price_trend:
+            # Fiyat yükseliyor ama RSI overbought - bearish divergence
             return {
                 'found': True,
                 'type': 'bearish',

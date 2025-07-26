@@ -605,25 +605,32 @@ async def get_active_alerts():
                 min_24h = float(result[0])
                 max_24h = float(result[1])
                 
-                # Minimum seviyeye yaklaşma
-                if current_price <= min_24h * 1.01:  # %1 yakınlık
-                    alerts.append({
-                        "type": "SUPPORT_NEAR",
-                        "level": min_24h,
-                        "message": f"24 saatlik minimum seviyeye yaklaşılıyor: ₺{min_24h:.2f}",
-                        "severity": "HIGH",
-                        "timestamp": timezone.now().isoformat()
-                    })
+                # Fiyat aralığını hesapla
+                price_range = max_24h - min_24h
                 
-                # Maksimum seviyeye yaklaşma
-                if current_price >= max_24h * 0.99:  # %1 yakınlık
-                    alerts.append({
-                        "type": "RESISTANCE_NEAR",
-                        "level": max_24h,
-                        "message": f"24 saatlik maksimum seviyeye yaklaşılıyor: ₺{max_24h:.2f}",
-                        "severity": "HIGH",
-                        "timestamp": timezone.now().isoformat()
-                    })
+                # Sadece anlamlı bir aralık varsa uyarı ver
+                if price_range > 10:  # En az 10 TL fark olmalı
+                    # Minimum seviyeye yaklaşma (alt %2'lik dilimde)
+                    support_threshold = min_24h + (price_range * 0.02)
+                    if current_price <= support_threshold:
+                        alerts.append({
+                            "type": "SUPPORT_NEAR",
+                            "level": min_24h,
+                            "message": f"Destek seviyesine yaklaşıyor: ₺{min_24h:.2f}",
+                            "severity": "HIGH",
+                            "timestamp": timezone.now().isoformat()
+                        })
+                    else:
+                        # Maksimum seviyeye yaklaşma (üst %2'lik dilimde)
+                        resistance_threshold = max_24h - (price_range * 0.02)
+                        if current_price >= resistance_threshold:
+                            alerts.append({
+                                "type": "RESISTANCE_NEAR",
+                                "level": max_24h,
+                                "message": f"Direnç seviyesine yaklaşıyor: ₺{max_24h:.2f}",
+                                "severity": "HIGH",
+                                "timestamp": timezone.now().isoformat()
+                            })
             
             # Son 1 saatte hızlı değişim
             hour_ago = timezone.now() - timedelta(hours=1)
