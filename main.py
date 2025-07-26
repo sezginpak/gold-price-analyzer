@@ -46,7 +46,7 @@ class HybridGoldAnalyzer:
         self.storage = SQLiteStorage()
         
         # Hibrit strateji
-        self.strategy = HybridStrategy()
+        self.strategy = HybridStrategy(storage=self.storage)
         
         # Timeframe analyzer (farklı zaman dilimleri için)
         self.timeframe_analyzer = TimeframeAnalyzer(self.storage)
