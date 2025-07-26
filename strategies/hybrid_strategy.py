@@ -291,23 +291,28 @@ class HybridStrategy:
         risk_level = currency.get("risk_level", "MEDIUM")
         if risk_level in ["HIGH", "EXTREME"]:
             # Stop-loss'u %20 daha yakına al
-            current_price = gram.get("price", stop_loss)
+            current_price = float(gram.get("price", stop_loss))
+            stop_loss_float = float(stop_loss)
             if gram.get("signal") == "BUY":
                 # BUY için stop_loss fiyatın altında olmalı
-                distance = abs(current_price - stop_loss)
-                stop_loss = current_price - (distance * Decimal("0.8"))
+                distance = abs(current_price - stop_loss_float)
+                stop_loss = current_price - (distance * 0.8)
             else:  # SELL
                 # SELL için stop_loss fiyatın üstünde olmalı
-                distance = abs(stop_loss - current_price)
-                stop_loss = current_price + (distance * Decimal("0.8"))
+                distance = abs(stop_loss_float - current_price)
+                stop_loss = current_price + (distance * 0.8)
         
         # Risk/Ödül oranı
+        gram_price_float = float(gram.get("price", 0))
+        stop_loss_float = float(stop_loss)
+        take_profit_float = float(take_profit)
+        
         if gram.get("signal") == "BUY":
-            risk = abs(float(gram["price"] - stop_loss))
-            reward = abs(float(take_profit - gram["price"]))
+            risk = abs(gram_price_float - stop_loss_float)
+            reward = abs(take_profit_float - gram_price_float)
         else:  # SELL
-            risk = abs(float(stop_loss - gram["price"]))
-            reward = abs(float(gram["price"] - take_profit))
+            risk = abs(stop_loss_float - gram_price_float)
+            reward = abs(gram_price_float - take_profit_float)
         
         risk_reward_ratio = reward / risk if risk > 0 else 0
         
