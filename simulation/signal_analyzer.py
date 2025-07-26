@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Optional
 from decimal import Decimal
+from utils.timezone import now
 
 from models.simulation import (
     SimulationConfig,
@@ -161,7 +162,7 @@ class SignalAnalyzer:
         # 5. Zaman limiti kontrolü
         if not exit_reason:
             time_limit = config.time_limits.get(position.timeframe, 168)
-            holding_hours = (datetime.now() - position.entry_time).total_seconds() / 3600
+            holding_hours = (now() - position.entry_time).total_seconds() / 3600
             if holding_hours >= time_limit:
                 exit_reason = "TIME_LIMIT"
         

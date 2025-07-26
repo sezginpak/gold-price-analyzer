@@ -6,7 +6,8 @@ import logging.handlers
 import os
 from datetime import datetime
 from pathlib import Path
-from utils.timezone import now, format_for_display
+from utils.timezone import now, format_for_display, TURKEY_TZ
+import pytz
 
 
 def setup_logger(
@@ -37,13 +38,25 @@ def setup_logger(
     if logger.handlers:
         return logger
     
+    # Custom formatter with Turkey timezone
+    class TurkeyTimeFormatter(logging.Formatter):
+        def formatTime(self, record, datefmt=None):
+            # Create datetime from timestamp
+            dt = datetime.fromtimestamp(record.created, tz=pytz.UTC)
+            # Convert to Turkey timezone
+            dt = dt.astimezone(TURKEY_TZ)
+            # Format
+            if datefmt:
+                return dt.strftime(datefmt)
+            return dt.strftime('%Y-%m-%d %H:%M:%S')
+    
     # Formatter
-    detailed_formatter = logging.Formatter(
+    detailed_formatter = TurkeyTimeFormatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    simple_formatter = logging.Formatter(
+    simple_formatter = TurkeyTimeFormatter(
         '%(asctime)s - %(levelname)s - %(message)s',
         datefmt='%H:%M:%S'
     )
