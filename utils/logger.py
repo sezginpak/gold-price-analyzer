@@ -116,3 +116,4 @@ def log_exception(logger: logging.Logger, exc: Exception, context: str = ""):
 
 # Global logger instance
 main_logger = setup_logger()
+logger = main_logger  # Backward compatibility için

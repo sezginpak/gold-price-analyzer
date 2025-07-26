@@ -73,10 +73,9 @@ class TestDivergenceManager:
         # RSI (2) + Stochastic (2) = 4, ama max() kullanıldığı için bearish_score alınır
         assert result['total_score'] >= 2  # En az bir divergence skoru
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
-    def test_divergence_scoring(self):
+    def test_divergence_scoring(self, divergence_manager):
         """Divergence skorlama sistemi testi"""
-        candles = generate_trending_candles(2000, 20)
+        candles = generate_trending_candles(2000, 20, "BEARISH")  # Düşen trend
         
         # Tüm göstergelerde divergence
         indicators = create_mock_indicators(
@@ -85,15 +84,14 @@ class TestDivergenceManager:
             macd_hist=0.5  # Positive
         )
         
-        result = self.manager.analyze_divergences(candles, indicators)
+        result = divergence_manager.analyze_divergences(candles, indicators)
         
         # Skorlama kontrolleri
-        self.assertGreater(result['total_score'], 0)
-        self.assertIn(result['strength'], ['STRONG', 'MODERATE', 'WEAK', 'NONE'])
-        self.assertGreater(result['confidence'], 0)
+        assert result['total_score'] > 0
+        assert result['strength'] in ['STRONG', 'MODERATE', 'WEAK', 'NONE']
+        assert result['confidence'] > 0
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
-    def test_bullish_divergence(self):
+    def test_bullish_divergence(self, divergence_manager):
         """Bullish divergence testi"""
         # Düşen fiyat
         candles = generate_trending_candles(2000, 20, "BEARISH", 0.02)
@@ -101,14 +99,13 @@ class TestDivergenceManager:
         # Oversold göstergeler
         indicators = create_mock_indicators(rsi=20, stoch_k=10)
         
-        result = self.manager.analyze_divergences(candles, indicators)
+        result = divergence_manager.analyze_divergences(candles, indicators)
         
         if result['divergence_type'] != 'NONE':
-            self.assertEqual(result['divergence_type'], 'BULLISH')
-            self.assertIn('ALIŞ', result['recommendation'])
+            assert result['divergence_type'] == 'BULLISH'
+            assert 'ALIŞ' in result['recommendation']
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
-    def test_bearish_divergence(self):
+    def test_bearish_divergence(self, divergence_manager):
         """Bearish divergence testi"""
         # Yükselen fiyat
         candles = generate_trending_candles(2000, 20, "BULLISH", 0.02)
@@ -116,14 +113,13 @@ class TestDivergenceManager:
         # Overbought göstergeler
         indicators = create_mock_indicators(rsi=80, stoch_k=90)
         
-        result = self.manager.analyze_divergences(candles, indicators)
+        result = divergence_manager.analyze_divergences(candles, indicators)
         
         if result['divergence_type'] != 'NONE':
-            self.assertEqual(result['divergence_type'], 'BEARISH')
-            self.assertIn('SATIŞ', result['recommendation'])
+            assert result['divergence_type'] == 'BEARISH'
+            assert 'SATIŞ' in result['recommendation']
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
-    def test_mfi_divergence_simulation(self):
+    def test_mfi_divergence_simulation(self, divergence_manager):
         """MFI divergence simülasyonu testi"""
         # Yüksek volatilite pattern
         candles = []
@@ -147,30 +143,29 @@ class TestDivergenceManager:
                 'low': base_price + 5 - i * 2 - 4
             })())
         
-        result = self.manager.analyze_divergences(candles, {})
+        result = divergence_manager.analyze_divergences(candles, {})
         
         # MFI kontrolü
         if 'MFI' in result['divergences_found']:
-            self.assertEqual(result['divergences_found']['MFI']['type'], 'bullish')
+            assert result['divergences_found']['MFI']['type'] == 'bullish'
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
-    def test_confidence_calculation(self):
+    def test_confidence_calculation(self, divergence_manager):
         """Güven skoru hesaplama testi"""
         candles = generate_trending_candles(2000, 30)
         
         # Test 1: Düşük skor
         indicators1 = create_mock_indicators(rsi=50)
-        result1 = self.manager.analyze_divergences(candles, indicators1)
+        result1 = divergence_manager.analyze_divergences(candles, indicators1)
         
         # Test 2: Yüksek skor
         indicators2 = create_mock_indicators(rsi=15, stoch_k=10, macd_hist=-2)
-        result2 = self.manager.analyze_divergences(candles, indicators2)
+        result2 = divergence_manager.analyze_divergences(candles, indicators2)
         
         # Güven skorları karşılaştırması
-        self.assertLess(result1['confidence'], result2['confidence'])
-        self.assertLessEqual(result1['confidence'], 1.0)
-        self.assertGreaterEqual(result1['confidence'], 0.0)
+        assert result1['confidence'] < result2['confidence']
+        assert result1['confidence'] <= 1.0
+        assert result1['confidence'] >= 0.0
 
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main([__file__])

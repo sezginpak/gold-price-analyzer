@@ -15,12 +15,14 @@ from tests.test_helpers import (
 )
 
 
-class TestMomentumManager(unittest.TestCase):
+@pytest.fixture
+def momentum_manager():
+    """MomentumManager fixture"""
+    return MomentumManager()
+
+
+class TestMomentumManager:
     """MomentumManager test sınıfı"""
-    
-    def setUp(self):
-        """Her test öncesi kurulum"""
-        self.manager = MomentumManager()
     
     def test_empty_candles(self):
         """Boş veri durumu testi"""
@@ -31,8 +33,7 @@ class TestMomentumManager(unittest.TestCase):
         self.assertEqual(result['exhaustion_score'], 0.0)
         self.assertEqual(len(result['signals']), 0)
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
-    def test_consecutive_candles_detection(self):
+    def test_consecutive_candles_detection(self, momentum_manager):
         """Ardışık mum tespiti"""
         candles = []
         
