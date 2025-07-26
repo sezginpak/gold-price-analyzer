@@ -3,14 +3,14 @@
 /* Dashboard Container */
 .dashboard {
   min-height: calc(100vh - 4rem);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 /* Dashboard Grid */
 .dashboard-grid {
   display: grid;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 
 .dashboard-grid--stats {
@@ -34,6 +34,13 @@
   
   .dashboard-grid--main {
     grid-template-columns: 3fr 1fr;
+  }
+}
+
+@media (min-width: 1440px) {
+  .dashboard-grid--stats {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-lg);
   }
 }
 
@@ -88,8 +95,14 @@
 /* Price Cards */
 .price-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+@media (min-width: 1440px) {
+  .price-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .price-card {
@@ -337,4 +350,38 @@
   background: #3b82f6;
   color: white;
   border-color: #3b82f6;
+}
+
+/* Support/Resistance Levels */
+.levels-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.level-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all var(--transition-fast);
+}
+
+.level-item:hover {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.level-price {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.level-strength {
+  font-size: var(--text-sm);
+  font-weight: 500;
 }

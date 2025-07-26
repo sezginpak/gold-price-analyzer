@@ -171,8 +171,8 @@
 /* Chart Grid */
 .chart-grid {
   display: grid;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
 .chart-grid--2cols {
@@ -182,6 +182,12 @@
 @media (min-width: 768px) {
   .chart-grid--2cols {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1440px) {
+  .chart-grid--2cols {
+    gap: var(--spacing-lg);
   }
 }
 

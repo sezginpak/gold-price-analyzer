@@ -78,7 +78,7 @@
     </div>
 
     <!-- Market Overview & Quick Indicators -->
-    <div class="grid grid--cols-3 mb-lg">
+    <div class="grid grid--cols-4 mb-lg">
         <!-- Market Overview -->
         <div class="market-overview">
             <h2 class="market-overview__title">
@@ -150,6 +150,30 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Advanced Indicators -->
+        <div class="market-overview">
+            <h2 class="market-overview__title">
+                <i class="fas fa-chart-mixed text-info"></i>
+                İleri Göstergeler
+            </h2>
+            <div class="market-overview__item">
+                <span class="market-overview__label">CCI</span>
+                <span class="market-overview__value" id="cci-value">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">MFI</span>
+                <span class="market-overview__value" id="mfi-value">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">Pattern</span>
+                <span class="market-overview__value" id="pattern-name">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">Trend Gücü</span>
+                <span class="market-overview__value" id="trend-strength">-</span>
+            </div>
+        </div>
     </div>
 
     <!-- Charts Grid -->
@@ -216,6 +240,70 @@
                 <div class="text-center py-lg">
                     <i class="fas fa-spinner animate-rotate text-2xl text-muted"></i>
                     <p class="text-muted text-sm mt-sm">Yükleniyor...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="glass-card mb-lg">
+        <div class="glass-card__header">
+            <h2 class="glass-card__title">
+                <i class="fas fa-tachometer-alt text-info"></i>
+                Performans Metrikleri
+            </h2>
+        </div>
+        <div class="glass-card__body">
+            <div class="grid grid--cols-4">
+                <div class="stat-card">
+                    <h3 class="stat-card__label">24s Değişim</h3>
+                    <p class="stat-card__value" id="daily-change">-</p>
+                    <p class="stat-card__change" id="daily-change-pct">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="stat-card__label">Haftalık Ortalama</h3>
+                    <p class="stat-card__value" id="weekly-avg">-</p>
+                    <p class="stat-card__change" id="weekly-trend">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="stat-card__label">Volatilite</h3>
+                    <p class="stat-card__value" id="volatility-value">-</p>
+                    <p class="stat-card__change" id="volatility-level">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="stat-card__label">Sinyal Başarısı</h3>
+                    <p class="stat-card__value" id="signal-success">-</p>
+                    <p class="stat-card__change" id="signal-count">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support/Resistance Levels -->
+    <div class="grid grid--cols-2 mb-lg">
+        <div class="glass-card">
+            <div class="glass-card__header">
+                <h2 class="glass-card__title">
+                    <i class="fas fa-shield-alt text-green"></i>
+                    Destek Seviyeleri
+                </h2>
+            </div>
+            <div class="glass-card__body">
+                <div id="support-levels" class="levels-container">
+                    <p class="text-muted">Yükleniyor...</p>
+                </div>
+            </div>
+        </div>
+        <div class="glass-card">
+            <div class="glass-card__header">
+                <h2 class="glass-card__title">
+                    <i class="fas fa-ban text-red"></i>
+                    Direnç Seviyeleri
+                </h2>
+            </div>
+            <div class="glass-card__body">
+                <div id="resistance-levels" class="levels-container">
+                    <p class="text-muted">Yükleniyor...</p>
                 </div>
             </div>
         </div>
@@ -764,6 +852,49 @@
             // Mock data için - gerçek API'den gelecek
             document.getElementById('bb-position').innerHTML = '<span class="text-yellow-400">MIDDLE</span>';
             document.getElementById('stoch-value').innerHTML = '<span class="text-blue-400">55.3</span>';
+            
+            // İleri göstergeler
+            if (details.advanced_indicators) {
+                const adv = details.advanced_indicators;
+                
+                // CCI
+                if (adv.cci !== undefined && adv.cci !== null) {
+                    const cciValue = adv.cci.toFixed(1);
+                    let cciClass = '';
+                    if (adv.cci < -100) cciClass = 'text-green-400';
+                    else if (adv.cci > 100) cciClass = 'text-red-400';
+                    else cciClass = 'text-yellow-400';
+                    document.getElementById('cci-value').innerHTML = `<span class="${cciClass}">${cciValue}</span>`;
+                }
+                
+                // MFI
+                if (adv.mfi !== undefined && adv.mfi !== null) {
+                    const mfiValue = adv.mfi.toFixed(1);
+                    let mfiClass = '';
+                    if (adv.mfi < 20) mfiClass = 'text-green-400';
+                    else if (adv.mfi > 80) mfiClass = 'text-red-400';
+                    else mfiClass = 'text-yellow-400';
+                    document.getElementById('mfi-value').innerHTML = `<span class="${mfiClass}">${mfiValue}</span>`;
+                }
+            }
+            
+            // Pattern
+            if (details.pattern && details.pattern.name) {
+                const patternName = details.pattern.name !== 'None' ? details.pattern.name : 'Yok';
+                const patternClass = details.pattern.signal === 'BUY' ? 'text-green-400' : 
+                                   details.pattern.signal === 'SELL' ? 'text-red-400' : 'text-gray-400';
+                document.getElementById('pattern-name').innerHTML = `<span class="${patternClass}">${patternName}</span>`;
+            }
+            
+            // Trend gücü
+            if (details.global && details.global.trend_strength) {
+                const strength = details.global.trend_strength;
+                const strengthText = strength === 'STRONG' ? 'Güçlü' : 
+                                   strength === 'MODERATE' ? 'Orta' : 'Zayıf';
+                const strengthClass = strength === 'STRONG' ? 'text-green-400' : 
+                                    strength === 'MODERATE' ? 'text-yellow-400' : 'text-gray-400';
+                document.getElementById('trend-strength').innerHTML = `<span class="${strengthClass}">${strengthText}</span>`;
+            }
         }
 
         // Piyasa durumunu güncelle
@@ -901,6 +1032,94 @@
                 }
             } catch (error) {
                 console.error('Error logs yüklenemedi:', error);
+            }
+        }
+        
+        // Destek/Direnç seviyelerini yükle
+        async function loadSupportResistanceLevels() {
+            try {
+                const response = await fetch('/api/analysis/levels');
+                const data = await response.json();
+                
+                const supportContainer = document.getElementById('support-levels');
+                const resistanceContainer = document.getElementById('resistance-levels');
+                
+                // Destek seviyeleri
+                if (data.support && data.support.length > 0) {
+                    supportContainer.innerHTML = data.support.map(level => {
+                        const strengthClass = level.strength === 'Güçlü' ? 'text-green-400' :
+                                            level.strength === 'Orta' ? 'text-yellow-400' : 'text-gray-400';
+                        return `
+                            <div class="level-item">
+                                <span class="level-price">₺${level.level.toFixed(2)}</span>
+                                <span class="level-strength ${strengthClass}">${level.strength}</span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    supportContainer.innerHTML = '<p class="text-muted text-sm">Veri yok</p>';
+                }
+                
+                // Direnç seviyeleri
+                if (data.resistance && data.resistance.length > 0) {
+                    resistanceContainer.innerHTML = data.resistance.map(level => {
+                        const strengthClass = level.strength === 'Güçlü' ? 'text-red-400' :
+                                            level.strength === 'Orta' ? 'text-orange-400' : 'text-gray-400';
+                        return `
+                            <div class="level-item">
+                                <span class="level-price">₺${level.level.toFixed(2)}</span>
+                                <span class="level-strength ${strengthClass}">${level.strength}</span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    resistanceContainer.innerHTML = '<p class="text-muted text-sm">Veri yok</p>';
+                }
+            } catch (error) {
+                console.error('Destek/Direnç seviyeleri yüklenemedi:', error);
+            }
+        }
+        
+        // Performans metriklerini yükle
+        async function loadPerformanceMetrics() {
+            try {
+                const response = await fetch('/api/performance/metrics');
+                const data = await response.json();
+                
+                // Günlük değişim
+                document.getElementById('daily-change').textContent = `₺${Math.abs(data.daily.change).toFixed(2)}`;
+                const changeClass = data.daily.change_pct >= 0 ? 'text-green-400' : 'text-red-400';
+                const changeIcon = data.daily.change_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                document.getElementById('daily-change-pct').innerHTML = 
+                    `<span class="${changeClass}"><i class="fas ${changeIcon} mr-1"></i>${data.daily.change_pct >= 0 ? '+' : ''}${data.daily.change_pct.toFixed(2)}%</span>`;
+                
+                // Haftalık ortalama
+                document.getElementById('weekly-avg').textContent = `₺${data.weekly.average.toFixed(2)}`;
+                const trendClass = data.weekly.trend === 'Yükseliş' ? 'text-green-400' : 
+                                  data.weekly.trend === 'Düşüş' ? 'text-red-400' : 'text-yellow-400';
+                document.getElementById('weekly-trend').innerHTML = `<span class="${trendClass}">${data.weekly.trend}</span>`;
+                
+                // Volatilite
+                document.getElementById('volatility-value').textContent = `${data.volatility.value.toFixed(2)}%`;
+                const volClass = data.volatility.level === 'Yüksek' ? 'text-red-400' : 
+                                data.volatility.level === 'Orta' ? 'text-orange-400' : 'text-green-400';
+                document.getElementById('volatility-level').innerHTML = `<span class="${volClass}">${data.volatility.level}</span>`;
+                
+                // Sinyal başarısı
+                document.getElementById('signal-success').textContent = `${data.signals.success_rate.toFixed(1)}%`;
+                document.getElementById('signal-count').innerHTML = 
+                    `<span class="text-gray-400">${data.signals.actionable}/${data.signals.total} sinyal</span>`;
+            } catch (error) {
+                console.error('Performans metrikleri yüklenemedi:', error);
+                // Hata durumunda varsayılan değerler
+                document.getElementById('daily-change').textContent = '₺0.00';
+                document.getElementById('daily-change-pct').innerHTML = '<span class="text-gray-400">-</span>';
+                document.getElementById('weekly-avg').textContent = '₺0.00';
+                document.getElementById('weekly-trend').innerHTML = '<span class="text-gray-400">-</span>';
+                document.getElementById('volatility-value').textContent = '-';
+                document.getElementById('volatility-level').innerHTML = '<span class="text-gray-400">-</span>';
+                document.getElementById('signal-success').textContent = '-';
+                document.getElementById('signal-count').innerHTML = '<span class="text-gray-400">-</span>';
             }
         }
 
@@ -1101,7 +1320,9 @@
                         loadSignals(),
                         loadDailyOpenPrices(),
                         loadLogStats(),
-                        loadRecentErrors()
+                        loadRecentErrors(),
+                        loadSupportResistanceLevels(),
+                        loadPerformanceMetrics()
                     ]);
                     console.log('✅ İkincil veriler yüklendi');
                 }, 1500);
