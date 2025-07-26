@@ -94,7 +94,7 @@ class GramAltinAnalyzer:
             
             result = {
                 "timestamp": timezone.utc_now(),
-                "price": current_price,
+                "price": float(current_price),
                 "trend": trend,
                 "trend_strength": trend_strength,
                 "indicators": {
