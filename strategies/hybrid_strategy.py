@@ -14,6 +14,7 @@ from analyzers.currency_risk_analyzer import CurrencyRiskAnalyzer
 from indicators.cci import CCI
 from indicators.mfi import MFI
 from indicators.advanced_patterns import AdvancedPatternRecognition
+from analyzers.multi_day_pattern import MultiDayPatternAnalyzer
 from utils.risk_management import KellyRiskManager
 from utils.constants import (
     SignalType, RiskLevel, StrengthLevel,
@@ -58,6 +59,7 @@ class HybridStrategy:
         self.structure_manager = StructureManager()
         self.momentum_manager = MomentumManager()
         self.smart_money_manager = SmartMoneyManager()
+        self.multi_day_analyzer = MultiDayPatternAnalyzer(lookback_days=3)
         
         # Storage referansı
         self.storage = storage
@@ -133,7 +135,10 @@ class HybridStrategy:
                 key_levels
             )
             
-            # 11. Volatilite kontrolü
+            # 11. Multi-day pattern analizi
+            multi_day_pattern = self.multi_day_analyzer.analyze(gram_candles)
+            
+            # 12. Volatilite kontrolü
             current_price = float(gram_analysis.get('price', 0))
             atr_data = gram_analysis.get('indicators', {}).get('atr', {})
             # ATR bir dict ise value'sunu al, değilse direkt kullan
@@ -149,7 +154,7 @@ class HybridStrategy:
             combined_signal = self._combine_signals(
                 gram_analysis, global_analysis, currency_analysis,
                 advanced_indicators, pattern_analysis, timeframe, market_volatility,
-                divergence_analysis, momentum_analysis, smart_money_analysis
+                divergence_analysis, momentum_analysis, smart_money_analysis, multi_day_pattern
             )
             logger.debug(f"🔄 HYBRID: Combined signal = {combined_signal.get('signal')}")
             
@@ -211,7 +216,7 @@ class HybridStrategy:
                         currency: Dict, advanced: Dict, patterns: Dict, 
                         timeframe: str, market_volatility: float,
                         divergence: Dict = None, momentum: Dict = None,
-                        smart_money: Dict = None) -> Dict[str, Any]:
+                        smart_money: Dict = None, multi_day_pattern: Dict = None) -> Dict[str, Any]:
         """Sinyalleri birleştir - Modüler signal combiner kullan"""
         return self.signal_combiner.combine_signals(
             gram_signal=gram,
@@ -223,7 +228,8 @@ class HybridStrategy:
             market_volatility=market_volatility,
             divergence_data=divergence,
             momentum_data=momentum,
-            smart_money_data=smart_money
+            smart_money_data=smart_money,
+            multi_day_pattern=multi_day_pattern
         )
     
     def _calculate_position_size(self, signal: Dict, currency: Dict) -> Dict[str, Any]:

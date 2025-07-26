@@ -46,7 +46,8 @@ class SignalCombiner:
                        market_volatility: float,
                        divergence_data: Dict = None,
                        momentum_data: Dict = None,
-                       smart_money_data: Dict = None) -> Dict[str, Any]:
+                       smart_money_data: Dict = None,
+                       multi_day_pattern: Dict = None) -> Dict[str, Any]:
         """
         Tüm sinyalleri birleştir ve nihai sinyal üret
         
@@ -114,11 +115,27 @@ class SignalCombiner:
         # Nihai sinyal belirleme
         logger.debug(f"📊 Before determine_final_signal - Scores: {dict(signal_scores)}")
         
+        # Multi-day pattern kontrolü
+        multi_day_override = False
+        if multi_day_pattern:
+            # 3 günlük dip yakınındaysak ve gram BUY diyorsa
+            if (multi_day_pattern.get("is_near_bottom") and 
+                gram_signal_type == "BUY" and 
+                gram_confidence >= 0.45):
+                logger.info(f"📉 MULTI-DAY DIP OVERRIDE: Near 3-day bottom, using BUY signal")
+                multi_day_override = True
+            # 3 günlük tepe yakınındaysak ve gram SELL diyorsa
+            elif (multi_day_pattern.get("is_near_top") and 
+                  gram_signal_type == "SELL" and 
+                  gram_confidence >= 0.45):
+                logger.info(f"📈 MULTI-DAY TOP OVERRIDE: Near 3-day top, using SELL signal")
+                multi_day_override = True
+        
         # Gram override - eğer gram güçlü sinyal veriyorsa direkt kullan
         gram_override_applied = False
-        logger.info(f"🔍 GRAM OVERRIDE CHECK: signal={gram_signal_type}, conf={gram_confidence:.3f}, threshold=0.40")
+        logger.info(f"🔍 GRAM OVERRIDE CHECK: signal={gram_signal_type}, conf={gram_confidence:.3f}, threshold=0.60")
         
-        if gram_signal_type in ["BUY", "SELL"] and gram_confidence >= 0.40:
+        if (gram_signal_type in ["BUY", "SELL"] and gram_confidence >= 0.60) or multi_day_override:
             logger.info(f"🎯 GRAM OVERRIDE ACTIVATED: Using gram signal {gram_signal_type} (conf={gram_confidence:.2%})")
             final_signal = gram_signal_type
             gram_override_applied = True
