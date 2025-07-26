@@ -63,7 +63,7 @@ quick_deploy_secure.sh
 deploy_*.sh
 
 # Claude instructions (project specific)
-CLAUDE.md
+# CLAUDE.md - Removed from gitignore to allow @ mentions
 
 # Utility scripts
 cleanup.sh
