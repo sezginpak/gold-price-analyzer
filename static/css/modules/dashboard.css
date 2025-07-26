@@ -272,6 +272,123 @@
   white-space: pre-line;
 }
 
+/* Compact Analysis */
+.compact-analysis {
+  padding: 0;
+}
+
+.compact-analysis .grid {
+  display: grid;
+}
+
+.compact-analysis .grid-cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.compact-analysis .gap-2 {
+  gap: 0.5rem;
+}
+
+.compact-analysis .bg-slate-800\/20 {
+  background-color: rgba(30, 41, 59, 0.2);
+}
+
+.compact-analysis .bg-slate-800\/30 {
+  background-color: rgba(30, 41, 59, 0.3);
+}
+
+.compact-analysis .bg-slate-900\/30 {
+  background-color: rgba(15, 23, 42, 0.3);
+}
+
+.compact-analysis .rounded {
+  border-radius: var(--radius-md);
+}
+
+.compact-analysis .rounded-lg {
+  border-radius: var(--radius-lg);
+}
+
+.compact-analysis .p-2 {
+  padding: 0.5rem;
+}
+
+.compact-analysis .p-3 {
+  padding: 0.75rem;
+}
+
+.compact-analysis .mb-3 {
+  margin-bottom: 0.75rem;
+}
+
+.compact-analysis .mt-3 {
+  margin-top: 0.75rem;
+}
+
+.compact-analysis .text-center {
+  text-align: center;
+}
+
+.compact-analysis .text-xs {
+  font-size: var(--text-xs);
+}
+
+.compact-analysis .text-sm {
+  font-size: var(--text-sm);
+}
+
+.compact-analysis .text-lg {
+  font-size: var(--text-lg);
+}
+
+.compact-analysis .font-semibold {
+  font-weight: 600;
+}
+
+.compact-analysis .text-gray-400 {
+  color: var(--text-muted);
+}
+
+.compact-analysis .text-gray-300 {
+  color: rgb(209 213 219);
+}
+
+.compact-analysis .text-green-400 {
+  color: rgb(74 222 128);
+}
+
+.compact-analysis .text-red-400 {
+  color: rgb(248 113 113);
+}
+
+.compact-analysis .text-yellow-400 {
+  color: rgb(250 204 21);
+}
+
+.compact-analysis .text-blue-400 {
+  color: rgb(96 165 250);
+}
+
+.compact-analysis .flex {
+  display: flex;
+}
+
+.compact-analysis .items-center {
+  align-items: center;
+}
+
+.compact-analysis .justify-between {
+  justify-content: space-between;
+}
+
+.compact-analysis .space-x-3 > * + * {
+  margin-left: 0.75rem;
+}
+
+.compact-analysis .leading-relaxed {
+  line-height: 1.625;
+}
+
 .analysis-summary strong,
 .analysis-summary b {
   font-weight: 600;

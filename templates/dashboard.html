@@ -1511,8 +1511,11 @@
                 // Aktif butonu bul ve interval'ı al
                 const activeBtn = document.querySelector('.candle-btn.bg-blue-800');
                 if (activeBtn) {
-                    const interval = activeBtn.textContent.replace('D', 'm').replace('S', 'h').replace('G', 'd');
-                    loadGramCandles(interval.toLowerCase(), activeBtn);
+                    const interval = activeBtn.textContent.replace('S', 'h').replace('G', 'd');
+                    // 15 dakikalık değilse yenile
+                    if (interval !== '15m') {
+                        loadGramCandles(interval.toLowerCase(), activeBtn);
+                    }
                 }
             }, 90000);  // 90 saniye
             setInterval(loadHybridAnalysis, 90000);  // 90 saniye
