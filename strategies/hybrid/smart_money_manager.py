@@ -185,7 +185,7 @@ class SmartMoneyManager:
             candle_body = abs(float(candle.close) - float(candle.open))
             
             # Büyük hacimli mum (body/range oranı yüksek)
-            if candle_body / candle_range > 0.7 and candle_range > 0:
+            if candle_range > 0 and candle_body / candle_range > 0.7:
                 # Bullish order block
                 if (float(candle.close) > float(candle.open) and
                     float(next_candle.close) > float(candle.high)):
