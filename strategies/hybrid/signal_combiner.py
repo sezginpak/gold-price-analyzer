@@ -19,12 +19,12 @@ class SignalCombiner:
     """Farklı kaynaklardan gelen sinyalleri birleştirir"""
     
     def __init__(self):
-        # Ağırlıklar - toplam 1.0 olmalı
+        # Ağırlıklar - USD/TRY sabit olduğu için global trend ağırlığı artırıldı
         self.weights = {
-            "gram_analysis": 0.50,      # %50 - Ana sinyal (artırıldı)
-            "global_trend": 0.15,       # %15 - Trend doğrulama (azaltıldı)
-            "currency_risk": 0.10,      # %10 - Risk ayarlama (azaltıldı)
-            "advanced_indicators": 0.15, # %15 - CCI + MFI (azaltıldı)
+            "gram_analysis": 0.30,      # %30 - Gram sinyal (azaltıldı)
+            "global_trend": 0.40,       # %40 - Global trend (büyük artış)
+            "currency_risk": 0.05,      # %5 - Kur riski (minimize edildi)
+            "advanced_indicators": 0.15, # %15 - CCI + MFI
             "pattern_recognition": 0.10  # %10 - Pattern bonus
         }
         
@@ -133,9 +133,9 @@ class SignalCombiner:
         
         # Gram override - eğer gram güçlü sinyal veriyorsa direkt kullan
         gram_override_applied = False
-        logger.info(f"🔍 GRAM OVERRIDE CHECK: signal={gram_signal_type}, conf={gram_confidence:.3f}, threshold=0.60")
+        logger.info(f"🔍 GRAM OVERRIDE CHECK: signal={gram_signal_type}, conf={gram_confidence:.3f}, threshold=0.70")
         
-        if (gram_signal_type in ["BUY", "SELL"] and gram_confidence >= 0.60) or multi_day_override:
+        if (gram_signal_type in ["BUY", "SELL"] and gram_confidence >= 0.70) or multi_day_override:
             logger.info(f"🎯 GRAM OVERRIDE ACTIVATED: Using gram signal {gram_signal_type} (conf={gram_confidence:.2%})")
             final_signal = gram_signal_type
             gram_override_applied = True
