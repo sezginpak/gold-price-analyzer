@@ -28,8 +28,8 @@ class GlobalTrendAnalyzer:
         
         # Teknik göstergeler
         self.rsi = RSIIndicator(period=14)
-        self.macd = MACDIndicator(fast=12, slow=26, signal=9)
-        self.bollinger = BollingerBandsIndicator(period=20, std_dev=2)
+        self.macd = MACDIndicator(fast_period=12, slow_period=26, signal_period=9)
+        self.bollinger = BollingerBandsIndicator(period=20, std_dev_multiplier=2)
         self.stochastic = StochasticIndicator(k_period=14, d_period=3)
     
     def analyze(self, market_data: List[MarketData]) -> Dict[str, Any]:
