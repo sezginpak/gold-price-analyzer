@@ -77,6 +77,62 @@
         </div>
     </div>
 
+    <!-- Active Alerts -->
+    <div class="glass-card mb-lg" id="active-alerts-container" style="display: none;">
+        <div class="glass-card__header">
+            <h2 class="glass-card__title">
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                Aktif Uyarılar
+            </h2>
+        </div>
+        <div class="glass-card__body">
+            <div id="alerts-list" class="space-y-2">
+                <!-- Dinamik olarak doldurulacak -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Overview Widget -->
+    <div class="glass-card mb-lg">
+        <div class="glass-card__header">
+            <h2 class="glass-card__title">
+                <i class="fas fa-chart-line text-info"></i>
+                Piyasa Özeti
+            </h2>
+        </div>
+        <div class="glass-card__body">
+            <div class="grid grid--cols-3 gap-4" id="market-overview-widget">
+                <div class="text-center">
+                    <p class="text-xs text-gray-400 mb-1">Gram Altın</p>
+                    <p class="text-xl font-bold" id="mo-gram-price">-</p>
+                    <p class="text-sm" id="mo-gram-change">-</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-400 mb-1">ONS/USD</p>
+                    <p class="text-xl font-bold" id="mo-ons-price">-</p>
+                    <p class="text-sm" id="mo-ons-change">-</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-400 mb-1">USD/TRY</p>
+                    <p class="text-xl font-bold" id="mo-usd-price">-</p>
+                    <p class="text-sm" id="mo-usd-change">-</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-700">
+                <div class="grid grid--cols-2 gap-4">
+                    <div>
+                        <span class="text-xs text-gray-400">Güncel Trend:</span>
+                        <span class="ml-2 font-semibold" id="mo-trend">-</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-gray-400">Kur Riski:</span>
+                        <span class="ml-2 font-semibold" id="mo-risk">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Market Overview & Quick Indicators -->
     <div class="grid grid--cols-4 mb-lg">
         <!-- Market Overview -->
@@ -1288,15 +1344,114 @@
             }
         }
 
+        // Aktif uyarıları yükle
+        async function loadActiveAlerts() {
+            try {
+                const response = await fetch('/api/alerts/active');
+                const data = await response.json();
+                
+                const container = document.getElementById('active-alerts-container');
+                const alertsList = document.getElementById('alerts-list');
+                
+                if (data.alerts && data.alerts.length > 0) {
+                    container.style.display = 'block';
+                    
+                    alertsList.innerHTML = data.alerts.map(alert => {
+                        const severityClass = alert.severity === 'HIGH' ? 'bg-red-900/20 border-red-600' : 
+                                            alert.severity === 'MEDIUM' ? 'bg-orange-900/20 border-orange-600' : 
+                                            'bg-yellow-900/20 border-yellow-600';
+                        
+                        const icon = alert.type === 'SUPPORT_NEAR' ? 'fa-arrow-down' :
+                                   alert.type === 'RESISTANCE_NEAR' ? 'fa-arrow-up' :
+                                   'fa-bolt';
+                        
+                        return `
+                            <div class="${severityClass} border rounded-lg p-3 flex items-center">
+                                <i class="fas ${icon} mr-3 text-lg"></i>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-sm">${alert.message}</p>
+                                    ${alert.level ? `<p class="text-xs text-gray-400 mt-1">Seviye: ₺${alert.level.toFixed(2)}</p>` : ''}
+                                </div>
+                                <span class="text-xs text-gray-400">
+                                    ${new Date(alert.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Uyarılar yüklenemedi:', error);
+            }
+        }
+
+        // Market overview widget'ı yükle
+        async function loadMarketOverview() {
+            try {
+                const response = await fetch('/api/market/overview');
+                const data = await response.json();
+                
+                if (data.prices) {
+                    // Gram Altın
+                    if (data.prices.gram_altin) {
+                        document.getElementById('mo-gram-price').textContent = `₺${data.prices.gram_altin.value.toFixed(2)}`;
+                        const changeClass = data.prices.gram_altin.change_pct >= 0 ? 'text-green-400' : 'text-red-400';
+                        const changeIcon = data.prices.gram_altin.change_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                        document.getElementById('mo-gram-change').innerHTML = 
+                            `<span class="${changeClass}"><i class="fas ${changeIcon} mr-1"></i>${data.prices.gram_altin.change_pct >= 0 ? '+' : ''}${data.prices.gram_altin.change_pct.toFixed(2)}%</span>`;
+                    }
+                    
+                    // ONS/USD
+                    if (data.prices.ons_usd) {
+                        document.getElementById('mo-ons-price').textContent = `$${data.prices.ons_usd.value.toFixed(2)}`;
+                        const changeClass = data.prices.ons_usd.change_pct >= 0 ? 'text-green-400' : 'text-red-400';
+                        const changeIcon = data.prices.ons_usd.change_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                        document.getElementById('mo-ons-change').innerHTML = 
+                            `<span class="${changeClass}"><i class="fas ${changeIcon} mr-1"></i>${data.prices.ons_usd.change_pct >= 0 ? '+' : ''}${data.prices.ons_usd.change_pct.toFixed(2)}%</span>`;
+                    }
+                    
+                    // USD/TRY
+                    if (data.prices.usd_try) {
+                        document.getElementById('mo-usd-price').textContent = `${data.prices.usd_try.value.toFixed(4)}`;
+                        const changeClass = data.prices.usd_try.change_pct >= 0 ? 'text-green-400' : 'text-red-400';
+                        const changeIcon = data.prices.usd_try.change_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                        document.getElementById('mo-usd-change').innerHTML = 
+                            `<span class="${changeClass}"><i class="fas ${changeIcon} mr-1"></i>${data.prices.usd_try.change_pct >= 0 ? '+' : ''}${data.prices.usd_try.change_pct.toFixed(2)}%</span>`;
+                    }
+                }
+                
+                // Analiz bilgileri
+                if (data.analysis) {
+                    // Trend
+                    const trendClass = data.analysis.signal === 'BUY' ? 'text-green-400' :
+                                     data.analysis.signal === 'SELL' ? 'text-red-400' : 'text-yellow-400';
+                    document.getElementById('mo-trend').innerHTML = 
+                        `<span class="${trendClass}">${data.analysis.signal || 'Bilinmiyor'}</span>`;
+                    
+                    // Risk
+                    const riskClass = data.analysis.currency_risk === 'LOW' ? 'text-green-400' :
+                                    data.analysis.currency_risk === 'MEDIUM' ? 'text-yellow-400' :
+                                    data.analysis.currency_risk === 'HIGH' ? 'text-red-400' : 'text-gray-400';
+                    document.getElementById('mo-risk').innerHTML = 
+                        `<span class="${riskClass}">${data.analysis.currency_risk || 'Bilinmiyor'}</span>`;
+                }
+            } catch (error) {
+                console.error('Market overview yüklenemedi:', error);
+            }
+        }
+
         // Paralel veri yükleme fonksiyonu
         async function loadAllData() {
             try {
-                // 1. EN KRİTİK: Anlık fiyatlar + Stats anında yükle
+                // 1. EN KRİTİK: Anlık fiyatlar + Stats + Alerts anında yükle
                 await Promise.allSettled([
                     loadCurrentPriceOnly(),
-                    loadStats()  // İstatistikleri de hemen yükle
+                    loadStats(),
+                    loadActiveAlerts(),
+                    loadMarketOverview()
                 ]);
-                console.log('✅ Anlık fiyatlar ve istatistikler yüklendi');
+                console.log('✅ Anlık fiyatlar, istatistikler ve uyarılar yüklendi');
                 
                 // 2. Kısa gecikme sonrası kritik veriler (500ms bekle)
                 setTimeout(async () => {
@@ -1346,6 +1501,8 @@
             
             // Periyodik güncellemeler - daha uzun intervaller
             setInterval(loadStats, 45000);  // 45 saniye
+            setInterval(loadActiveAlerts, 30000);  // 30 saniye - uyarılar daha sık kontrol edilmeli
+            setInterval(loadMarketOverview, 30000);  // 30 saniye
             setInterval(() => {
                 // Aktif butonu bul ve interval'ı al
                 const activeBtn = document.querySelector('.candle-btn.bg-blue-800');
@@ -1358,6 +1515,7 @@
             setInterval(loadSignals, 90000);  // 90 saniye
             setInterval(loadLogStats, 120000);  // 2 dakika
             setInterval(loadRecentErrors, 60000);  // 1 dakika
+            setInterval(loadPerformanceMetrics, 60000);  // 1 dakika
         };
     </script>
 {% endblock %}

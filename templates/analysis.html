@@ -468,8 +468,63 @@
                     updateDetailedIndicators(detailsData.analyses[0]);
                 }
                 
+                // Aktif pattern'leri yükle
+                loadActivePatterns();
+                
+                // Timeframe bazlı göstergeleri yükle
+                if (timeframe) {
+                    loadTimeframeIndicators(timeframe);
+                }
+                
             } catch (error) {
                 console.error('Veri yükleme hatası:', error);
+            }
+        }
+        
+        // Aktif pattern'leri yükle
+        async function loadActivePatterns() {
+            try {
+                const response = await fetch('/api/analysis/patterns/active');
+                const data = await response.json();
+                
+                if (data.patterns && data.patterns.length > 0) {
+                    // Pattern listesini güncelle
+                    const patternList = data.patterns.map(pattern => {
+                        const confidenceClass = pattern.confidence > 0.8 ? 'text-green-400' :
+                                              pattern.confidence > 0.6 ? 'text-yellow-400' : 'text-gray-400';
+                        return `
+                            <div class="bg-slate-800/50 rounded p-2 mb-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold">${pattern.name}</span>
+                                    <span class="text-xs bg-slate-700 px-2 py-1 rounded">${pattern.timeframe}</span>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                    <span>Tip: ${pattern.type}</span>
+                                    <span class="${confidenceClass}">Güven: %${(pattern.confidence * 100).toFixed(0)}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    // Pattern bölümüne ekle (ileride eklenecek)
+                }
+            } catch (error) {
+                console.error('Pattern yükleme hatası:', error);
+            }
+        }
+        
+        // Timeframe bazlı göstergeleri yükle
+        async function loadTimeframeIndicators(timeframe) {
+            try {
+                const response = await fetch(`/api/analysis/indicators/${timeframe}`);
+                const data = await response.json();
+                
+                if (!data.error) {
+                    // Göstergeleri güncelle
+                    console.log('Timeframe göstergeleri:', data);
+                }
+            } catch (error) {
+                console.error('Gösterge yükleme hatası:', error);
             }
         }
         

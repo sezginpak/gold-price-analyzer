@@ -164,6 +164,22 @@
         </div>
     </div>
     
+    <!-- Detaylı İstatistikler -->
+    <div class="glass-card rounded-lg p-6 mb-6" id="detailedStats" style="display: none;">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-semibold">
+                <i class="fas fa-chart-bar text-yellow-400 mr-2"></i>
+                Detaylı İstatistikler
+            </h3>
+            <button onclick="closeDetailedStats()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="statsContent">
+            <!-- Dinamik olarak doldurulacak -->
+        </div>
+    </div>
+
     <!-- Pozisyonlar -->
     <div class="glass-card rounded-lg p-6">
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
@@ -185,6 +201,10 @@
                 <button onclick="showTab('all')" id="allTab"
                         class="px-4 py-2 rounded-lg bg-slate-800 text-gray-400 hover:bg-slate-700 hover:text-white transition-all">
                     Tümü
+                </button>
+                <button onclick="showStatistics()" id="statsBtn"
+                        class="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-all">
+                    <i class="fas fa-chart-bar mr-1"></i> İstatistikler
                 </button>
             </div>
         </div>
@@ -393,6 +413,168 @@ function displaySimulationCards() {
     });
     
     container.innerHTML = html;
+}
+
+// Simülasyon seç
+function selectSimulation(simId) {
+    // Detaylı istatistikleri göster
+    showStatistics(simId);
+}
+
+// İstatistikleri göster
+async function showStatistics(simId = null) {
+    try {
+        // Eğer simId yoksa, ilk simülasyonu kullan
+        if (!simId && simulations.length > 0) {
+            simId = simulations[0].id;
+        }
+        
+        if (!simId) return;
+        
+        const response = await fetch(`/api/simulations/${simId}/statistics`);
+        const data = await response.json();
+        
+        if (data.error) {
+            console.error('İstatistik hatası:', data.error);
+            return;
+        }
+        
+        // İstatistikleri göster
+        const statsContent = document.getElementById('statsContent');
+        const sim = simulations.find(s => s.id === simId);
+        
+        let html = `
+            <div class="space-y-6">
+                <!-- Simülasyon Başlığı -->
+                <div class="text-center mb-6">
+                    <h4 class="text-xl font-bold">${sim ? sim.name : 'Simülasyon'}</h4>
+                    <p class="text-sm text-gray-400">${sim ? sim.strategy_type : ''}</p>
+                </div>
+                
+                <!-- Timeframe Performansı -->
+                <div>
+                    <h5 class="font-semibold mb-3 text-amber-400">
+                        <i class="fas fa-clock mr-2"></i>Timeframe Bazlı Performans
+                    </h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        `;
+        
+        if (data.timeframe_performance) {
+            data.timeframe_performance.forEach(tf => {
+                const pnlClass = tf.total_pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                html += `
+                    <div class="bg-slate-800/50 rounded-lg p-4">
+                        <div class="text-sm font-semibold mb-2">${tf.timeframe}</div>
+                        <div class="space-y-1 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">İşlem:</span>
+                                <span>${tf.total_trades}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Win Rate:</span>
+                                <span>${tf.win_rate.toFixed(1)}%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Kar/Zarar:</span>
+                                <span class="${pnlClass}">${tf.total_pnl >= 0 ? '+' : ''}${tf.total_pnl.toFixed(2)} ₺</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Ort. %:</span>
+                                <span class="${pnlClass}">${tf.avg_pnl_pct >= 0 ? '+' : ''}${tf.avg_pnl_pct.toFixed(2)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `
+                    </div>
+                </div>
+                
+                <!-- Çıkış Nedeni Dağılımı -->
+                <div>
+                    <h5 class="font-semibold mb-3 text-amber-400">
+                        <i class="fas fa-door-open mr-2"></i>Çıkış Nedeni Analizi
+                    </h5>
+                    <div class="bg-slate-800/50 rounded-lg p-4">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-700">
+                                    <th class="text-left py-2">Neden</th>
+                                    <th class="text-center py-2">Sayı</th>
+                                    <th class="text-right py-2">Ort. Kar/Zarar</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+        
+        if (data.exit_reason_distribution) {
+            data.exit_reason_distribution.forEach(reason => {
+                const pnlClass = reason.avg_pnl_pct >= 0 ? 'text-green-400' : 'text-red-400';
+                html += `
+                    <tr class="border-b border-gray-700/50">
+                        <td class="py-2">${reason.reason || 'Bilinmeyen'}</td>
+                        <td class="text-center">${reason.count}</td>
+                        <td class="text-right ${pnlClass}">${reason.avg_pnl_pct >= 0 ? '+' : ''}${reason.avg_pnl_pct.toFixed(2)}%</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Günlük İstatistikler -->
+                <div>
+                    <h5 class="font-semibold mb-3 text-amber-400">
+                        <i class="fas fa-calendar-day mr-2"></i>Günlük Performans
+                    </h5>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        `;
+        
+        if (data.daily_statistics) {
+            const daily = data.daily_statistics;
+            html += `
+                <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                    <div class="text-xs text-gray-400 mb-1">En İyi Gün</div>
+                    <div class="text-lg font-bold text-green-400">+${daily.best_day_pct ? daily.best_day_pct.toFixed(2) : '0.00'}%</div>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                    <div class="text-xs text-gray-400 mb-1">En Kötü Gün</div>
+                    <div class="text-lg font-bold text-red-400">${daily.worst_day_pct ? daily.worst_day_pct.toFixed(2) : '0.00'}%</div>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                    <div class="text-xs text-gray-400 mb-1">Günlük Ort.</div>
+                    <div class="text-lg font-bold ${daily.avg_daily_pct >= 0 ? 'text-green-400' : 'text-red-400'}">${daily.avg_daily_pct >= 0 ? '+' : ''}${daily.avg_daily_pct ? daily.avg_daily_pct.toFixed(2) : '0.00'}%</div>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                    <div class="text-xs text-gray-400 mb-1">İşlem Günü</div>
+                    <div class="text-lg font-bold">${daily.trading_days || 0}</div>
+                </div>
+            `;
+        }
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        statsContent.innerHTML = html;
+        document.getElementById('detailedStats').style.display = 'block';
+        
+    } catch (error) {
+        console.error('İstatistik yükleme hatası:', error);
+    }
+}
+
+// İstatistikleri kapat
+function closeDetailedStats() {
+    document.getElementById('detailedStats').style.display = 'none';
 }
 
 // Performans grafiği

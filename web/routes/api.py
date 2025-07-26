@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from datetime import timedelta
 import os
 import logging
+import json
 from typing import Dict, List, Any
 
 from storage.sqlite_storage import SQLiteStorage
@@ -652,3 +653,93 @@ async def get_active_alerts():
     except Exception as e:
         logger.error(f"Alert hatası: {e}")
         return {"alerts": [], "error": str(e)}
+
+@router.get("/analysis/indicators/{timeframe}")
+async def get_analysis_indicators(timeframe: str):
+    """Belirli bir timeframe için detaylı teknik göstergeler"""
+    cache_key = f"indicators_{timeframe}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    
+    try:
+        # Son analizi al
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT gram_analysis, global_trend_analysis, currency_risk_analysis, advanced_indicators
+                FROM hybrid_analysis
+                WHERE timeframe = ?
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """, (timeframe,))
+            
+            result = cursor.fetchone()
+            if not result:
+                return {"error": "Analiz bulunamadı"}
+            
+            gram_analysis = json.loads(result[0]) if result[0] else {}
+            global_analysis = json.loads(result[1]) if result[1] else {}
+            currency_analysis = json.loads(result[2]) if result[2] else {}
+            advanced = json.loads(result[3]) if result[3] else {}
+            
+            indicators = {
+                "timeframe": timeframe,
+                "gram_indicators": gram_analysis.get("indicators", {}),
+                "global_indicators": global_analysis,
+                "currency_indicators": currency_analysis,
+                "advanced_indicators": advanced,
+                "timestamp": timezone.now().isoformat()
+            }
+            
+            cache.set(cache_key, indicators)
+            return indicators
+            
+    except Exception as e:
+        logger.error(f"Indicator analiz hatası: {e}")
+        return {"error": str(e)}
+
+@router.get("/analysis/patterns/active")
+async def get_active_patterns():
+    """Aktif chart pattern'leri getir"""
+    try:
+        patterns = []
+        
+        # Her timeframe için son pattern'leri al
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            for timeframe in ["15m", "1h", "4h", "1d"]:
+                cursor.execute("""
+                    SELECT gram_analysis, timestamp
+                    FROM hybrid_analysis
+                    WHERE timeframe = ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                """, (timeframe,))
+                
+                result = cursor.fetchone()
+                if result and result[0]:
+                    gram_analysis = json.loads(result[0])
+                    if gram_analysis.get("patterns"):
+                        for pattern in gram_analysis["patterns"]:
+                            patterns.append({
+                                "timeframe": timeframe,
+                                "name": pattern.get("name"),
+                                "type": pattern.get("type"),
+                                "confidence": pattern.get("confidence"),
+                                "target": pattern.get("target"),
+                                "timestamp": result[1]
+                            })
+        
+        # Güven skoruna göre sırala
+        patterns.sort(key=lambda x: x.get("confidence", 0), reverse=True)
+        
+        return {
+            "patterns": patterns[:10],  # En güvenilir 10 pattern
+            "count": len(patterns)
+        }
+        
+    except Exception as e:
+        logger.error(f"Pattern analiz hatası: {e}")
+        return {"patterns": [], "error": str(e)}
