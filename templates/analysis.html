@@ -475,7 +475,8 @@
                             <th class="text-left py-1 lg:py-2">Sinyal</th>
                             <th class="text-left py-1 lg:py-2 hidden sm:table-cell">Güç</th>
                             <th class="text-left py-1 lg:py-2">Güven</th>
-                            <th class="text-left py-1 lg:py-2 hidden lg:table-cell">Pozisyon</th>
+                            <th class="text-left py-1 lg:py-2 hidden md:table-cell">RSI</th>
+                            <th class="text-left py-1 lg:py-2 hidden md:table-cell">Trend</th>
                             <th class="text-left py-1 lg:py-2 hidden md:table-cell">Global</th>
                             <th class="text-left py-1 lg:py-2 hidden md:table-cell">Risk</th>
                             <th class="text-left py-1 lg:py-2 hidden lg:table-cell">R/R</th>
@@ -483,7 +484,7 @@
                     </thead>
                     <tbody id="hybrid-analysis-history">
                         <tr>
-                            <td colspan="10" class="text-center py-4 text-gray-400 text-sm">
+                            <td colspan="11" class="text-center py-4 text-gray-400 text-sm">
                                 Yükleniyor...
                             </td>
                         </tr>
@@ -547,6 +548,16 @@
             document.getElementById('start-date').value = formatDateForInput(yesterday);
             document.getElementById('end-date').value = formatDateForInput(now);
         });
+        
+        // RSI renk fonksiyonu
+        function getRSIColor(rsi) {
+            if (!rsi) return '';
+            if (rsi > 70) return 'text-red-400';  // Aşırı alım
+            if (rsi < 30) return 'text-green-400'; // Aşırı satım
+            if (rsi > 60) return 'text-orange-400'; // Yüksek
+            if (rsi < 40) return 'text-blue-400';   // Düşük
+            return 'text-gray-400'; // Normal
+        }
         
         // Hibrit analiz verilerini yükle
         async function loadHybridAnalysisData() {
@@ -743,7 +754,20 @@
                                     </span>
                                 </td>
                                 <td class="py-1 lg:py-2 text-xs lg:text-sm">%${(analysis.confidence * 100).toFixed(0)}</td>
-                                <td class="py-1 lg:py-2 text-xs lg:text-sm hidden lg:table-cell">%${(analysis.position_size * 100).toFixed(0)}</td>
+                                <td class="py-1 lg:py-2 hidden md:table-cell">
+                                    <span class="${getRSIColor(analysis.details?.gram?.rsi || analysis.rsi_value)} text-xs lg:text-sm">
+                                        ${analysis.details?.gram?.rsi?.toFixed(0) || analysis.rsi_value?.toFixed(0) || '-'}
+                                    </span>
+                                </td>
+                                <td class="py-1 lg:py-2 hidden md:table-cell">
+                                    <span class="${analysis.trend === 'UPTREND' ? 'text-green-400' : 
+                                                  analysis.trend === 'DOWNTREND' ? 'text-red-400' : 
+                                                  'text-yellow-400'} text-xs lg:text-sm">
+                                        ${analysis.trend === 'UPTREND' ? '↑' : 
+                                          analysis.trend === 'DOWNTREND' ? '↓' : 
+                                          '→'}
+                                    </span>
+                                </td>
                                 <td class="py-1 lg:py-2 hidden md:table-cell">
                                     <span class="${analysis.global_trend === 'BULLISH' ? 'text-green-400' : 
                                                   analysis.global_trend === 'BEARISH' ? 'text-red-400' : 
@@ -771,7 +795,7 @@
                     document.getElementById('hybrid-analysis-history').innerHTML = historyHtml;
                 } else {
                     document.getElementById('hybrid-analysis-history').innerHTML = 
-                        '<tr><td colspan="10" class="text-center py-4 text-gray-400">Henüz hibrit analiz yok</td></tr>';
+                        '<tr><td colspan="11" class="text-center py-4 text-gray-400">Henüz hibrit analiz yok</td></tr>';
                 }
                 
                 // Son analiz zamanı
@@ -781,7 +805,7 @@
             } catch (error) {
                 console.error('Hibrit analiz verileri yüklenemedi:', error);
                 document.getElementById('hybrid-analysis-history').innerHTML = 
-                    '<tr><td colspan="10" class="text-center py-4 text-red-400">Yüklenemedi</td></tr>';
+                    '<tr><td colspan="11" class="text-center py-4 text-red-400">Yüklenemedi</td></tr>';
             }
         }
 

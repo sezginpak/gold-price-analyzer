@@ -497,3 +497,43 @@ async def get_active_patterns():
     except Exception as e:
         logger.error(f"Error getting active patterns: {e}")
         return {"error": str(e)}
+
+@router.get("/ons-indicators")
+async def get_ons_indicators():
+    """ONS/USD teknik göstergelerini getir"""
+    try:
+        # Son hibrit analizden ONS/USD göstergelerini al
+        analyses = storage.get_hybrid_analysis_history(limit=1)
+        
+        if not analyses:
+            return {"error": "No analysis data available"}
+            
+        analysis = analyses[0]
+        global_data = analysis.get("global_trend", {})
+        
+        # ONS/USD teknik göstergeleri
+        technical_indicators = global_data.get("technical_indicators", {})
+        
+        return {
+            "timestamp": analysis["timestamp"].isoformat(),
+            "ons_usd_price": float(global_data.get("ons_usd_price", 0)),
+            "trend_direction": global_data.get("direction", "NEUTRAL"),
+            "trend_strength": global_data.get("strength", "WEAK"),
+            "indicators": {
+                "rsi": {
+                    "value": technical_indicators.get("rsi"),
+                    "signal": technical_indicators.get("rsi_signal", "neutral")
+                },
+                "macd": technical_indicators.get("macd", {}),
+                "bollinger": technical_indicators.get("bollinger", {}),
+                "stochastic": technical_indicators.get("stochastic", {})
+            },
+            "indicator_signal": global_data.get("indicator_signal", {
+                "signal": "NEUTRAL",
+                "confidence": 0
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting ONS indicators: {e}")
+        return {"error": str(e)}

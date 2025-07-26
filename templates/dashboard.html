@@ -152,11 +152,11 @@
             </div>
         </div>
 
-        <!-- Technical Indicators -->
+        <!-- Technical Indicators - Gram Altın -->
         <div class="glass-card rounded-lg p-4">
             <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
                 <i class="fas fa-tachometer-alt text-yellow-400"></i>
-                Teknik Göstergeler
+                Gram Altın Göstergeleri
             </h2>
             <div class="market-overview__item">
                 <span class="market-overview__label">RSI (14)</span>
@@ -224,6 +224,88 @@
             </div>
         </div>
     </div>
+    
+    <!-- ONS/USD Technical Indicators & Strategy Weights -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <!-- ONS/USD Indicators -->
+        <div class="glass-card rounded-lg p-4">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-globe text-blue-400"></i>
+                ONS/USD Göstergeleri
+            </h2>
+            <div class="market-overview__item">
+                <span class="market-overview__label">RSI (14)</span>
+                <span class="market-overview__value" id="ons-rsi-value">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">MACD</span>
+                <span class="market-overview__value" id="ons-macd-signal">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">Stochastic</span>
+                <span class="market-overview__value" id="ons-stoch-value">-</span>
+            </div>
+            <div class="market-overview__item">
+                <span class="market-overview__label">Trend</span>
+                <span class="market-overview__value" id="ons-trend">-</span>
+            </div>
+        </div>
+        
+        <!-- Strategy Weights -->
+        <div class="glass-card rounded-lg p-4">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-balance-scale text-purple-400"></i>
+                Strateji Ağırlıkları
+            </h2>
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-400">Global Trend</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-32 bg-gray-700 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: 40%"></div>
+                        </div>
+                        <span class="text-xs text-blue-400 font-semibold">40%</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-400">Gram Analizi</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-32 bg-gray-700 rounded-full h-2">
+                            <div class="bg-yellow-500 h-2 rounded-full" style="width: 30%"></div>
+                        </div>
+                        <span class="text-xs text-yellow-400 font-semibold">30%</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-400">İleri Göstergeler</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-32 bg-gray-700 rounded-full h-2">
+                            <div class="bg-green-500 h-2 rounded-full" style="width: 15%"></div>
+                        </div>
+                        <span class="text-xs text-green-400 font-semibold">15%</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-400">Pattern Tanıma</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-32 bg-gray-700 rounded-full h-2">
+                            <div class="bg-purple-500 h-2 rounded-full" style="width: 10%"></div>
+                        </div>
+                        <span class="text-xs text-purple-400 font-semibold">10%</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-400">Kur Riski</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-32 bg-gray-700 rounded-full h-2">
+                            <div class="bg-red-500 h-2 rounded-full" style="width: 5%"></div>
+                        </div>
+                        <span class="text-xs text-red-400 font-semibold">5%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Charts Grid -->
     <div class="chart-grid chart-grid--2cols mb-lg">
@@ -283,7 +365,6 @@
                 <!-- Timeframe Filter -->
                 <select id="hybrid-timeframe-filter" class="bg-slate-700 text-white px-3 py-1 rounded text-sm">
                     <option value="">Tüm Timeframe</option>
-                    <option value="15m">15 Dakika</option>
                     <option value="1h">1 Saat</option>
                     <option value="4h">4 Saat</option>
                     <option value="1d">Günlük</option>
@@ -961,9 +1042,31 @@
                     ${gram.signal || 'NEUTRAL'}
                 </span>`;
 
-            // Mock data için - gerçek API'den gelecek
-            document.getElementById('bb-position').innerHTML = '<span class="text-yellow-400">MIDDLE</span>';
-            document.getElementById('stoch-value').innerHTML = '<span class="text-blue-400">55.3</span>';
+            // Bollinger Bands
+            if (gram.indicators && gram.indicators.bollinger) {
+                const bb = gram.indicators.bollinger;
+                let bbPosition = 'MIDDLE';
+                let bbClass = 'text-yellow-400';
+                if (gram.price > bb.upper) {
+                    bbPosition = 'ABOVE';
+                    bbClass = 'text-red-400';
+                } else if (gram.price < bb.lower) {
+                    bbPosition = 'BELOW';
+                    bbClass = 'text-green-400';
+                }
+                document.getElementById('bb-position').innerHTML = `<span class="${bbClass}">${bbPosition}</span>`;
+            }
+            
+            // Stochastic
+            if (gram.indicators && gram.indicators.stochastic) {
+                const stoch = gram.indicators.stochastic;
+                const stochValue = stoch.k.toFixed(1);
+                let stochClass = '';
+                if (stoch.k < 20) stochClass = 'text-green-400';
+                else if (stoch.k > 80) stochClass = 'text-red-400';
+                else stochClass = 'text-blue-400';
+                document.getElementById('stoch-value').innerHTML = `<span class="${stochClass}">${stochValue}</span>`;
+            }
             
             // İleri göstergeler
             if (details.advanced_indicators) {
@@ -1007,6 +1110,48 @@
                                     strength === 'MODERATE' ? 'text-yellow-400' : 'text-gray-400';
                 document.getElementById('trend-strength').innerHTML = `<span class="${strengthClass}">${strengthText}</span>`;
             }
+            
+            // ONS/USD göstergeleri
+            if (details.global && details.global.indicators) {
+                const onsIndicators = details.global.indicators;
+                
+                // ONS RSI
+                if (onsIndicators.rsi) {
+                    const onsRsiValue = onsIndicators.rsi.toFixed(1);
+                    let onsRsiClass = '';
+                    if (onsIndicators.rsi < 30) onsRsiClass = 'text-green-400';
+                    else if (onsIndicators.rsi > 70) onsRsiClass = 'text-red-400';
+                    else onsRsiClass = 'text-yellow-400';
+                    document.getElementById('ons-rsi-value').innerHTML = `<span class="${onsRsiClass}">${onsRsiValue}</span>`;
+                }
+                
+                // ONS MACD
+                if (onsIndicators.macd && onsIndicators.macd.signal_line) {
+                    const onsSignal = onsIndicators.macd.value > onsIndicators.macd.signal_line ? 'BUY' : 'SELL';
+                    const onsSignalClass = onsSignal === 'BUY' ? 'text-green-400' : 'text-red-400';
+                    document.getElementById('ons-macd-signal').innerHTML = `<span class="${onsSignalClass}">${onsSignal}</span>`;
+                }
+                
+                // ONS Stochastic
+                if (onsIndicators.stochastic) {
+                    const onsStochValue = onsIndicators.stochastic.k.toFixed(1);
+                    let onsStochClass = '';
+                    if (onsIndicators.stochastic.k < 20) onsStochClass = 'text-green-400';
+                    else if (onsIndicators.stochastic.k > 80) onsStochClass = 'text-red-400';
+                    else onsStochClass = 'text-blue-400';
+                    document.getElementById('ons-stoch-value').innerHTML = `<span class="${onsStochClass}">${onsStochValue}</span>`;
+                }
+                
+                // ONS Trend
+                if (details.global.trend) {
+                    const onsTrend = details.global.trend;
+                    const onsTrendClass = onsTrend === 'BULLISH' ? 'text-green-400' : 
+                                         onsTrend === 'BEARISH' ? 'text-red-400' : 'text-yellow-400';
+                    const onsTrendText = onsTrend === 'BULLISH' ? 'YÜKSELIŞ' : 
+                                        onsTrend === 'BEARISH' ? 'DÜŞÜŞ' : 'YATAY';
+                    document.getElementById('ons-trend').innerHTML = `<span class="${onsTrendClass}">${onsTrendText}</span>`;
+                }
+            }
         }
 
         // Piyasa durumunu güncelle
@@ -1029,10 +1174,62 @@
             
             document.getElementById('market-overview').innerHTML = `<span class="${trendClass}">${trendText}</span>`;
             
-            // Mock data - gerçek API'den gelecek
-            document.getElementById('market-volatility').innerHTML = '<span class="text-orange-400">Orta</span>';
-            document.getElementById('daily-high').textContent = '₺4,425.50';
-            document.getElementById('daily-low').textContent = '₺4,385.20';
+            // Volatilite
+            if (analysis.details && analysis.details.gram && analysis.details.gram.volatility) {
+                const volatility = analysis.details.gram.volatility;
+                let volText = 'Düşük';
+                let volClass = 'text-green-400';
+                
+                if (volatility > 0.02) {
+                    volText = 'Yüksek';
+                    volClass = 'text-red-400';
+                } else if (volatility > 0.01) {
+                    volText = 'Orta';
+                    volClass = 'text-orange-400';
+                }
+                
+                document.getElementById('market-volatility').innerHTML = `<span class="${volClass}">${volText}</span>`;
+            }
+            
+            // Market Overview Widget güncelleme
+            if (analysis.details) {
+                // Gram fiyat ve değişim
+                const gramPrice = analysis.price || 0;
+                const gramChange = analysis.details.gram?.change_1h || 0;
+                const gramChangeClass = gramChange > 0 ? 'text-green-400' : gramChange < 0 ? 'text-red-400' : 'text-gray-400';
+                document.getElementById('mo-gram-price').textContent = `₺${gramPrice.toFixed(2)}`;
+                document.getElementById('mo-gram-change').innerHTML = `<span class="${gramChangeClass}">${gramChange > 0 ? '+' : ''}${(gramChange * 100).toFixed(2)}%</span>`;
+                
+                // ONS fiyat ve değişim
+                if (analysis.details.global) {
+                    const onsPrice = analysis.details.global.ons_price || 0;
+                    const onsChange = analysis.details.global.change_1h || 0;
+                    const onsChangeClass = onsChange > 0 ? 'text-green-400' : onsChange < 0 ? 'text-red-400' : 'text-gray-400';
+                    document.getElementById('mo-ons-price').textContent = `$${onsPrice.toFixed(2)}`;
+                    document.getElementById('mo-ons-change').innerHTML = `<span class="${onsChangeClass}">${onsChange > 0 ? '+' : ''}${(onsChange * 100).toFixed(2)}%</span>`;
+                }
+                
+                // USD/TRY
+                if (analysis.details.currency) {
+                    const usdPrice = analysis.details.currency.usd_try || 0;
+                    const usdChange = analysis.details.currency.change_1h || 0;
+                    const usdChangeClass = usdChange > 0 ? 'text-red-400' : usdChange < 0 ? 'text-green-400' : 'text-gray-400';
+                    document.getElementById('mo-usd-price').textContent = `₺${usdPrice.toFixed(2)}`;
+                    document.getElementById('mo-usd-change').innerHTML = `<span class="${usdChangeClass}">${usdChange > 0 ? '+' : ''}${(usdChange * 100).toFixed(2)}%</span>`;
+                }
+                
+                // Trend
+                document.getElementById('mo-trend').innerHTML = `<span class="${trendClass}">${trend === 'BULLISH' ? 'Yükseliş' : trend === 'BEARISH' ? 'Düşüş' : 'Yatay'}</span>`;
+                
+                // Kur riski
+                const risk = analysis.currency_risk || 'MEDIUM';
+                const riskClass = risk === 'LOW' ? 'text-green-400' : risk === 'HIGH' ? 'text-red-400' : 'text-yellow-400';
+                const riskText = risk === 'LOW' ? 'Düşük' : risk === 'HIGH' ? 'Yüksek' : 'Orta';
+                document.getElementById('mo-risk').innerHTML = `<span class="${riskClass}">${riskText}</span>`;
+            }
+            
+            // 24 saatlik en yüksek/düşük - API'den gelecek
+            loadDailyPriceRange();
         }
         
         // Sinyalleri yükle
@@ -1749,6 +1946,27 @@
                 if (dailyWinrateElement) {
                     dailyWinrateElement.innerHTML = `${winRate.toFixed(1)}% <i class="fas fa-sync text-xs text-gray-400 ml-1" title="Otomatik güncellendi"></i>`;
                 }
+            }
+        }
+        
+        // 24 saatlik fiyat aralığını yükle
+        async function loadDailyPriceRange() {
+            try {
+                const response = await fetch('/api/market/daily-range');
+                const data = await response.json();
+                
+                if (data.gram_altin) {
+                    document.getElementById('daily-high').textContent = `₺${data.gram_altin.high.toFixed(2)}`;
+                    document.getElementById('daily-low').textContent = `₺${data.gram_altin.low.toFixed(2)}`;
+                } else {
+                    // Fallback değerler
+                    document.getElementById('daily-high').textContent = '-';
+                    document.getElementById('daily-low').textContent = '-';
+                }
+            } catch (error) {
+                console.error('Günlük fiyat aralığı yüklenemedi:', error);
+                document.getElementById('daily-high').textContent = '-';
+                document.getElementById('daily-low').textContent = '-';
             }
         }
         

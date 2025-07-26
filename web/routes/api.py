@@ -112,6 +112,59 @@ async def get_current_price():
         }
     return {"error": "No price data available"}
 
+@router.get("/prices/daily-range")
+async def get_daily_price_range():
+    """24 saatlik en yüksek ve en düşük fiyatlar"""
+    cached = cache.get("daily_price_range")
+    if cached:
+        return cached
+    
+    try:
+        # Son 24 saatteki fiyatları al
+        yesterday = timezone.now() - timedelta(hours=24)
+        
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    MIN(gram_altin) as daily_low,
+                    MAX(gram_altin) as daily_high,
+                    MIN(ons_usd) as ons_low,
+                    MAX(ons_usd) as ons_high,
+                    MIN(usd_try) as usd_low,
+                    MAX(usd_try) as usd_high
+                FROM prices 
+                WHERE timestamp >= ?
+                AND gram_altin IS NOT NULL
+            """, (yesterday,))
+            
+            result = cursor.fetchone()
+            
+            if result and result[0] is not None:
+                data = {
+                    "gram_altin": {
+                        "low": float(result[0]),
+                        "high": float(result[1])
+                    },
+                    "ons_usd": {
+                        "low": float(result[2]) if result[2] else None,
+                        "high": float(result[3]) if result[3] else None
+                    },
+                    "usd_try": {
+                        "low": float(result[4]) if result[4] else None,
+                        "high": float(result[5]) if result[5] else None
+                    }
+                }
+                
+                cache.set("daily_price_range", data, ttl=300)  # 5 dakika cache
+                return data
+            else:
+                return {"error": "No price data available for the last 24 hours"}
+                
+    except Exception as e:
+        logger.error(f"Daily price range error: {e}")
+        return {"error": str(e)}
+
 @router.get("/gram-candles/{interval}")
 async def get_gram_candles(interval: str):
     """Gram altın OHLC mum verileri"""
