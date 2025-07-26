@@ -8,12 +8,54 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- CSS Modules -->
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#ffd700',
+                        secondary: '#4a5568',
+                        dark: {
+                            50: '#1a202c',
+                            100: '#0a0e1a',
+                            200: '#060914',
+                            300: '#04060f',
+                            400: '#020409',
+                            500: '#010204',
+                            600: '#000103',
+                            700: '#000102',
+                            800: '#000001',
+                            900: '#000000'
+                        },
+                        gold: {
+                            50: '#fffdf7',
+                            100: '#fffbeb',
+                            200: '#fff4c7',
+                            300: '#ffec9e',
+                            400: '#ffe066',
+                            500: '#ffd700',
+                            600: '#e6c200',
+                            700: '#b39600',
+                            800: '#806b00',
+                            900: '#4d4000'
+                        }
+                    },
+                    backdropBlur: {
+                        xs: '2px',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- CSS Modules (for glass effects and custom components) -->
     <link rel="stylesheet" href="/static/css/main.css">
     
     {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen bg-gradient-to-br from-dark-200 via-dark-100 to-dark-300 text-gray-100">
     <!-- Desktop Navigation -->
     <nav class="nav desktop-nav">
         <div class="nav__container">

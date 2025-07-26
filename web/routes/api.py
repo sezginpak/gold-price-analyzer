@@ -654,6 +654,58 @@ async def get_active_alerts():
         logger.error(f"Alert hatası: {e}")
         return {"alerts": [], "error": str(e)}
 
+@router.get("/prices/daily-open")
+async def get_daily_open_price():
+    """Günlük açılış fiyatını getir"""
+    try:
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Bugünün açılış fiyatını al (Türkiye saati ile)
+            today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            cursor.execute("""
+                SELECT open, timestamp 
+                FROM gram_altin_candles
+                WHERE timestamp >= ?
+                ORDER BY timestamp ASC
+                LIMIT 1
+            """, (today_start.isoformat(),))
+            
+            result = cursor.fetchone()
+            
+            if result:
+                return {
+                    "open": float(result[0]),
+                    "timestamp": result[1],
+                    "date": today_start.strftime("%Y-%m-%d")
+                }
+            else:
+                # Bugün veri yoksa dünün kapanışını al
+                yesterday_end = today_start - timedelta(days=1)
+                cursor.execute("""
+                    SELECT close, timestamp 
+                    FROM gram_altin_candles
+                    WHERE timestamp < ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                """, (today_start.isoformat(),))
+                
+                result = cursor.fetchone()
+                if result:
+                    return {
+                        "open": float(result[0]),
+                        "timestamp": result[1],
+                        "date": today_start.strftime("%Y-%m-%d"),
+                        "is_previous_close": True
+                    }
+                    
+            return {"error": "Açılış fiyatı bulunamadı"}
+            
+    except Exception as e:
+        logger.error(f"Günlük açılış fiyatı hatası: {e}")
+        return {"error": str(e)}
+
 @router.get("/analysis/indicators/{timeframe}")
 async def get_analysis_indicators(timeframe: str):
     """Belirli bir timeframe için detaylı teknik göstergeler"""
