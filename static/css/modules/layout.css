@@ -4,20 +4,13 @@
 .main-content {
   max-width: 1600px;
   margin: 0 auto;
-  padding: var(--spacing-lg) var(--spacing-md);
+  padding: 0;
   min-height: calc(100vh - 10rem);
 }
 
 @media (min-width: 1440px) {
   .main-content {
     max-width: 1920px;
-    padding: var(--spacing-lg) var(--spacing-lg);
-  }
-}
-
-@media (max-width: 767px) {
-  .main-content {
-    padding: var(--spacing-md) var(--spacing-sm);
   }
 }
 
