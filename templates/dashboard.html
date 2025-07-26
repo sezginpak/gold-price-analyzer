@@ -1112,8 +1112,8 @@
             }
             
             // ONS/USD göstergeleri
-            if (details.global && details.global.indicators) {
-                const onsIndicators = details.global.indicators;
+            if (details.global && details.global.technical_indicators) {
+                const onsIndicators = details.global.technical_indicators;
                 
                 // ONS RSI
                 if (onsIndicators.rsi) {
@@ -1126,8 +1126,8 @@
                 }
                 
                 // ONS MACD
-                if (onsIndicators.macd && onsIndicators.macd.signal_line) {
-                    const onsSignal = onsIndicators.macd.value > onsIndicators.macd.signal_line ? 'BUY' : 'SELL';
+                if (onsIndicators.macd && onsIndicators.macd.macd_line !== undefined && onsIndicators.macd.signal_line !== undefined) {
+                    const onsSignal = onsIndicators.macd.macd_line > onsIndicators.macd.signal_line ? 'BUY' : 'SELL';
                     const onsSignalClass = onsSignal === 'BUY' ? 'text-green-400' : 'text-red-400';
                     document.getElementById('ons-macd-signal').innerHTML = `<span class="${onsSignalClass}">${onsSignal}</span>`;
                 }
@@ -1143,8 +1143,8 @@
                 }
                 
                 // ONS Trend
-                if (details.global.trend) {
-                    const onsTrend = details.global.trend;
+                if (details.global.trend_direction) {
+                    const onsTrend = details.global.trend_direction;
                     const onsTrendClass = onsTrend === 'BULLISH' ? 'text-green-400' : 
                                          onsTrend === 'BEARISH' ? 'text-red-400' : 'text-yellow-400';
                     const onsTrendText = onsTrend === 'BULLISH' ? 'YÜKSELIŞ' : 
