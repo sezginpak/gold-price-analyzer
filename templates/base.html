@@ -150,20 +150,20 @@
     
     <!-- Mobile Menu -->
     <nav id="mobile-menu" class="mobile-menu">
-        <div class="mobile-menu__container p-lg h-full d-flex flex-column">
+        <div class="mobile-menu__container">
             <!-- Header -->
-            <div class="mobile-menu__header d-flex justify-between items-center mb-xl">
+            <div class="mobile-menu__header flex justify-between items-center">
                 <div class="nav__logo">
                     <i class="fas fa-coins nav__logo-icon text-2xl"></i>
                     <h2 class="nav__logo-text">Dezy</h2>
                 </div>
                 <button id="mobile-menu-close" class="mobile-nav__toggle">
-                    <i class="fas fa-times text-xl text-muted"></i>
+                    <i class="fas fa-times text-xl text-gray-400"></i>
                 </button>
             </div>
             
             <!-- Menu Items -->
-            <div class="mobile-menu__body flex-1 overflow-y-auto">
+            <div class="mobile-menu__body">
                 <div class="mobile-menu__links">
                     <a href="/" class="mobile-menu__item">
                         <i class="fas fa-chart-line nav__icon"></i>
@@ -192,20 +192,20 @@
                 </div>
                 
                 <!-- Live Status -->
-                <div class="mobile-menu__status mt-xl">
-                    <div class="d-flex justify-between items-center mb-md">
-                        <span class="text-sm text-muted">Sistem Durumu</span>
-                        <div class="d-flex items-center gap-sm">
+                <div class="mobile-menu__status">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-400">Sistem Durumu</span>
+                        <div class="flex items-center gap-2">
                             <div class="nav__status-dot"></div>
-                            <span class="text-xs text-success">Aktif</span>
+                            <span class="text-xs text-green-400">Aktif</span>
                         </div>
                     </div>
                 </div>
             </div>
             
             <!-- Footer -->
-            <div class="mobile-menu__footer mt-md pt-md border-top">
-                <p class="text-xs text-muted text-center">
+            <div class="mobile-menu__footer">
+                <p class="text-xs text-gray-400 text-center">
                     Dezy © 2024
                 </p>
             </div>
@@ -213,7 +213,7 @@
     </nav>
     
     <!-- Main Content -->
-    <main class="main-content">
+    <main class="main-content container mx-auto">
         {% block content %}{% endblock %}
     </main>
     

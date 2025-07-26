@@ -8,9 +8,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-6">
+<div class="px-4 sm:px-6 lg:px-8 py-6">
     <!-- Header Stats -->
-    <div class="dashboard-grid dashboard-grid--stats">
+    <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div class="stat-card">
             <h3 class="stat-card__label">Sistem Uptime</h3>
             <p class="stat-card__value" id="uptime">-</p>
@@ -33,15 +33,15 @@
     </div>
 
     <!-- Current Prices -->
-    <div class="glass-card mb-lg">
+    <div class="glass-card rounded-lg p-4 sm:p-6 mb-6">
         <div class="glass-card__header">
-            <h2 class="glass-card__title">
-                <i class="fas fa-coins text-yellow"></i>
+            <h2 class="glass-card__title text-lg sm:text-xl">
+                <i class="fas fa-coins text-yellow-400"></i>
                 Anlık Fiyatlar
             </h2>
         </div>
         <div class="glass-card__body">
-            <div class="price-cards">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div class="price-card price-card--gold">
                     <span class="price-card__label">Gram Altın</span>
                     <div class="price-card__value" id="gram-altin">-</div>
@@ -79,22 +79,22 @@
     </div>
 
     <!-- Active Alerts - Kompakt ve Modern -->
-    <div class="mb-lg" id="active-alerts-container" style="display: none;">
+    <div class="mb-6" id="active-alerts-container" style="display: none;">
         <div id="alerts-list" class="space-y-3">
             <!-- Dinamik olarak doldurulacak -->
         </div>
     </div>
 
     <!-- Market Overview Widget -->
-    <div class="glass-card mb-lg">
+    <div class="glass-card rounded-lg p-4 sm:p-6 mb-6">
         <div class="glass-card__header">
-            <h2 class="glass-card__title">
-                <i class="fas fa-chart-line text-info"></i>
+            <h2 class="glass-card__title text-lg sm:text-xl">
+                <i class="fas fa-chart-line text-blue-400"></i>
                 Piyasa Özeti
             </h2>
         </div>
         <div class="glass-card__body">
-            <div class="grid grid--cols-3 gap-4" id="market-overview-widget">
+            <div class="grid grid-cols-3 gap-3 sm:gap-4" id="market-overview-widget">
                 <div class="text-center">
                     <p class="text-xs text-gray-400 mb-1">Gram Altın</p>
                     <p class="text-xl font-bold" id="mo-gram-price">-</p>
@@ -112,7 +112,7 @@
                 </div>
             </div>
             <div class="mt-4 pt-4 border-t border-gray-700">
-                <div class="grid grid--cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-3 sm:gap-4">
                     <div>
                         <span class="text-xs text-gray-400">Güncel Trend:</span>
                         <span class="ml-2 font-semibold" id="mo-trend">-</span>
@@ -127,35 +127,35 @@
     </div>
 
     <!-- Market Overview & Quick Indicators -->
-    <div class="grid grid--cols-4 mb-lg">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <!-- Market Overview -->
-        <div class="market-overview">
-            <h2 class="market-overview__title">
-                <i class="fas fa-chart-pie text-purple"></i>
+        <div class="glass-card rounded-lg p-4">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-chart-pie text-purple-400"></i>
                 Piyasa Durumu
             </h2>
-            <div class="market-overview__item">
-                <span class="market-overview__label">Genel Görünüm</span>
-                <span class="market-overview__value" id="market-overview">-</span>
+            <div class="flex justify-between items-center py-2 border-b border-gray-700">
+                <span class="text-sm text-gray-400">Genel Görünüm</span>
+                <span class="font-semibold" id="market-overview">-</span>
             </div>
-            <div class="market-overview__item">
-                <span class="market-overview__label">Volatilite</span>
-                <span class="market-overview__value" id="market-volatility">-</span>
+            <div class="flex justify-between items-center py-2 border-b border-gray-700">
+                <span class="text-sm text-gray-400">Volatilite</span>
+                <span class="font-semibold" id="market-volatility">-</span>
             </div>
-            <div class="market-overview__item">
-                <span class="market-overview__label">24s En Yüksek</span>
-                <span class="market-overview__value text-success" id="daily-high">-</span>
+            <div class="flex justify-between items-center py-2 border-b border-gray-700">
+                <span class="text-sm text-gray-400">24s En Yüksek</span>
+                <span class="font-semibold text-green-400" id="daily-high">-</span>
             </div>
-            <div class="market-overview__item">
-                <span class="market-overview__label">24s En Düşük</span>
-                <span class="market-overview__value text-error" id="daily-low">-</span>
+            <div class="flex justify-between items-center py-2">
+                <span class="text-sm text-gray-400">24s En Düşük</span>
+                <span class="font-semibold text-red-400" id="daily-low">-</span>
             </div>
         </div>
 
         <!-- Technical Indicators -->
-        <div class="market-overview">
-            <h2 class="market-overview__title">
-                <i class="fas fa-tachometer-alt text-warning"></i>
+        <div class="glass-card rounded-lg p-4">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-tachometer-alt text-yellow-400"></i>
                 Teknik Göstergeler
             </h2>
             <div class="market-overview__item">

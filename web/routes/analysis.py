@@ -83,11 +83,42 @@ async def trigger_analysis(timeframe: str):
         return {"error": str(e)}
 
 @router.get("/history")
-async def get_analysis_history(timeframe: str = None):
-    """Son hibrit analiz sonuçlarını döndür"""
+async def get_analysis_history(
+    timeframe: str = None,
+    page: int = 1,
+    per_page: int = 20,
+    start_date: str = None,
+    end_date: str = None,
+    signal_type: str = None
+):
+    """Son hibrit analiz sonuçlarını döndür - gelişmiş filtreleme ile"""
     try:
+        from datetime import datetime
+        
+        # Tarih parametrelerini parse et
+        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00')) if start_date else None
+        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00')) if end_date else None
+        
+        # Offset hesapla
+        offset = (page - 1) * per_page if page > 0 else 0
+        
+        # Toplam kayıt sayısını al
+        total_count = storage.get_hybrid_analysis_count(
+            timeframe=timeframe,
+            start_date=start_dt,
+            end_date=end_dt,
+            signal_type=signal_type
+        )
+        
         # Hibrit analiz verilerini al
-        analyses = storage.get_hybrid_analysis_history(limit=20, timeframe=timeframe)
+        analyses = storage.get_hybrid_analysis_history(
+            limit=per_page, 
+            offset=offset,
+            timeframe=timeframe,
+            start_date=start_dt,
+            end_date=end_dt,
+            signal_type=signal_type
+        )
         
         # API formatına dönüştür
         formatted_analyses = []
@@ -166,7 +197,15 @@ async def get_analysis_history(timeframe: str = None):
                 "position_details": position_details
             })
         
-        return {"analyses": formatted_analyses}
+        return {
+            "analyses": formatted_analyses,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total_count,
+                "pages": (total_count + per_page - 1) // per_page if per_page > 0 else 0
+            }
+        }
         
     except Exception as e:
         logger.error(f"Error getting hybrid analysis history: {e}")

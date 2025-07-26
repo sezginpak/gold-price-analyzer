@@ -2,7 +2,7 @@
 SQLite storage for price data
 """
 import sqlite3
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional, Dict, Tuple, Any
 import logging
@@ -653,30 +653,80 @@ class SQLiteStorage:
                 return self._row_to_hybrid_analysis(row)
             return None
     
-    def get_hybrid_analysis_history(self, limit: int = 10, timeframe: str = None) -> List[Dict[str, Any]]:
-        """Son hibrit analiz sonuçlarını getir"""
+    def get_hybrid_analysis_history(self, limit: int = 10, offset: int = 0, timeframe: str = None, 
+                                  start_date: datetime = None, end_date: datetime = None, 
+                                  signal_type: str = None) -> List[Dict[str, Any]]:
+        """Son hibrit analiz sonuçlarını getir - gelişmiş filtreleme ile"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
+            # Dinamik sorgu oluştur
+            query = "SELECT * FROM hybrid_analysis WHERE 1=1"
+            params = []
+            
             if timeframe:
-                cursor.execute("""
-                    SELECT * FROM hybrid_analysis 
-                    WHERE timeframe = ?
-                    ORDER BY timestamp DESC 
-                    LIMIT ?
-                """, (timeframe, limit))
-            else:
-                cursor.execute("""
-                    SELECT * FROM hybrid_analysis 
-                    ORDER BY timestamp DESC 
-                    LIMIT ?
-                """, (limit,))
+                query += " AND timeframe = ?"
+                params.append(timeframe)
+            
+            if start_date:
+                query += " AND timestamp >= ?"
+                params.append(start_date.isoformat())
+            
+            if end_date:
+                query += " AND timestamp <= ?"
+                params.append(end_date.isoformat())
+            
+            if signal_type:
+                query += " AND signal = ?"
+                params.append(signal_type)
+            
+            # Sıralama ve limit
+            query += " ORDER BY timestamp DESC"
+            
+            if limit:
+                query += " LIMIT ?"
+                params.append(limit)
+                
+                if offset:
+                    query += " OFFSET ?"
+                    params.append(offset)
+            
+            cursor.execute(query, params)
             
             results = []
             for row in cursor.fetchall():
                 results.append(self._row_to_hybrid_analysis(row))
             
             return results
+    
+    def get_hybrid_analysis_count(self, timeframe: str = None, start_date: datetime = None, 
+                                  end_date: datetime = None, signal_type: str = None) -> int:
+        """Hibrit analiz kayıt sayısını getir"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Dinamik sorgu oluştur
+            query = "SELECT COUNT(*) FROM hybrid_analysis WHERE 1=1"
+            params = []
+            
+            if timeframe:
+                query += " AND timeframe = ?"
+                params.append(timeframe)
+            
+            if start_date:
+                query += " AND timestamp >= ?"
+                params.append(start_date.isoformat())
+            
+            if end_date:
+                query += " AND timestamp <= ?"
+                params.append(end_date.isoformat())
+            
+            if signal_type:
+                query += " AND signal = ?"
+                params.append(signal_type)
+            
+            cursor.execute(query, params)
+            return cursor.fetchone()[0]
     
     def _row_to_analysis_result(self, row) -> AnalysisResult:
         """Veritabanı satırını AnalysisResult nesnesine dönüştür"""

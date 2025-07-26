@@ -11,5 +11,7 @@
 @import './modules/dashboard.css';
 @import './modules/signals.css';
 @import './modules/charts.css';
+@import './modules/simulations.css';
+@import './modules/logs.css';
 @import './modules/mobile.css';
 @import './modules/scrollbar.css';

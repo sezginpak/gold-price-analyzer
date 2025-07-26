@@ -409,6 +409,40 @@
                     <span class="px-2 py-1 rounded timeframe-1d">1G</span>
                 </div>
             </div>
+            
+            <!-- Filtreleme Alanı -->
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <!-- Tarih Aralığı -->
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">Başlangıç</label>
+                    <input type="datetime-local" id="start-date" class="w-full bg-slate-700 text-white px-3 py-2 rounded text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">Bitiş</label>
+                    <input type="datetime-local" id="end-date" class="w-full bg-slate-700 text-white px-3 py-2 rounded text-sm">
+                </div>
+                
+                <!-- Sinyal Tipi Filtresi -->
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">Sinyal Tipi</label>
+                    <select id="signal-filter" class="w-full bg-slate-700 text-white px-3 py-2 rounded text-sm">
+                        <option value="">Tümü</option>
+                        <option value="BUY">Alış</option>
+                        <option value="SELL">Satış</option>
+                        <option value="HOLD">Bekle</option>
+                    </select>
+                </div>
+                
+                <!-- Filtre Butonları -->
+                <div class="flex items-end gap-2">
+                    <button onclick="applyFilters()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm transition">
+                        <i class="fas fa-filter mr-1"></i> Filtrele
+                    </button>
+                    <button onclick="resetFilters()" class="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded text-sm transition">
+                        <i class="fas fa-undo mr-1"></i> Sıfırla
+                    </button>
+                </div>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs lg:text-sm">
                     <thead>
@@ -434,18 +468,89 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Sayfalama -->
+            <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-sm text-gray-400">
+                    <span id="showing-info">1-20 arası gösteriliyor</span>
+                    <span id="total-count" class="ml-2"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="prev-page" onclick="changePage(-1)" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span id="page-info" class="text-sm">Sayfa 1</span>
+                    <button id="next-page" onclick="changePage(1)" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-400">Sayfa başına:</label>
+                    <select id="per-page" onchange="changePerPage()" class="bg-slate-700 text-white px-2 py-1 rounded text-sm">
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 {% endblock %}
 
 {% block scripts %}
     <script>
+        // Sayfalama değişkenleri
+        let currentPage = 1;
+        let perPage = 20;
+        let totalAnalyses = 0;
+        let allAnalysisData = [];
+        
+        // Tarih formatı düzeltme (local datetime-local input için)
+        function formatDateForInput(date) {
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+        
+        // Sayfa yüklendiğinde varsayılan tarih aralığını ayarla
+        window.addEventListener('DOMContentLoaded', function() {
+            // Son 24 saat
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            
+            document.getElementById('start-date').value = formatDateForInput(yesterday);
+            document.getElementById('end-date').value = formatDateForInput(now);
+        });
+        
         // Hibrit analiz verilerini yükle
         async function loadHybridAnalysisData() {
             try {
-                // Hem analiz geçmişini hem de detaylı verileri al
+                // URL parametrelerini oluştur
+                const params = new URLSearchParams();
+                
+                // Temel parametreler
+                params.append('page', currentPage);
+                params.append('per_page', perPage);
+                
+                // Filtreler
                 const timeframe = document.getElementById('timeframe-selector').value;
-                const historyUrl = timeframe ? `/api/analysis/history?timeframe=${timeframe}` : '/api/analysis/history';
+                if (timeframe) params.append('timeframe', timeframe);
+                
+                const startDate = document.getElementById('start-date').value;
+                if (startDate) params.append('start_date', new Date(startDate).toISOString());
+                
+                const endDate = document.getElementById('end-date').value;
+                if (endDate) params.append('end_date', new Date(endDate).toISOString());
+                
+                const signalType = document.getElementById('signal-filter').value;
+                if (signalType) params.append('signal_type', signalType);
+                
+                // API çağrıları
+                const historyUrl = `/api/analysis/history?${params.toString()}`;
                 const detailsUrl = timeframe ? `/api/analysis/details?timeframe=${timeframe}` : '/api/analysis/details';
                 
                 const [historyResponse, detailsResponse] = await Promise.all([
@@ -460,8 +565,19 @@
                 const historyData = await historyResponse.json();
                 const detailsData = await detailsResponse.json();
                 
-                // Geçmiş verileri yükle
-                loadHistoryData(historyData);
+                // Veriyi göster
+                displayHistoryData(historyData.analyses || []);
+                
+                // Sayfalama bilgilerini güncelle
+                if (historyData.pagination) {
+                    totalAnalyses = historyData.pagination.total;
+                    updatePaginationInfo();
+                }
+                
+                // En son analizi göster
+                if (historyData.analyses && historyData.analyses.length > 0 && currentPage === 1) {
+                    updateCurrentAnalysis(historyData.analyses[0]);
+                }
                 
                 // Detaylı göstergeleri yükle
                 if (detailsData.analyses && detailsData.analyses.length > 0) {
@@ -528,17 +644,52 @@
             }
         }
         
-        // Geçmiş verilerini yükle
-        function loadHistoryData(data) {
+        // Filtreleri uygula
+        function applyFilters() {
+            currentPage = 1; // Filtre uygulandığında ilk sayfaya dön
+            loadHybridAnalysisData();
+        }
+        
+        // Filtreleri sıfırla
+        function resetFilters() {
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            
+            document.getElementById('start-date').value = formatDateForInput(yesterday);
+            document.getElementById('end-date').value = formatDateForInput(now);
+            document.getElementById('signal-filter').value = '';
+            document.getElementById('timeframe-selector').value = '';
+            
+            currentPage = 1;
+            loadHybridAnalysisData();
+        }
+        
+        // Sayfa değiştir
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            const maxPage = Math.ceil(totalAnalyses / perPage);
+            
+            if (newPage >= 1 && newPage <= maxPage) {
+                currentPage = newPage;
+                loadHybridAnalysisData();
+            }
+        }
+        
+        // Sayfa başına gösterim sayısını değiştir
+        function changePerPage() {
+            perPage = parseInt(document.getElementById('per-page').value);
+            currentPage = 1; // İlk sayfaya dön
+            loadHybridAnalysisData();
+        }
+        
+        // Geçmiş verilerini göster
+        function displayHistoryData(analyses) {
             try {
                 
-                if (data.analyses && data.analyses.length > 0) {
-                    // En son analizi göster
-                    const latest = data.analyses[0];
-                    updateCurrentAnalysis(latest);
+                if (analyses && analyses.length > 0) {
                     
                     // Analiz geçmişini göster
-                    const historyHtml = data.analyses.map(analysis => {
+                    const historyHtml = analyses.map(analysis => {
                         const date = new Date(analysis.timestamp);
                         // Timestamp zaten Türkiye saatinde geliyor, ekleme yapma
                         
@@ -835,11 +986,28 @@
             }
         }
 
+        // Sayfalama bilgilerini güncelle
+        function updatePaginationInfo() {
+            const maxPage = Math.ceil(totalAnalyses / perPage);
+            const startItem = totalAnalyses > 0 ? (currentPage - 1) * perPage + 1 : 0;
+            const endItem = Math.min(currentPage * perPage, totalAnalyses);
+            
+            document.getElementById('showing-info').textContent = 
+                totalAnalyses > 0 ? `${startItem}-${endItem} arası gösteriliyor` : 'Veri yok';
+            document.getElementById('total-count').textContent = `(Toplam: ${totalAnalyses})`;
+            document.getElementById('page-info').textContent = `Sayfa ${currentPage} / ${maxPage || 1}`;
+            
+            // Buton durumları
+            document.getElementById('prev-page').disabled = currentPage <= 1;
+            document.getElementById('next-page').disabled = currentPage >= maxPage;
+        }
+        
         // Sayfa yüklendiğinde
         loadHybridAnalysisData();
         
         // Timeframe değişimi
         document.getElementById('timeframe-selector').addEventListener('change', function() {
+            currentPage = 1; // İlk sayfaya dön
             loadHybridAnalysisData();
         });
         
