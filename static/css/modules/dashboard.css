@@ -92,6 +92,12 @@
   color: var(--color-error);
 }
 
+.stat-card__detail {
+  font-size: var(--text-xs);
+  margin-top: var(--spacing-xs);
+  opacity: 0.9;
+}
+
 /* Price Cards */
 .price-cards {
   display: grid;

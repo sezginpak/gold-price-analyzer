@@ -374,30 +374,40 @@
         <div class="glass-card__header">
             <h2 class="glass-card__title">
                 <i class="fas fa-tachometer-alt text-info"></i>
-                Performans Metrikleri
+                Trading Performansı
             </h2>
         </div>
         <div class="glass-card__body">
             <div class="grid grid--cols-4">
-                <div class="stat-card">
-                    <h3 class="stat-card__label">24s Değişim</h3>
-                    <p class="stat-card__value" id="daily-change">-</p>
-                    <p class="stat-card__change" id="daily-change-pct">-</p>
+                <div class="stat-card" id="daily-perf-card">
+                    <h3 class="stat-card__label">24 Saat <i class="fas fa-info-circle text-xs text-gray-400 ml-1" title="Son 24 saatlik trading performansı"></i></h3>
+                    <p class="stat-card__value" id="daily-winrate">-</p>
+                    <p class="stat-card__change" id="daily-trades">-</p>
+                    <p class="stat-card__detail" id="daily-pnl">-</p>
                 </div>
-                <div class="stat-card">
-                    <h3 class="stat-card__label">Haftalık Ortalama</h3>
-                    <p class="stat-card__value" id="weekly-avg">-</p>
-                    <p class="stat-card__change" id="weekly-trend">-</p>
+                <div class="stat-card" id="weekly-perf-card">
+                    <h3 class="stat-card__label">7 Gün <i class="fas fa-info-circle text-xs text-gray-400 ml-1" title="Son 7 günlük trading performansı"></i></h3>
+                    <p class="stat-card__value" id="weekly-winrate">-</p>
+                    <p class="stat-card__change" id="weekly-trades">-</p>
+                    <p class="stat-card__detail" id="weekly-pnl">-</p>
                 </div>
-                <div class="stat-card">
-                    <h3 class="stat-card__label">Volatilite</h3>
-                    <p class="stat-card__value" id="volatility-value">-</p>
-                    <p class="stat-card__change" id="volatility-level">-</p>
+                <div class="stat-card" id="monthly-perf-card">
+                    <h3 class="stat-card__label">30 Gün <i class="fas fa-info-circle text-xs text-gray-400 ml-1" title="Son 30 günlük trading performansı"></i></h3>
+                    <p class="stat-card__value" id="monthly-winrate">-</p>
+                    <p class="stat-card__change" id="monthly-trades">-</p>
+                    <p class="stat-card__detail" id="monthly-pnl">-</p>
                 </div>
-                <div class="stat-card">
-                    <h3 class="stat-card__label">Sinyal Başarısı</h3>
-                    <p class="stat-card__value" id="signal-success">-</p>
-                    <p class="stat-card__change" id="signal-count">-</p>
+                <div class="stat-card" id="best-tf-card">
+                    <h3 class="stat-card__label">En İyi TF <i class="fas fa-info-circle text-xs text-gray-400 ml-1" title="En başarılı timeframe"></i></h3>
+                    <p class="stat-card__value" id="best-tf-name">-</p>
+                    <p class="stat-card__change" id="best-tf-winrate">-</p>
+                    <p class="stat-card__detail" id="best-tf-trades">-</p>
+                </div>
+            </div>
+            <!-- Timeframe Detayları -->
+            <div class="mt-3 hidden" id="tf-details">
+                <div class="grid grid--cols-4 gap-2" id="tf-performance-grid">
+                    <!-- Dinamik olarak doldurulacak -->
                 </div>
             </div>
         </div>
@@ -521,6 +531,10 @@
                 if (data.type === 'price_update') {
                     updateCurrentPrice(data.data);
                     addPriceToChart(data.data);
+                } else if (data.type === 'performance_update') {
+                    handlePerformanceUpdate(data.data);
+                } else if (data.type === 'new_signal') {
+                    handleNewSignal(data.data);
                 }
             };
         }
@@ -1184,41 +1198,102 @@
                 const response = await fetch('/api/performance/metrics');
                 const data = await response.json();
                 
-                // Günlük değişim
-                document.getElementById('daily-change').textContent = `₺${Math.abs(data.daily.change).toFixed(2)}`;
-                const changeClass = data.daily.change_pct >= 0 ? 'text-green-400' : 'text-red-400';
-                const changeIcon = data.daily.change_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
-                document.getElementById('daily-change-pct').innerHTML = 
-                    `<span class="${changeClass}"><i class="fas ${changeIcon} mr-1"></i>${data.daily.change_pct >= 0 ? '+' : ''}${data.daily.change_pct.toFixed(2)}%</span>`;
+                if (data.error) {
+                    console.error('Performans verisi hatası:', data.error);
+                    showEmptyPerformance();
+                    return;
+                }
                 
-                // Haftalık ortalama
-                document.getElementById('weekly-avg').textContent = `₺${data.weekly.average.toFixed(2)}`;
-                const trendClass = data.weekly.trend === 'Yükseliş' ? 'text-green-400' : 
-                                  data.weekly.trend === 'Düşüş' ? 'text-red-400' : 'text-yellow-400';
-                document.getElementById('weekly-trend').innerHTML = `<span class="${trendClass}">${data.weekly.trend}</span>`;
+                // Trend ikonu belirleme
+                const getTrendIcon = (trend) => {
+                    if (trend === 'improving') return '<i class="fas fa-arrow-trend-up text-green-400"></i>';
+                    if (trend === 'declining') return '<i class="fas fa-arrow-trend-down text-red-400"></i>';
+                    return '<i class="fas fa-minus text-gray-400"></i>';
+                };
                 
-                // Volatilite
-                document.getElementById('volatility-value').textContent = `${data.volatility.value.toFixed(2)}%`;
-                const volClass = data.volatility.level === 'Yüksek' ? 'text-red-400' : 
-                                data.volatility.level === 'Orta' ? 'text-orange-400' : 'text-green-400';
-                document.getElementById('volatility-level').innerHTML = `<span class="${volClass}">${data.volatility.level}</span>`;
+                // 24 Saat Performans
+                const daily = data.performance.daily;
+                document.getElementById('daily-winrate').innerHTML = `${daily.win_rate.toFixed(1)}% ${getTrendIcon(data.overview.trend)}`;
+                document.getElementById('daily-trades').innerHTML = `<span class="text-gray-400">${daily.trades} işlem (${daily.wins} kazanç)</span>`;
+                const dailyPnlClass = daily.pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                document.getElementById('daily-pnl').innerHTML = `<span class="${dailyPnlClass}">${daily.pnl >= 0 ? '+' : ''}${daily.pnl.toFixed(2)} gram</span>`;
                 
-                // Sinyal başarısı
-                document.getElementById('signal-success').textContent = `${data.signals.success_rate.toFixed(1)}%`;
-                document.getElementById('signal-count').innerHTML = 
-                    `<span class="text-gray-400">${data.signals.actionable}/${data.signals.total} sinyal</span>`;
+                // 7 Gün Performans
+                const weekly = data.performance.weekly;
+                document.getElementById('weekly-winrate').textContent = `${weekly.win_rate.toFixed(1)}%`;
+                document.getElementById('weekly-trades').innerHTML = `<span class="text-gray-400">${weekly.trades} işlem (${weekly.wins} kazanç)</span>`;
+                const weeklyPnlClass = weekly.pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                document.getElementById('weekly-pnl').innerHTML = `<span class="${weeklyPnlClass}">${weekly.pnl >= 0 ? '+' : ''}${weekly.pnl.toFixed(2)} gram</span>`;
+                
+                // 30 Gün Performans
+                const monthly = data.performance.monthly;
+                document.getElementById('monthly-winrate').textContent = `${monthly.win_rate.toFixed(1)}%`;
+                document.getElementById('monthly-trades').innerHTML = `<span class="text-gray-400">${monthly.trades} işlem (${monthly.wins}/${monthly.losses})</span>`;
+                const monthlyPnlClass = monthly.pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                document.getElementById('monthly-pnl').innerHTML = `<span class="${monthlyPnlClass}">${monthly.pnl >= 0 ? '+' : ''}${monthly.pnl.toFixed(2)} gram</span>`;
+                
+                // En İyi Timeframe
+                const bestTf = data.best_timeframe;
+                document.getElementById('best-tf-name').textContent = bestTf.name.toUpperCase();
+                document.getElementById('best-tf-winrate').innerHTML = `<span class="text-green-400">${bestTf.stats.win_rate?.toFixed(1) || 0}% başarı</span>`;
+                document.getElementById('best-tf-trades').innerHTML = `<span class="text-gray-400">${bestTf.stats.total_trades || 0} işlem</span>`;
+                
+                // Timeframe detayları
+                if (data.timeframes && Object.keys(data.timeframes).length > 0) {
+                    const tfGrid = document.getElementById('tf-performance-grid');
+                    tfGrid.innerHTML = '';
+                    
+                    for (const [tf, stats] of Object.entries(data.timeframes)) {
+                        const tfCard = document.createElement('div');
+                        tfCard.className = 'bg-gray-800 rounded p-2 text-center';
+                        tfCard.innerHTML = `
+                            <div class="text-xs text-gray-400">${tf.toUpperCase()}</div>
+                            <div class="text-sm font-bold ${stats.win_rate >= 50 ? 'text-green-400' : 'text-red-400'}">${stats.win_rate.toFixed(1)}%</div>
+                            <div class="text-xs text-gray-500">${stats.total_trades} işlem</div>
+                            <div class="text-xs ${stats.total_pnl >= 0 ? 'text-green-400' : 'text-red-400'}">${stats.total_pnl >= 0 ? '+' : ''}${stats.total_pnl.toFixed(1)}g</div>
+                        `;
+                        tfGrid.appendChild(tfCard);
+                    }
+                    
+                    document.getElementById('tf-details').classList.remove('hidden');
+                }
+                
+                // Kart hover efektleri
+                document.querySelectorAll('.stat-card').forEach(card => {
+                    card.style.cursor = 'pointer';
+                    card.addEventListener('mouseenter', () => {
+                        card.style.transform = 'translateY(-2px)';
+                        card.style.boxShadow = '0 4px 12px rgba(79, 209, 197, 0.2)';
+                    });
+                    card.addEventListener('mouseleave', () => {
+                        card.style.transform = 'translateY(0)';
+                        card.style.boxShadow = 'none';
+                    });
+                });
+                
             } catch (error) {
                 console.error('Performans metrikleri yüklenemedi:', error);
-                // Hata durumunda varsayılan değerler
-                document.getElementById('daily-change').textContent = '₺0.00';
-                document.getElementById('daily-change-pct').innerHTML = '<span class="text-gray-400">-</span>';
-                document.getElementById('weekly-avg').textContent = '₺0.00';
-                document.getElementById('weekly-trend').innerHTML = '<span class="text-gray-400">-</span>';
-                document.getElementById('volatility-value').textContent = '-';
-                document.getElementById('volatility-level').innerHTML = '<span class="text-gray-400">-</span>';
-                document.getElementById('signal-success').textContent = '-';
-                document.getElementById('signal-count').innerHTML = '<span class="text-gray-400">-</span>';
+                showEmptyPerformance();
             }
+        }
+        
+        function showEmptyPerformance() {
+            // Varsayılan değerler
+            document.getElementById('daily-winrate').textContent = '-';
+            document.getElementById('daily-trades').innerHTML = '<span class="text-gray-400">Veri yok</span>';
+            document.getElementById('daily-pnl').innerHTML = '<span class="text-gray-400">-</span>';
+            
+            document.getElementById('weekly-winrate').textContent = '-';
+            document.getElementById('weekly-trades').innerHTML = '<span class="text-gray-400">Veri yok</span>';
+            document.getElementById('weekly-pnl').innerHTML = '<span class="text-gray-400">-</span>';
+            
+            document.getElementById('monthly-winrate').textContent = '-';
+            document.getElementById('monthly-trades').innerHTML = '<span class="text-gray-400">Veri yok</span>';
+            document.getElementById('monthly-pnl').innerHTML = '<span class="text-gray-400">-</span>';
+            
+            document.getElementById('best-tf-name').textContent = '-';
+            document.getElementById('best-tf-winrate').innerHTML = '<span class="text-gray-400">-</span>';
+            document.getElementById('best-tf-trades').innerHTML = '<span class="text-gray-400">-</span>';
         }
 
         // İlk fiyatları yükle
@@ -1647,6 +1722,73 @@
         }
 
         // Sayfa yüklendiğinde
+        // Performans güncellemelerini işle
+        function handlePerformanceUpdate(data) {
+            // Son kapatılan pozisyon bildirimi
+            if (data.last_closed_position) {
+                const pos = data.last_closed_position;
+                const pnlClass = pos.pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                const pnlSign = pos.pnl >= 0 ? '+' : '';
+                
+                // Toast bildirim göster (opsiyonel)
+                showNotification(`Pozisyon kapatıldı: ${pos.timeframe} ${pos.signal} ${pnlSign}${pos.pnl.toFixed(2)}g (${pnlSign}${pos.pnl_pct.toFixed(1)}%)`, pos.pnl >= 0 ? 'success' : 'error');
+            }
+            
+            // Açık pozisyon sayısını güncelle
+            if (data.open_positions) {
+                const openPosElement = document.getElementById('open-positions-count');
+                if (openPosElement) {
+                    openPosElement.textContent = data.open_positions.count;
+                }
+            }
+            
+            // Günlük performansı güncelle
+            if (data.daily_performance) {
+                const winRate = data.daily_performance.win_rate;
+                const dailyWinrateElement = document.getElementById('daily-winrate');
+                if (dailyWinrateElement) {
+                    dailyWinrateElement.innerHTML = `${winRate.toFixed(1)}% <i class="fas fa-sync text-xs text-gray-400 ml-1" title="Otomatik güncellendi"></i>`;
+                }
+            }
+        }
+        
+        // Yeni sinyal bildirimi
+        function handleNewSignal(signal) {
+            showNotification(`Yeni ${signal.signal} sinyali: ${signal.timeframe} - ₺${signal.price.toFixed(2)}`, 'info');
+            
+            // Sinyal sayacını güncelle
+            const signalCountElement = document.getElementById('today-signals');
+            if (signalCountElement) {
+                const currentCount = parseInt(signalCountElement.textContent) || 0;
+                signalCountElement.textContent = currentCount + 1;
+            }
+            
+            // Performans metriklerini yenile
+            loadPerformanceMetrics();
+        }
+        
+        // Bildirim göster
+        function showNotification(message, type = 'info') {
+            // Basit bir bildirim sistemi (toast notification)
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'} text-white`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : 'fa-info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // 5 saniye sonra kaldır
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.5s';
+                setTimeout(() => notification.remove(), 500);
+            }, 5000);
+        }
+        
         window.onload = () => {
             // Chart'ları hemen başlat
             initPriceChart();

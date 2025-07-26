@@ -386,7 +386,7 @@ async def debug_analysis_timeframes():
 
 @router.get("/performance/metrics")
 async def get_performance_metrics():
-    """Performans metrikleri"""
+    """Gerçek trading performans metrikleri - simülasyon verilerinden"""
     cached = cache.get("performance_metrics")
     if cached:
         return cached
@@ -395,111 +395,182 @@ async def get_performance_metrics():
         with storage.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Son 24 saatlik değişim
+            # Son fiyat ve değişimler
             now = timezone.now()
             yesterday = now - timedelta(hours=24)
-            
-            cursor.execute("""
-                SELECT gram_altin FROM price_data 
-                WHERE timestamp >= ? 
-                ORDER BY timestamp ASC 
-                LIMIT 1
-            """, (yesterday,))
-            
-            yesterday_price = cursor.fetchone()
-            latest_price = storage.get_latest_price()
-            
-            daily_change = 0
-            daily_change_pct = 0
-            
-            if yesterday_price and latest_price and latest_price.gram_altin:
-                old_price = float(yesterday_price[0]) if yesterday_price[0] else 0
-                new_price = float(latest_price.gram_altin)
-                if old_price > 0:
-                    daily_change = new_price - old_price
-                    daily_change_pct = (daily_change / old_price) * 100
-            
-            # Haftalık ortalama
             week_ago = now - timedelta(days=7)
-            cursor.execute("""
-                SELECT AVG(gram_altin) as avg_price, 
-                       MIN(gram_altin) as min_price,
-                       MAX(gram_altin) as max_price,
-                       COUNT(*) as data_points
-                FROM price_data 
-                WHERE timestamp >= ? AND gram_altin IS NOT NULL
-            """, (week_ago,))
+            month_ago = now - timedelta(days=30)
             
-            weekly_stats = cursor.fetchone()
-            weekly_avg = float(weekly_stats[0]) if weekly_stats and weekly_stats[0] else 0
+            # Güncel fiyat bilgisi
+            latest_price = storage.get_latest_price()
+            current_price = float(latest_price.gram_altin) if latest_price and latest_price.gram_altin else 0
             
-            # Volatilite hesapla
-            volatility = 0
-            if weekly_stats and weekly_stats[1] and weekly_stats[2]:
-                min_price = float(weekly_stats[1])
-                max_price = float(weekly_stats[2])
-                if weekly_avg > 0:
-                    volatility = ((max_price - min_price) / weekly_avg) * 100
-            
-            # Sinyal başarı oranı
+            # Simülasyon performans metrikleri - son 30 gün
             cursor.execute("""
                 SELECT 
-                    COUNT(*) as total_signals,
-                    SUM(CASE WHEN signal IN ('BUY', 'SELL') THEN 1 ELSE 0 END) as actionable_signals
-                FROM hybrid_analysis 
-                WHERE timestamp >= ?
+                    COUNT(*) as total_trades,
+                    SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as winning_trades,
+                    SUM(CASE WHEN net_profit_loss < 0 THEN 1 ELSE 0 END) as losing_trades,
+                    SUM(net_profit_loss) as total_pnl,
+                    AVG(CASE WHEN net_profit_loss > 0 THEN net_profit_loss ELSE NULL END) as avg_win,
+                    AVG(CASE WHEN net_profit_loss < 0 THEN ABS(net_profit_loss) ELSE NULL END) as avg_loss,
+                    MAX(net_profit_loss) as best_trade,
+                    MIN(net_profit_loss) as worst_trade
+                FROM sim_positions
+                WHERE status = 'CLOSED' AND exit_time >= ?
+            """, (month_ago,))
+            
+            month_stats = cursor.fetchone()
+            
+            # Son 7 gün performansı
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_trades,
+                    SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as winning_trades,
+                    SUM(net_profit_loss) as total_pnl
+                FROM sim_positions
+                WHERE status = 'CLOSED' AND exit_time >= ?
             """, (week_ago,))
             
-            signal_stats = cursor.fetchone()
-            total_signals = signal_stats[0] if signal_stats else 0
-            actionable_signals = signal_stats[1] if signal_stats else 0
+            week_stats = cursor.fetchone()
             
-            # Trend hesapla
-            trend = "Yatay"
-            if daily_change_pct > 1:
-                trend = "Yükseliş"
-            elif daily_change_pct < -1:
-                trend = "Düşüş"
+            # Son 24 saat performansı
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_trades,
+                    SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as winning_trades,
+                    SUM(net_profit_loss) as total_pnl
+                FROM sim_positions
+                WHERE status = 'CLOSED' AND exit_time >= ?
+            """, (yesterday,))
             
-            volatility_level = "Düşük"
-            if volatility > 5:
-                volatility_level = "Yüksek"
-            elif volatility > 2:
-                volatility_level = "Orta"
+            daily_stats = cursor.fetchone()
+            
+            # Timeframe bazlı performans
+            cursor.execute("""
+                SELECT 
+                    timeframe,
+                    COUNT(*) as total_trades,
+                    SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as winning_trades,
+                    SUM(net_profit_loss) as total_pnl,
+                    AVG(net_profit_loss) as avg_pnl
+                FROM sim_positions
+                WHERE status = 'CLOSED' AND exit_time >= ?
+                GROUP BY timeframe
+            """, (month_ago,))
+            
+            timeframe_performance = {}
+            for row in cursor.fetchall():
+                tf, total, wins, pnl, avg_pnl = row
+                win_rate = (wins / total * 100) if total > 0 else 0
+                timeframe_performance[tf] = {
+                    "total_trades": total,
+                    "winning_trades": wins,
+                    "win_rate": win_rate,
+                    "total_pnl": float(pnl) if pnl else 0,
+                    "avg_pnl": float(avg_pnl) if avg_pnl else 0
+                }
+            
+            # En başarılı timeframe
+            best_timeframe = max(
+                timeframe_performance.items(), 
+                key=lambda x: x[1]["win_rate"],
+                default=("N/A", {"win_rate": 0})
+            )
+            
+            # Açık pozisyonlar
+            cursor.execute("""
+                SELECT COUNT(*) as open_positions,
+                       SUM(allocated_capital) as locked_capital
+                FROM sim_positions
+                WHERE status = 'OPEN'
+            """)
+            
+            open_positions = cursor.fetchone()
+            
+            # Metrikleri hesapla
+            month_total = month_stats[0] or 0
+            month_wins = month_stats[1] or 0
+            month_losses = month_stats[2] or 0
+            month_pnl = float(month_stats[3] or 0)
+            avg_win = float(month_stats[4] or 0)
+            avg_loss = float(month_stats[5] or 0)
+            
+            # Başarı oranları
+            month_win_rate = (month_wins / month_total * 100) if month_total > 0 else 0
+            week_win_rate = (week_stats[1] / week_stats[0] * 100) if week_stats[0] > 0 else 0
+            daily_win_rate = (daily_stats[1] / daily_stats[0] * 100) if daily_stats[0] > 0 else 0
+            
+            # Profit factor
+            profit_factor = (avg_win * month_wins) / (avg_loss * month_losses) if month_losses > 0 and avg_loss > 0 else 0
+            
+            # Trend analizi (son 7 gün ortalama win rate'e göre)
+            trend = "stable"
+            if daily_win_rate > week_win_rate * 1.1:  # %10'dan fazla iyileşme
+                trend = "improving"
+            elif daily_win_rate < week_win_rate * 0.9:  # %10'dan fazla kötüleşme
+                trend = "declining"
             
             result = {
-                "daily": {
-                    "change": daily_change,
-                    "change_pct": daily_change_pct,
-                    "current_price": float(latest_price.gram_altin) if latest_price and latest_price.gram_altin else 0
+                "overview": {
+                    "current_price": current_price,
+                    "open_positions": open_positions[0] if open_positions else 0,
+                    "locked_capital": float(open_positions[1] or 0) if open_positions else 0,
+                    "trend": trend
                 },
-                "weekly": {
-                    "average": weekly_avg,
-                    "trend": trend,
-                    "min": float(weekly_stats[1]) if weekly_stats and weekly_stats[1] else 0,
-                    "max": float(weekly_stats[2]) if weekly_stats and weekly_stats[2] else 0
+                "performance": {
+                    "daily": {
+                        "trades": daily_stats[0] or 0,
+                        "wins": daily_stats[1] or 0,
+                        "win_rate": daily_win_rate,
+                        "pnl": float(daily_stats[2] or 0),
+                        "pnl_per_trade": float(daily_stats[2] or 0) / daily_stats[0] if daily_stats[0] > 0 else 0
+                    },
+                    "weekly": {
+                        "trades": week_stats[0] or 0,
+                        "wins": week_stats[1] or 0,
+                        "win_rate": week_win_rate,
+                        "pnl": float(week_stats[2] or 0),
+                        "pnl_per_trade": float(week_stats[2] or 0) / week_stats[0] if week_stats[0] > 0 else 0
+                    },
+                    "monthly": {
+                        "trades": month_total,
+                        "wins": month_wins,
+                        "losses": month_losses,
+                        "win_rate": month_win_rate,
+                        "pnl": month_pnl,
+                        "avg_win": avg_win,
+                        "avg_loss": avg_loss,
+                        "profit_factor": profit_factor,
+                        "best_trade": float(month_stats[6] or 0),
+                        "worst_trade": float(month_stats[7] or 0)
+                    }
                 },
-                "volatility": {
-                    "value": volatility,
-                    "level": volatility_level
+                "timeframes": timeframe_performance,
+                "best_timeframe": {
+                    "name": best_timeframe[0],
+                    "stats": best_timeframe[1]
                 },
-                "signals": {
-                    "total": total_signals,
-                    "actionable": actionable_signals,
-                    "success_rate": (actionable_signals / total_signals * 100) if total_signals > 0 else 0
-                }
+                "last_update": timezone.now().isoformat()
             }
             
-            cache.set("performance_metrics", result)
+            cache.set("performance_metrics", result, ttl=60)  # 1 dakika cache
             return result
             
     except Exception as e:
         logger.error(f"Performans metrikleri hatası: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return {
-            "daily": {"change": 0, "change_pct": 0, "current_price": 0},
-            "weekly": {"average": 0, "trend": "Bilinmiyor", "min": 0, "max": 0},
-            "volatility": {"value": 0, "level": "Bilinmiyor"},
-            "signals": {"total": 0, "actionable": 0, "success_rate": 0}
+            "error": str(e),
+            "overview": {"current_price": 0, "open_positions": 0, "locked_capital": 0, "trend": "unknown"},
+            "performance": {
+                "daily": {"trades": 0, "wins": 0, "win_rate": 0, "pnl": 0},
+                "weekly": {"trades": 0, "wins": 0, "win_rate": 0, "pnl": 0},
+                "monthly": {"trades": 0, "wins": 0, "win_rate": 0, "pnl": 0}
+            },
+            "timeframes": {},
+            "best_timeframe": {"name": "N/A", "stats": {}}
         }
 
 @router.get("/market/overview")
@@ -802,3 +873,183 @@ async def get_active_patterns():
     except Exception as e:
         logger.error(f"Pattern analiz hatası: {e}")
         return {"patterns": [], "error": str(e)}
+
+@router.get("/performance/realtime")
+async def get_realtime_performance():
+    """Gerçek zamanlı sinyal performansı ve açık pozisyonlar"""
+    try:
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            now = timezone.now()
+            
+            # Açık pozisyonlar detayı
+            cursor.execute("""
+                SELECT 
+                    sp.id,
+                    sp.timeframe,
+                    sp.signal_type,
+                    sp.entry_price,
+                    sp.allocated_capital,
+                    sp.entry_time,
+                    sp.stop_loss,
+                    sp.take_profit,
+                    s.name as simulation_name,
+                    s.strategy_type
+                FROM sim_positions sp
+                JOIN simulations s ON sp.simulation_id = s.id
+                WHERE sp.status = 'OPEN'
+                ORDER BY sp.entry_time DESC
+            """)
+            
+            open_positions = []
+            latest_price = storage.get_latest_price()
+            current_price = float(latest_price.gram_altin) if latest_price and latest_price.gram_altin else 0
+            
+            for row in cursor.fetchall():
+                pos_id, tf, signal, entry, capital, entry_time, sl, tp, sim_name, strategy = row
+                
+                # Anlık kar/zarar hesapla
+                if signal == 'BUY':
+                    pnl = (current_price - float(entry)) * (float(capital) / float(entry))
+                    pnl_pct = ((current_price - float(entry)) / float(entry)) * 100
+                else:  # SELL
+                    pnl = (float(entry) - current_price) * (float(capital) / float(entry))
+                    pnl_pct = ((float(entry) - current_price) / float(entry)) * 100
+                
+                # Pozisyon süresi
+                entry_dt = datetime.fromisoformat(entry_time.replace('Z', '+00:00'))
+                duration = now - entry_dt
+                duration_hours = duration.total_seconds() / 3600
+                
+                open_positions.append({
+                    "id": pos_id,
+                    "timeframe": tf,
+                    "signal": signal,
+                    "entry_price": float(entry),
+                    "current_price": current_price,
+                    "allocated_capital": float(capital),
+                    "unrealized_pnl": round(pnl, 2),
+                    "unrealized_pnl_pct": round(pnl_pct, 2),
+                    "entry_time": entry_time,
+                    "duration_hours": round(duration_hours, 1),
+                    "stop_loss": float(sl) if sl else None,
+                    "take_profit": float(tp) if tp else None,
+                    "simulation": sim_name,
+                    "strategy": strategy,
+                    "risk_status": "HIGH" if pnl_pct < -2 else "MEDIUM" if pnl_pct < -1 else "LOW"
+                })
+            
+            # Son kapatılan pozisyonlar (son 10)
+            cursor.execute("""
+                SELECT 
+                    sp.timeframe,
+                    sp.signal_type,
+                    sp.entry_price,
+                    sp.exit_price,
+                    sp.net_profit_loss,
+                    sp.profit_loss_pct,
+                    sp.entry_time,
+                    sp.exit_time,
+                    sp.exit_reason,
+                    s.name as simulation_name
+                FROM sim_positions sp
+                JOIN simulations s ON sp.simulation_id = s.id
+                WHERE sp.status = 'CLOSED'
+                ORDER BY sp.exit_time DESC
+                LIMIT 10
+            """)
+            
+            closed_positions = []
+            for row in cursor.fetchall():
+                tf, signal, entry, exit, pnl, pnl_pct, entry_time, exit_time, reason, sim_name = row
+                
+                # İşlem süresi
+                entry_dt = datetime.fromisoformat(entry_time.replace('Z', '+00:00'))
+                exit_dt = datetime.fromisoformat(exit_time.replace('Z', '+00:00'))
+                duration = exit_dt - entry_dt
+                
+                closed_positions.append({
+                    "timeframe": tf,
+                    "signal": signal,
+                    "entry_price": float(entry),
+                    "exit_price": float(exit),
+                    "pnl": float(pnl),
+                    "pnl_pct": float(pnl_pct),
+                    "entry_time": entry_time,
+                    "exit_time": exit_time,
+                    "duration_hours": round(duration.total_seconds() / 3600, 1),
+                    "exit_reason": reason,
+                    "simulation": sim_name,
+                    "success": pnl > 0
+                })
+            
+            # Son sinyaller ve durumları
+            cursor.execute("""
+                SELECT 
+                    ha.timestamp,
+                    ha.timeframe,
+                    ha.signal,
+                    ha.confidence,
+                    ha.gram_price,
+                    ha.stop_loss,
+                    ha.take_profit,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM sim_positions sp 
+                            WHERE sp.signal_time = ha.timestamp 
+                            AND sp.timeframe = ha.timeframe
+                        ) THEN 'EXECUTED'
+                        ELSE 'PENDING'
+                    END as status
+                FROM hybrid_analysis ha
+                WHERE ha.signal IN ('BUY', 'SELL')
+                AND ha.timestamp >= ?
+                ORDER BY ha.timestamp DESC
+                LIMIT 20
+            """, (now - timedelta(hours=6),))  # Son 6 saat
+            
+            recent_signals = []
+            for row in cursor.fetchall():
+                timestamp, tf, signal, conf, price, sl, tp, status = row
+                recent_signals.append({
+                    "timestamp": timestamp,
+                    "timeframe": tf,
+                    "signal": signal,
+                    "confidence": float(conf),
+                    "price": float(price),
+                    "stop_loss": float(sl) if sl else None,
+                    "take_profit": float(tp) if tp else None,
+                    "status": status
+                })
+            
+            # Özet istatistikler
+            total_open_capital = sum(p["allocated_capital"] for p in open_positions)
+            total_unrealized_pnl = sum(p["unrealized_pnl"] for p in open_positions)
+            
+            return {
+                "summary": {
+                    "open_positions_count": len(open_positions),
+                    "total_open_capital": round(total_open_capital, 2),
+                    "total_unrealized_pnl": round(total_unrealized_pnl, 2),
+                    "current_price": current_price,
+                    "last_update": timezone.now().isoformat()
+                },
+                "open_positions": open_positions,
+                "recent_closed": closed_positions,
+                "recent_signals": recent_signals,
+                "status": "success"
+            }
+            
+    except Exception as e:
+        logger.error(f"Realtime performans hatası: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "status": "error",
+            "error": str(e),
+            "summary": {},
+            "open_positions": [],
+            "recent_closed": [],
+            "recent_signals": []
+        }

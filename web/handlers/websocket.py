@@ -56,6 +56,81 @@ class WebSocketManager:
             }
             await websocket.send_json(data)
     
+    async def send_performance_update(self, websocket: WebSocket):
+        """Performans güncellemesi gönder"""
+        try:
+            with self.storage.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Son kapatılan pozisyon
+                cursor.execute("""
+                    SELECT 
+                        sp.timeframe,
+                        sp.signal_type,
+                        sp.net_profit_loss,
+                        sp.profit_loss_pct,
+                        sp.exit_time,
+                        sp.exit_reason
+                    FROM sim_positions sp
+                    WHERE sp.status = 'CLOSED'
+                    ORDER BY sp.exit_time DESC
+                    LIMIT 1
+                """)
+                
+                last_closed = cursor.fetchone()
+                
+                # Açık pozisyon sayısı
+                cursor.execute("""
+                    SELECT COUNT(*) as open_count,
+                           SUM(allocated_capital) as total_capital
+                    FROM sim_positions
+                    WHERE status = 'OPEN'
+                """)
+                
+                open_stats = cursor.fetchone()
+                
+                # Son 24 saat başarı oranı
+                yesterday = timezone.now() - timedelta(hours=24)
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as wins
+                    FROM sim_positions
+                    WHERE status = 'CLOSED' AND exit_time >= ?
+                """, (yesterday,))
+                
+                daily_stats = cursor.fetchone()
+                daily_win_rate = (daily_stats[1] / daily_stats[0] * 100) if daily_stats[0] > 0 else 0
+                
+                data = {
+                    "type": "performance_update",
+                    "data": {
+                        "last_closed_position": {
+                            "timeframe": last_closed[0],
+                            "signal": last_closed[1],
+                            "pnl": float(last_closed[2]),
+                            "pnl_pct": float(last_closed[3]),
+                            "exit_time": last_closed[4],
+                            "exit_reason": last_closed[5]
+                        } if last_closed else None,
+                        "open_positions": {
+                            "count": open_stats[0] or 0,
+                            "total_capital": float(open_stats[1] or 0)
+                        },
+                        "daily_performance": {
+                            "trades": daily_stats[0] or 0,
+                            "wins": daily_stats[1] or 0,
+                            "win_rate": daily_win_rate
+                        },
+                        "timestamp": timezone.now().isoformat()
+                    }
+                }
+                
+                await websocket.send_json(data)
+                
+        except Exception as e:
+            logger.error(f"Performance update error: {e}")
+    
     async def broadcast_price_update(self):
         """Tüm bağlantılara fiyat güncellemesi gönder"""
         disconnected = []
@@ -71,15 +146,56 @@ class WebSocketManager:
         for ws in disconnected:
             self.disconnect(ws)
     
+    async def broadcast_performance_update(self):
+        """Tüm bağlantılara performans güncellemesi gönder"""
+        disconnected = []
+        
+        for connection in self.active_connections:
+            try:
+                await self.send_performance_update(connection)
+            except Exception as e:
+                logger.error(f"WebSocket performance broadcast error: {e}")
+                disconnected.append(connection)
+        
+        # Bağlantısı kopan WebSocket'leri listeden çıkar
+        for ws in disconnected:
+            self.disconnect(ws)
+    
+    async def send_signal_update(self, signal_data: dict):
+        """Yeni sinyal bildirimi gönder"""
+        data = {
+            "type": "new_signal",
+            "data": signal_data
+        }
+        
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(data)
+            except Exception as e:
+                logger.error(f"WebSocket signal broadcast error: {e}")
+                disconnected.append(connection)
+        
+        for ws in disconnected:
+            self.disconnect(ws)
+    
     async def handle_connection(self, websocket: WebSocket):
         """WebSocket bağlantısını yönet"""
         await self.connect(websocket)
         
         try:
+            # İlk bağlantıda mevcut verileri gönder
+            await self.send_price_update(websocket)
+            await self.send_performance_update(websocket)
+            
             while True:
-                # Her 5 saniyede bir güncelleme gönder
+                # Her 5 saniyede bir fiyat güncellemesi
                 await asyncio.sleep(5)
                 await self.send_price_update(websocket)
+                
+                # Her 30 saniyede bir performans güncellemesi
+                if int(asyncio.get_event_loop().time()) % 30 == 0:
+                    await self.send_performance_update(websocket)
                 
         except Exception as e:
             logger.error(f"WebSocket error: {e}")
