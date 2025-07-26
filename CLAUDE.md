@@ -193,3 +193,7 @@ formatted = format_for_display(datetime_obj, "%d.%m.%Y %H:%M")
 - Analiz ve strateji timestamp'leri UTC olarak saklanır
 - Web arayüzünde gösterim için Türkiye saatine çevrilir
 - Log kayıtları Türkiye saatinde tutulur
+
+## Bilinmesi Gereken Önemli Hatalar
+
+- deploy-guard agent'i çalıştırılamadan deploy edilemez.

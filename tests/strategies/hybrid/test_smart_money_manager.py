@@ -47,7 +47,7 @@ class TestSmartMoneyManager(unittest.TestCase):
             self.assertTrue(result['stop_hunt_details']['recovery'])
             self.assertEqual(result['smart_money_direction'], 'BULLISH')
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
+    @pytest.mark.skip(reason="Complex test - needs more time to refactor")
     def test_order_block_detection(self):
         """Order block tespiti"""
         candles = []
@@ -136,7 +136,7 @@ class TestSmartMoneyManager(unittest.TestCase):
             self.assertEqual(sweep['type'], 'BEARISH_SWEEP')
             self.assertTrue(sweep['confirmed'])
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
+    @pytest.mark.skip(reason="Complex test - needs more time to refactor")
     def test_manipulation_score(self):
         """Manipulation skoru hesaplama"""
         # Yüksek manipulation pattern
@@ -198,7 +198,7 @@ class TestSmartMoneyManager(unittest.TestCase):
         self.assertGreater(bias, 0)  # Pozitif = bullish
         self.assertLessEqual(abs(bias), 100)
     
-    @pytest.mark.skip(reason="Test needs refactoring to pytest format")
+    @pytest.mark.skip(reason="Complex test - needs more time to refactor")
     def test_pattern_combination(self):
         """Birden fazla pattern kombinasyonu"""
         support = 1980
