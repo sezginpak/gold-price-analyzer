@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def reset_simulations():
     """Tüm simülasyon verilerini sıfırla"""
     try:
-        conn = sqlite3.connect('gold_prices.db')
+        conn = sqlite3.connect('gold_prices_server.db')
         cursor = conn.cursor()
         
         # 1. Tüm pozisyonları sil

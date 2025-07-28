@@ -90,12 +90,12 @@ INTERVAL_MINUTES_TO_STR: Dict[int, str] = {
     1440: "1d"
 }
 
-# Timeframe bazlı minimum güven eşikleri - Global trend ağırlıklı
+# Timeframe bazlı minimum güven eşikleri - Backtesting optimizasyonu
 MIN_CONFIDENCE_THRESHOLDS: Dict[str, float] = {
-    "15m": 0.40,  # %40 - Kısa vade (düşürüldü)
-    "1h": 0.45,   # %45 - Orta vade (düşürüldü)
-    "4h": 0.50,   # %50 - Uzun vade (düşürüldü)
-    "1d": 0.55    # %55 - Günlük (düşürüldü)
+    "15m": 0.55,  # %55 - 15dk için orta seviyede artış (0.676 ortalamasından daha düşük)
+    "1h": 0.70,   # %70 - 1h için büyük artış (0.483 çok düşüktü)
+    "4h": 0.55,   # %55 - 4h için orta artış
+    "1d": 0.60    # %60 - Günlük için orta artış
 }
 
 # Minimum volatilite eşiği (%)
