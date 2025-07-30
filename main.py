@@ -5,6 +5,7 @@ import asyncio
 import signal
 import sys
 import logging
+import json
 from datetime import timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
@@ -136,6 +137,28 @@ class HybridGoldAnalyzer:
         signal = analysis["signal"]
         if signal == "HOLD":
             return  # HOLD sinyallerini gösterme
+        
+        # Trading signal kaydet
+        if signal in ["BUY", "SELL", "STRONG_BUY", "STRONG_SELL"]:
+            trading_signal = {
+                "timestamp": analysis["timestamp"],
+                "signal_type": signal,
+                "price_level": analysis["gram_price"],
+                "confidence": analysis["confidence"],
+                "risk_level": analysis["currency_risk"]["risk_level"],
+                "target_price": analysis.get("take_profit"),
+                "stop_loss": analysis.get("stop_loss"),
+                "reasons": json.dumps({
+                    "summary": analysis["summary"],
+                    "timeframe": timeframe,
+                    "strength": analysis["signal_strength"],
+                    "recommendations": analysis["recommendations"]
+                })
+            }
+            try:
+                self.storage.save_trading_signal(trading_signal)
+            except Exception as e:
+                logger.error(f"Failed to save trading signal: {e}")
         
         # Emoji mapping'leri class seviyesinde sabit olarak tanımlasaydık daha optimize olurdu
         # ama şimdilik inline bırakalım

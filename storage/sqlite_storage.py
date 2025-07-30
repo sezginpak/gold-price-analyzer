@@ -728,6 +728,29 @@ class SQLiteStorage:
             cursor.execute(query, params)
             return cursor.fetchone()[0]
     
+    def save_trading_signal(self, signal: Dict[str, Any]):
+        """Trading sinyalini veritabanına kaydet"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO trading_signals (
+                    timestamp, signal_type, price_level, confidence,
+                    risk_level, target_price, stop_loss, reasons
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                signal["timestamp"].isoformat() if hasattr(signal["timestamp"], 'isoformat') else signal["timestamp"],
+                signal["signal_type"],
+                float(signal["price_level"]),
+                float(signal["confidence"]),
+                signal["risk_level"],
+                float(signal["target_price"]) if signal.get("target_price") else None,
+                float(signal["stop_loss"]) if signal.get("stop_loss") else None,
+                signal.get("reasons", "{}")
+            ))
+            
+            logger.info(f"Trading signal saved: {signal['signal_type']} at {signal['price_level']:.2f} - Confidence: {signal['confidence']:.2%}")
+    
     def _row_to_analysis_result(self, row) -> AnalysisResult:
         """Veritabanı satırını AnalysisResult nesnesine dönüştür"""
         from models.analysis_result import TechnicalIndicators, SupportResistanceLevel

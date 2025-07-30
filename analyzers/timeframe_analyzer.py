@@ -2,7 +2,7 @@
 Farklı zaman dilimleri için analiz yöneticisi
 """
 import asyncio
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import Dict, Optional, Callable
 import logging
 from config import settings
