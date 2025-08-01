@@ -90,16 +90,16 @@ INTERVAL_MINUTES_TO_STR: Dict[int, str] = {
     1440: "1d"
 }
 
-# Timeframe bazlı minimum güven eşikleri - Backtesting optimizasyonu
+# Timeframe bazlı minimum güven eşikleri - Yüksek işlem maliyeti için optimize edildi
 MIN_CONFIDENCE_THRESHOLDS: Dict[str, float] = {
-    "15m": 0.45,  # %45 - Sinyal üretimini artırmak için düşürüldü
-    "1h": 0.55,   # %55 - %70'ten düşürüldü (çok yüksekti)
-    "4h": 0.50,   # %50 - %55'ten düşürüldü
-    "1d": 0.55    # %55 - %60'tan düşürüldü
+    "15m": 0.80,  # %80 - Yüksek işlem maliyeti için artırıldı
+    "1h": 0.75,   # %75 - Daha büyük hareketler için
+    "4h": 0.70,   # %70 - Uzun vadeli pozisyonlar için
+    "1d": 0.65    # %65 - En uzun vadeli, en güvenilir sinyaller
 }
 
-# Minimum volatilite eşiği (%)
-MIN_VOLATILITY_THRESHOLD = 0.2  # %0.3'ten %0.2'ye düşürüldü - düşük volatilitede de sinyal üretimi için
+# Minimum volatilite eşiği (%) - Yüksek işlem maliyeti için artırıldı
+MIN_VOLATILITY_THRESHOLD = 0.5  # %0.5 - Sadece yeterli volatilitede işlem yapılsın
 
 # Global trend uyumsuzluk cezası - Global trend ağırlıklı olduğu için azaltıldı
 GLOBAL_TREND_MISMATCH_PENALTY = 0.85  # Güven skoru %85'e düşer (önceki: %70)

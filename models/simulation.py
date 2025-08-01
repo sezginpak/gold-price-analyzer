@@ -27,6 +27,10 @@ class StrategyType(str, Enum):
     CONSENSUS = "CONSENSUS"
     RISK_ADJUSTED = "RISK_ADJUSTED"
     TIME_BASED = "TIME_BASED"
+    # Yüksek işlem maliyeti için özel stratejiler
+    HIGH_COST_CONSERVATIVE = "HIGH_COST_CONSERVATIVE"
+    HIGH_COST_TREND = "HIGH_COST_TREND"
+    HIGH_COST_DIP_BUYER = "HIGH_COST_DIP_BUYER"
 
 
 class PositionStatus(str, Enum):
@@ -56,11 +60,11 @@ class SimulationConfig:
     name: str
     strategy_type: StrategyType
     initial_capital: Decimal = Decimal("1000.0")  # gram
-    min_confidence: float = 0.35  # Daha düşük eşik - geçici test için
+    min_confidence: float = 0.80  # Yüksek işlem maliyeti için yüksek eşik
     max_risk: float = 0.02
     max_daily_risk: float = 0.02
-    spread: Decimal = Decimal("2.0")  # TL - gerçekçi spread değeri (~%0.05)
-    commission_rate: float = 0.0003  # %0.03 komisyon
+    spread: Decimal = Decimal("4.5")  # TL - orijinal spread değeri (~%0.11)
+    commission_rate: float = 0.001  # %0.10 komisyon
     
     # Timeframe sermaye dağılımı
     capital_distribution: Dict[str, Decimal] = field(default_factory=lambda: {
@@ -73,11 +77,11 @@ class SimulationConfig:
     # İşlem saatleri
     trading_hours: Tuple[int, int] = (9, 17)  # 09:00-17:00
     
-    # Çıkış stratejisi parametreleri
-    atr_multiplier_sl: float = 1.5  # Stop loss için ATR çarpanı
-    risk_reward_ratio: float = 2.0  # Take profit için RR oranı
-    trailing_stop_activation: float = 0.5  # TP'nin %50'sine gelince aktif
-    trailing_stop_distance: float = 0.3  # Mevcut kârın %30'unu bırak
+    # Çıkış stratejisi parametreleri - Yüksek işlem maliyeti için optimize edildi
+    atr_multiplier_sl: float = 1.0  # Stop loss için ATR çarpanı (daha da sıkı)
+    risk_reward_ratio: float = 4.0  # Take profit için RR oranı (4:1 minimum)
+    trailing_stop_activation: float = 0.6  # TP'nin %60'ine gelince aktif
+    trailing_stop_distance: float = 0.25  # Mevcut kârın %25'ini bırak (daha sıkı)
     
     # Zaman limitleri (saat cinsinden)
     time_limits: Dict[str, int] = field(default_factory=lambda: {

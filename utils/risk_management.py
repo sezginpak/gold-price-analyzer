@@ -21,10 +21,10 @@ class KellyRiskManager:
     """
     
     def __init__(self, 
-                 kelly_fraction: float = 0.25,
-                 max_risk_per_trade: float = 0.02,
-                 max_portfolio_risk: float = 0.06,
-                 min_trades_for_kelly: int = 30):
+                 kelly_fraction: float = 0.15,  # Daha konservatif Kelly oranı
+                 max_risk_per_trade: float = 0.015,  # %1.5 maksimum risk
+                 max_portfolio_risk: float = 0.04,  # %4 toplam portföy riski
+                 min_trades_for_kelly: int = 50):  # Daha fazla veri gerekir
         """
         Risk yönetimi parametreleri
         
@@ -124,14 +124,19 @@ class KellyRiskManager:
                     stats['avg_win_loss_ratio']
                 )
             else:
-                # Yeterli veri yok, konservatif yaklaş
-                kelly_pct = self.max_risk_per_trade * 0.3
+                # Yeterli veri yok, çok konservatif yaklaş (yüksek işlem maliyeti için)
+                kelly_pct = self.max_risk_per_trade * 0.2
             
-            # Güven skoruna göre ayarla
-            adjusted_risk = kelly_pct * confidence
+            # Güven skoruna göre ayarla - Yüksek işlem maliyeti için daha sıkı
+            confidence_multiplier = confidence ** 1.5  # Güven skorunu daha etkili kıl
+            adjusted_risk = kelly_pct * confidence_multiplier
+            
+            # Yüksek maliyet için ek konservatif çarpan
+            high_cost_multiplier = 0.7  # %30 daha düşük risk
+            conservative_risk = adjusted_risk * high_cost_multiplier
             
             # Maksimum risk limitini uygula
-            final_risk = min(adjusted_risk, self.max_risk_per_trade)
+            final_risk = min(conservative_risk, self.max_risk_per_trade)
             
             # Risk miktarı (para birimi)
             risk_amount = capital * final_risk

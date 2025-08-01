@@ -346,37 +346,94 @@ class SignalCombiner:
                       volatility: float, timeframe: str,
                       global_dir: str, risk_level: str,
                       dip_score: float = 0) -> Tuple[str, str]:
-        """Volatilite ve timeframe filtrelerini uygula"""
-        logger.debug(f"🔍 FILTER CHECK: signal={signal}, conf={confidence:.3f}, vol={volatility:.3f}, tf={timeframe}")
+        """Yüksek işlem maliyeti için sıkı filtreler - Sadece en güçlü sinyaller geçer"""
+        logger.debug(f"🔍 HIGH-COST FILTER CHECK: signal={signal}, conf={confidence:.3f}, vol={volatility:.3f}, tf={timeframe}")
         
-        # Volatilite filtresi - sadece extreme düşük durumda uygula
-        if volatility < MIN_VOLATILITY_THRESHOLD * 0.5 and signal != "HOLD":  # 0.15 altında
-            logger.debug(f"🔄 FILTER: Extreme low volatility ({volatility:.3f}% < {MIN_VOLATILITY_THRESHOLD * 0.5}%), converting {signal} to HOLD")
+        # 1. Volatilite filtresi - Artık daha sıkı
+        if volatility < MIN_VOLATILITY_THRESHOLD and signal != "HOLD":
+            logger.debug(f"🔄 FILTER: Low volatility ({volatility:.3f}% < {MIN_VOLATILITY_THRESHOLD}%), converting {signal} to HOLD")
             return "HOLD", "WEAK"
         
-        # Timeframe güven eşiği
+        # 2. Timeframe güven eşiği - Artık çok daha sıkı
         if signal != "HOLD":
             min_confidence = MIN_CONFIDENCE_THRESHOLDS.get(timeframe, 0.5)
             
-            # Dip detection veya extreme RSI durumunda eşiği düşür
-            if dip_score > 0.2 or (global_dir == "BEARISH" and signal == "BUY"):
-                min_confidence *= 0.8  # %20 azalt
-                logger.debug(f"🎯 FILTER: Lowering threshold for dip/bearish buy: {min_confidence:.3f}")
+            # 3. Yüksek işlem maliyeti için ek güven kontrolü
+            high_cost_confidence_multiplier = 1.1  # %10 daha yüksek eşik
+            adjusted_min_confidence = min_confidence * high_cost_confidence_multiplier
             
-            logger.debug(f"🔍 FILTER: Checking confidence {confidence:.3f} >= {min_confidence:.3f} for {timeframe}")
-            if confidence < min_confidence:
-                # Eğer çok yakınsa (5% fark) ve güçlü sinyaller varsa geçir
-                if confidence >= min_confidence * 0.95:
-                    logger.debug(f"🔍 FILTER: Near threshold ({confidence:.3f} vs {min_confidence:.3f}), allowing signal")
-                else:
-                    logger.debug(f"🔄 FILTER: Low confidence for {timeframe}: {confidence:.3f} < {min_confidence}, converting {signal} to HOLD")
-                    return "HOLD", "WEAK"
+            # Dip detection durumunda bile eşiği çok düşürme
+            if dip_score > 0.4 or (global_dir == "BEARISH" and signal == "BUY"):
+                adjusted_min_confidence *= 0.95  # Sadece %5 azalt
+                logger.debug(f"🎯 FILTER: Minor threshold reduction for strong dip: {adjusted_min_confidence:.3f}")
+            
+            logger.debug(f"🔍 HIGH-COST FILTER: Checking confidence {confidence:.3f} >= {adjusted_min_confidence:.3f} for {timeframe}")
+            if confidence < adjusted_min_confidence:
+                logger.debug(f"🔄 HIGH-COST FILTER: Insufficient confidence for {timeframe}: {confidence:.3f} < {adjusted_min_confidence:.3f}, converting {signal} to HOLD")
+                return "HOLD", "WEAK"
         
-        # Sinyal gücü belirleme
-        strength = self._calculate_signal_strength(confidence, risk_level)
-        logger.debug(f"✅ FILTER: Signal {signal} passed all filters, strength={strength}")
+        # 4. Risk seviyesi filtresi - Yüksek riskde daha sıkı
+        if signal != "HOLD" and risk_level in ["HIGH", "EXTREME"]:
+            risk_confidence_threshold = 0.85  # %85 güven gerekli
+            if confidence < risk_confidence_threshold:
+                logger.debug(f"🔄 RISK FILTER: High risk requires higher confidence: {confidence:.3f} < {risk_confidence_threshold:.3f}")
+                return "HOLD", "WEAK"
+        
+        # 5. Momentum ve trend uyum kontrolü - Sadece güçlü trend uyumları geçsin
+        if signal != "HOLD":
+            if not self._check_strong_trend_alignment(signal, global_dir, confidence):
+                logger.debug(f"🔄 TREND FILTER: Weak trend alignment, converting {signal} to HOLD")
+                return "HOLD", "WEAK"
+        
+        # Sinyal gücü belirleme - Daha sıkı kriterler
+        strength = self._calculate_signal_strength_high_cost(confidence, risk_level)
+        logger.debug(f"✅ HIGH-COST FILTER: Signal {signal} passed all strict filters, strength={strength}")
         
         return signal, strength
+    
+    def _check_strong_trend_alignment(self, signal: str, global_dir: str, confidence: float) -> bool:
+        """Güçlü trend uyumu kontrolü - Yüksek işlem maliyeti için"""
+        # BUY sinyali için BULLISH trend gerekli (dip yakalama hariç)
+        if signal == "BUY":
+            if global_dir == "BULLISH":
+                return True
+            elif global_dir == "BEARISH" and confidence >= 0.85:  # Çok güçlü dip sinyali
+                return True
+            else:
+                return False
+        
+        # SELL sinyali için BEARISH trend gerekli
+        if signal == "SELL":
+            if global_dir == "BEARISH":
+                return True
+            elif global_dir == "BULLISH" and confidence >= 0.85:  # Çok güçlü tepe sinyali
+                return True
+            else:
+                return False
+        
+        return True  # HOLD için her zaman true
+    
+    def _calculate_signal_strength_high_cost(self, confidence: float, risk: str) -> str:
+        """Yüksek işlem maliyeti için sinyal gücü hesaplama - Daha sıkı kriterler"""
+        # Güven skoruna göre temel güç - Daha yüksek eşikler
+        if confidence >= 0.85:
+            base_strength = "STRONG"
+        elif confidence >= 0.75:
+            base_strength = "MODERATE"
+        else:
+            base_strength = "WEAK"
+        
+        # Risk seviyesine göre ayarlama - Daha sıkı
+        if risk in ["HIGH", "EXTREME"]:
+            # Yüksek risk durumunda güç seviyesini düşür
+            if base_strength == "STRONG":
+                return "MODERATE"
+            else:
+                return "WEAK"
+        elif risk == "MEDIUM" and base_strength == "WEAK":
+            return "WEAK"  # Orta risk durumunda weak sinyalleri kabul etme
+        
+        return base_strength
     
     def _apply_trend_mismatch_penalty(self, signal: str, global_dir: str,
                                      confidence: float, dip_score: float = 0) -> float:
