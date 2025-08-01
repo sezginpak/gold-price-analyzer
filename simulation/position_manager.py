@@ -191,8 +191,8 @@ class PositionManager:
             
         except Exception as e:
             logger.error(f"Pozisyon büyüklüğü hesaplama hatası: {str(e)}")
-            # Güvenli bir varsayılan değer
-            return available_capital * Decimal("0.02") / current_price
+            # Güvenli bir varsayılan değer (gram cinsinden)
+            return available_capital * Decimal("0.02")  # Sermayenin %2'si kadar gram
     
     def calculate_stop_loss(
         self,

@@ -56,11 +56,11 @@ class SimulationConfig:
     name: str
     strategy_type: StrategyType
     initial_capital: Decimal = Decimal("1000.0")  # gram
-    min_confidence: float = 0.6
+    min_confidence: float = 0.35  # Daha düşük eşik - geçici test için
     max_risk: float = 0.02
     max_daily_risk: float = 0.02
-    spread: Decimal = Decimal("15.0")  # TL
-    commission_rate: float = 0.001
+    spread: Decimal = Decimal("2.0")  # TL - gerçekçi spread değeri (~%0.05)
+    commission_rate: float = 0.0003  # %0.03 komisyon
     
     # Timeframe sermaye dağılımı
     capital_distribution: Dict[str, Decimal] = field(default_factory=lambda: {

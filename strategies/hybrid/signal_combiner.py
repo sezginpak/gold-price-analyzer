@@ -133,9 +133,9 @@ class SignalCombiner:
         
         # Gram override - eğer gram güçlü sinyal veriyorsa direkt kullan
         gram_override_applied = False
-        logger.info(f"🔍 GRAM OVERRIDE CHECK: signal={gram_signal_type}, conf={gram_confidence:.3f}, threshold=0.60")
+        logger.info(f"🔍 GRAM OVERRIDE CHECK: signal={gram_signal_type}, conf={gram_confidence:.3f}, threshold=0.45")
         
-        if (gram_signal_type in ["BUY", "SELL"] and gram_confidence >= 0.60) or multi_day_override:
+        if (gram_signal_type in ["BUY", "SELL"] and gram_confidence >= 0.45) or multi_day_override:
             logger.info(f"🎯 GRAM OVERRIDE ACTIVATED: Using gram signal {gram_signal_type} (conf={gram_confidence:.2%})")
             final_signal = gram_signal_type
             gram_override_applied = True

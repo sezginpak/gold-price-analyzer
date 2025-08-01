@@ -452,9 +452,9 @@ class SimulationManager:
                 position_type, current_price, stop_loss, config
             )
             
-            # Risk miktarını hesapla
+            # Risk miktarını hesapla (gram cinsinden)
             risk_amount = tf_capital.current_capital * Decimal(str(config.max_risk))
-            position_value = position_size * current_price  # gram x fiyat
+            position_value = position_size * current_price  # gram x fiyat (TL değeri)
             
             # Spread ve komisyon
             spread_cost = config.spread
@@ -471,7 +471,7 @@ class SimulationManager:
                 entry_spread=spread_cost,
                 entry_commission=commission,
                 position_size=position_size,
-                allocated_capital=position_value,
+                allocated_capital=tf_capital.current_capital,  # Gram cinsinden sermaye
                 risk_amount=risk_amount,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
