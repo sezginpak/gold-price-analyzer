@@ -76,3 +76,17 @@ class PriceCandle(BaseModel):
             "volume": float(self.volume) if self.volume else None,
             "interval": self.interval
         }
+
+
+class Candle(BaseModel):
+    """Basit mum verisi modeli - testler için"""
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }

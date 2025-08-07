@@ -63,6 +63,9 @@ class FibonacciRetracement:
             Swing points dictionary
         """
         try:
+            if len(df) < window * 2:
+                return {'highs': [], 'lows': []}
+                
             highs = df['high'].values
             lows = df['low'].values
             
@@ -76,26 +79,42 @@ class FibonacciRetracement:
                 if idx < window or idx >= len(highs) - window:
                     continue
                     
-                # Swing strength hesapla
-                left_strength = (highs[idx] - np.mean(highs[idx-window:idx])) / highs[idx]
-                right_strength = (highs[idx] - np.mean(highs[idx+1:idx+window+1])) / highs[idx]
-                avg_strength = (left_strength + right_strength) / 2
+                # Swing strength hesapla (daha basit yaklaşım)
+                left_max = np.max(highs[idx-window:idx])
+                right_max = np.max(highs[idx+1:idx+window+1])
+                current_high = highs[idx]
                 
-                if avg_strength >= min_swing_strength:
-                    swing_highs.append((idx, highs[idx]))
+                # Current high, çevre değerlerden yüksekse swing high
+                if current_high > left_max and current_high > right_max:
+                    # Strength hesapla
+                    strength = min(
+                        (current_high - left_max) / current_high,
+                        (current_high - right_max) / current_high
+                    )
+                    
+                    if strength >= min_swing_strength:
+                        swing_highs.append((idx, current_high))
             
             swing_lows = []
             for idx in low_indices:
                 if idx < window or idx >= len(lows) - window:
                     continue
                     
-                # Swing strength hesapla
-                left_strength = (np.mean(lows[idx-window:idx]) - lows[idx]) / lows[idx]
-                right_strength = (np.mean(lows[idx+1:idx+window+1]) - lows[idx]) / lows[idx]
-                avg_strength = (left_strength + right_strength) / 2
+                # Swing strength hesapla (daha basit yaklaşım)
+                left_min = np.min(lows[idx-window:idx])
+                right_min = np.min(lows[idx+1:idx+window+1])
+                current_low = lows[idx]
                 
-                if avg_strength >= min_swing_strength:
-                    swing_lows.append((idx, lows[idx]))
+                # Current low, çevre değerlerden düşükse swing low
+                if current_low < left_min and current_low < right_min:
+                    # Strength hesapla
+                    strength = min(
+                        (left_min - current_low) / current_low,
+                        (right_min - current_low) / current_low
+                    )
+                    
+                    if strength >= min_swing_strength:
+                        swing_lows.append((idx, current_low))
             
             return {
                 'highs': swing_highs,
@@ -167,27 +186,46 @@ class FibonacciRetracement:
             Trend yönü ("up", "down", "sideways")
         """
         try:
-            if len(df) < 50:
+            if len(df) < 20:
                 return "sideways"
             
-            # Son 50 mum için trend analizi
-            recent_df = df.tail(50)
+            # Son mumlar için trend analizi
+            recent_df = df.tail(min(50, len(df)))
             
             # Moving average bazlı trend
-            ma20 = recent_df['close'].rolling(window=20).mean()
-            ma50 = recent_df['close'].rolling(window=50).mean() if len(df) >= 50 else ma20
+            ma_short = recent_df['close'].rolling(window=min(10, len(recent_df))).mean()
+            ma_long = recent_df['close'].rolling(window=min(20, len(recent_df))).mean()
             
             current_price = recent_df['close'].iloc[-1]
-            ma20_current = ma20.iloc[-1] if not pd.isna(ma20.iloc[-1]) else current_price
-            ma50_current = ma50.iloc[-1] if not pd.isna(ma50.iloc[-1]) else current_price
             
-            # Trend kriteri
-            if current_price > ma20_current and ma20_current > ma50_current:
-                return "up"
-            elif current_price < ma20_current and ma20_current < ma50_current:
-                return "down"
+            # MA'lar hesaplanabilirse
+            if len(ma_short.dropna()) > 0 and len(ma_long.dropna()) > 0:
+                ma_short_current = ma_short.iloc[-1]
+                ma_long_current = ma_long.iloc[-1]
+                
+                # Trend kriteri (tolerance ile)
+                trend_threshold = 0.002  # %0.2 threshold
+                
+                if (current_price > ma_short_current * (1 + trend_threshold) and 
+                    ma_short_current > ma_long_current * (1 + trend_threshold)):
+                    return "up"
+                elif (current_price < ma_short_current * (1 - trend_threshold) and 
+                      ma_short_current < ma_long_current * (1 - trend_threshold)):
+                    return "down"
+                else:
+                    return "sideways"
             else:
-                return "sideways"
+                # Basit slope analizi
+                first_price = recent_df['close'].iloc[0]
+                last_price = recent_df['close'].iloc[-1]
+                price_change = (last_price - first_price) / first_price
+                
+                if price_change > 0.01:  # %1'den fazla yükselmiş
+                    return "up"
+                elif price_change < -0.01:  # %1'den fazla düşmüş
+                    return "down"
+                else:
+                    return "sideways"
                 
         except Exception as e:
             logger.error(f"Trend belirleme hatası: {e}")

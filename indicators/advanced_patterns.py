@@ -362,3 +362,279 @@ class AdvancedPatternRecognition:
                 'signal': 'NEUTRAL',
                 'confidence': 0.0
             }
+    
+    def detect_bollinger_squeeze(self, df: pd.DataFrame, period: int = 20) -> Dict:
+        """
+        Bollinger Band Squeeze detector - büyük hareket öncesi sıkışma
+        
+        Args:
+            df: OHLC verilerini içeren DataFrame
+            period: Bollinger Bands periyodu
+            
+        Returns:
+            Squeeze analizi
+        """
+        try:
+            if len(df) < period + 5:
+                return {"detected": False, "strength": 0}
+            
+            # Bollinger Bands hesapla
+            close_prices = df['close'].rolling(window=period).mean()
+            std_dev = df['close'].rolling(window=period).std()
+            
+            upper_band = close_prices + (std_dev * 2)
+            lower_band = close_prices - (std_dev * 2)
+            band_width = (upper_band - lower_band) / close_prices
+            
+            # Mevcut band genişliği
+            current_width = band_width.iloc[-1] if not pd.isna(band_width.iloc[-1]) else 0
+            
+            # Son 50 periyodun ortalama band genişliği
+            lookback = min(50, len(band_width) - period)
+            if lookback > 0:
+                avg_width = band_width.iloc[-lookback:-1].mean()
+                
+                # Squeeze tespiti: Mevcut genişlik ortalamadan %20 daha dar
+                squeeze_detected = current_width < (avg_width * 0.8)
+                squeeze_strength = (avg_width - current_width) / avg_width if avg_width > 0 else 0
+                
+                # Fiyat orta banda ne kadar yakın?
+                current_price = df['close'].iloc[-1]
+                middle_band = close_prices.iloc[-1]
+                price_distance = abs(current_price - middle_band) / middle_band if middle_band > 0 else 0
+                
+                return {
+                    "detected": squeeze_detected,
+                    "strength": min(squeeze_strength, 1.0),
+                    "current_width": current_width,
+                    "average_width": avg_width,
+                    "price_to_middle": price_distance,
+                    "ready_for_breakout": squeeze_detected and price_distance < 0.005  # %0.5'ten yakın
+                }
+            else:
+                return {"detected": False, "strength": 0}
+                
+        except Exception as e:
+            logger.error(f"Bollinger squeeze tespiti hatası: {str(e)}")
+            return {"detected": False, "strength": 0}
+    
+    def analyze_macd_histogram_momentum(self, df: pd.DataFrame) -> Dict:
+        """
+        MACD Histogram momentum analizi - erken trend değişimi tespiti
+        
+        Args:
+            df: OHLC verilerini içeren DataFrame
+            
+        Returns:
+            MACD histogram momentum analizi
+        """
+        try:
+            if len(df) < 26:
+                return {"momentum": "NEUTRAL", "strength": 0, "divergence": False}
+            
+            # MACD hesapla
+            close_prices = df['close']
+            exp1 = close_prices.ewm(span=12).mean()
+            exp2 = close_prices.ewm(span=26).mean()
+            macd_line = exp1 - exp2
+            signal_line = macd_line.ewm(span=9).mean()
+            histogram = macd_line - signal_line
+            
+            if len(histogram) < 5:
+                return {"momentum": "NEUTRAL", "strength": 0, "divergence": False}
+            
+            # Son 5 histogram değeri
+            recent_hist = histogram.iloc[-5:].values
+            
+            # Momentum yönü
+            momentum_change = recent_hist[-1] - recent_hist[0]
+            momentum_strength = abs(momentum_change)
+            
+            # Histogram trend
+            if momentum_change > 0.1:
+                momentum = "BULLISH"
+            elif momentum_change < -0.1:
+                momentum = "BEARISH"
+            else:
+                momentum = "NEUTRAL"
+            
+            # Divergence kontrolü (basit)
+            price_trend = df['close'].iloc[-5:].diff().sum()
+            histogram_trend = histogram.iloc[-5:].diff().sum()
+            
+            # Fiyat ve histogram zıt yönde mi?
+            divergence_detected = (price_trend > 0 and histogram_trend < 0) or \
+                                (price_trend < 0 and histogram_trend > 0)
+            
+            # Zero line cross kontrolü
+            zero_cross = None
+            if len(recent_hist) >= 2:
+                if recent_hist[-2] <= 0 and recent_hist[-1] > 0:
+                    zero_cross = "BULLISH"
+                elif recent_hist[-2] >= 0 and recent_hist[-1] < 0:
+                    zero_cross = "BEARISH"
+            
+            return {
+                "momentum": momentum,
+                "strength": min(momentum_strength * 10, 1.0),  # 0-1 arası normalize
+                "divergence": divergence_detected,
+                "zero_cross": zero_cross,
+                "current_histogram": recent_hist[-1],
+                "histogram_trend": histogram_trend
+            }
+            
+        except Exception as e:
+            logger.error(f"MACD histogram analizi hatası: {str(e)}")
+            return {"momentum": "NEUTRAL", "strength": 0, "divergence": False}
+    
+    def analyze_volume_price_action(self, df: pd.DataFrame) -> Dict:
+        """
+        Volume Price Analysis (VPA) - Volume ve fiyat ilişkisi
+        
+        Args:
+            df: OHLC ve volume verilerini içeren DataFrame
+            
+        Returns:
+            VPA analizi
+        """
+        try:
+            if 'volume' not in df.columns or len(df) < 10:
+                return {"analysis": "NO_DATA", "signal": "NEUTRAL", "strength": 0}
+            
+            # Son 10 mumun analizi
+            recent_data = df.iloc[-10:].copy()
+            
+            if recent_data['volume'].sum() == 0:
+                return {"analysis": "NO_VOLUME_DATA", "signal": "NEUTRAL", "strength": 0}
+            
+            # Volume ve fiyat değişimi
+            price_changes = recent_data['close'].pct_change().iloc[-5:]
+            volume_changes = recent_data['volume'].pct_change().iloc[-5:]
+            
+            # VPA kuralları
+            vpa_signals = []
+            
+            for i in range(len(price_changes)):
+                if pd.isna(price_changes.iloc[i]) or pd.isna(volume_changes.iloc[i]):
+                    continue
+                    
+                price_change = price_changes.iloc[i]
+                volume_change = volume_changes.iloc[i]
+                
+                # Yüksek volume + yüksek fiyat artışı = güçlü alım
+                if price_change > 0.01 and volume_change > 0.2:
+                    vpa_signals.append("STRONG_BUYING")
+                # Düşük volume + fiyat artışı = zayıf alım (dikkat)
+                elif price_change > 0.01 and volume_change < -0.2:
+                    vpa_signals.append("WEAK_BUYING")
+                # Yüksek volume + fiyat düşüşü = güçlü satım
+                elif price_change < -0.01 and volume_change > 0.2:
+                    vpa_signals.append("STRONG_SELLING")
+                # Düşük volume + fiyat düşüşü = zayıf satım (dip sinyali?)
+                elif price_change < -0.01 and volume_change < -0.2:
+                    vpa_signals.append("WEAK_SELLING")
+            
+            # Genel sinyal
+            if vpa_signals.count("STRONG_BUYING") > 2:
+                signal = "BULLISH"
+                strength = 0.8
+            elif vpa_signals.count("WEAK_SELLING") > 2:
+                signal = "BULLISH"  # Zayıf satış = dip fırsatı
+                strength = 0.6
+            elif vpa_signals.count("STRONG_SELLING") > 2:
+                signal = "BEARISH"
+                strength = 0.8
+            elif vpa_signals.count("WEAK_BUYING") > 2:
+                signal = "BEARISH"  # Zayıf alım = tepe sinyali
+                strength = 0.6
+            else:
+                signal = "NEUTRAL"
+                strength = 0.3
+            
+            return {
+                "analysis": "COMPLETED",
+                "signal": signal,
+                "strength": strength,
+                "vpa_signals": vpa_signals,
+                "dominant_pattern": max(set(vpa_signals), key=vpa_signals.count) if vpa_signals else "NEUTRAL"
+            }
+            
+        except Exception as e:
+            logger.error(f"VPA analizi hatası: {str(e)}")
+            return {"analysis": "ERROR", "signal": "NEUTRAL", "strength": 0}
+    
+    def comprehensive_pattern_analysis(self, df: pd.DataFrame) -> Dict:
+        """
+        Kapsamlı pattern analizi - tüm teknikleri birleştir
+        
+        Args:
+            df: OHLC verilerini içeren DataFrame
+            
+        Returns:
+            Birleşik pattern analizi
+        """
+        try:
+            # Tüm analizleri yap
+            traditional_patterns = self.analyze_all_patterns(df)
+            bollinger_squeeze = self.detect_bollinger_squeeze(df)
+            macd_momentum = self.analyze_macd_histogram_momentum(df)
+            vpa_analysis = self.analyze_volume_price_action(df)
+            
+            # Birleşik skor hesapla
+            total_score = 0
+            signal_count = {"BULLISH": 0, "BEARISH": 0, "NEUTRAL": 0}
+            
+            # Geleneksel pattern'ler (en yüksek ağırlık)
+            if traditional_patterns['pattern_found']:
+                pattern_signal = traditional_patterns['signal']
+                pattern_confidence = traditional_patterns['confidence']
+                signal_count[pattern_signal] += pattern_confidence * 0.4
+                total_score += 0.4
+            
+            # Bollinger Squeeze (patlama sinyali)
+            if bollinger_squeeze.get('ready_for_breakout'):
+                squeeze_strength = bollinger_squeeze.get('strength', 0)
+                signal_count["NEUTRAL"] += squeeze_strength * 0.2  # Nötral ama hazır
+                total_score += 0.2
+            
+            # MACD Momentum
+            macd_signal = macd_momentum.get('momentum', 'NEUTRAL')
+            macd_strength = macd_momentum.get('strength', 0)
+            signal_count[macd_signal] += macd_strength * 0.25
+            total_score += 0.25
+            
+            # VPA Analysis
+            vpa_signal = vpa_analysis.get('signal', 'NEUTRAL')
+            vpa_strength = vpa_analysis.get('strength', 0)
+            signal_count[vpa_signal] += vpa_strength * 0.15
+            total_score += 0.15
+            
+            # En güçlü sinyali belirle
+            if total_score > 0:
+                dominant_signal = max(signal_count.keys(), key=lambda k: signal_count[k])
+                final_confidence = signal_count[dominant_signal] / total_score
+            else:
+                dominant_signal = "NEUTRAL"
+                final_confidence = 0
+            
+            return {
+                "final_signal": dominant_signal,
+                "final_confidence": min(final_confidence, 1.0),
+                "components": {
+                    "traditional_patterns": traditional_patterns,
+                    "bollinger_squeeze": bollinger_squeeze,
+                    "macd_momentum": macd_momentum,
+                    "vpa_analysis": vpa_analysis
+                },
+                "signal_breakdown": signal_count,
+                "total_analysis_score": total_score
+            }
+            
+        except Exception as e:
+            logger.error(f"Kapsamlı pattern analizi hatası: {str(e)}")
+            return {
+                "final_signal": "NEUTRAL",
+                "final_confidence": 0,
+                "components": {},
+                "error": str(e)
+            }

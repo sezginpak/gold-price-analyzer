@@ -73,6 +73,10 @@ class GramAltinAnalyzer:
             # Destek/Direnç seviyeleri
             support_levels, resistance_levels = self._find_support_resistance(candles)
             
+            # RSI Divergence ve Volume analizi
+            rsi_divergence = self._detect_rsi_divergence(candles, prices)
+            volume_spike = self._detect_volume_spike(candles)
+            
             # Sinyal üretimi
             signal, confidence = self._generate_signal(
                 current_price=current_price,
@@ -84,7 +88,9 @@ class GramAltinAnalyzer:
                 trend=trend,
                 trend_strength=trend_strength,
                 patterns=patterns,
-                resistance_levels=resistance_levels
+                resistance_levels=resistance_levels,
+                rsi_divergence=rsi_divergence,
+                volume_spike=volume_spike
             )
             
             # Risk hesaplama
@@ -209,6 +215,35 @@ class GramAltinAnalyzer:
         else:
             total_weight += 1
         
+        # RSI Divergence bonusu (DIP/TEPE yakalama için kritik)
+        rsi_divergence = kwargs.get("rsi_divergence", {})
+        if rsi_divergence.get("detected"):
+            div_type = rsi_divergence.get("type")
+            div_strength = rsi_divergence.get("strength", 0)
+            
+            if div_type == "bullish":  # DIP sinyali
+                buy_signals += div_strength * 3  # Güçlü bonus
+                total_weight += 2
+                logger.info(f"🎯 BULLISH DIVERGENCE detected - strength: {div_strength:.2f}")
+            elif div_type == "bearish":  # TEPE sinyali
+                sell_signals += div_strength * 3  # Güçlü bonus
+                total_weight += 2
+                logger.info(f"🎯 BEARISH DIVERGENCE detected - strength: {div_strength:.2f}")
+        
+        # Volume Spike bonusu
+        volume_spike = kwargs.get("volume_spike", {})
+        if volume_spike.get("detected"):
+            spike_ratio = volume_spike.get("spike_ratio", 1)
+            volume_bonus = min((spike_ratio - 1) * 2, 2)  # Max 2 puan
+            
+            # Mevcut trend yönünde volume spike bonusu ver
+            if buy_signals > sell_signals:
+                buy_signals += volume_bonus
+            elif sell_signals > buy_signals:
+                sell_signals += volume_bonus
+            total_weight += 1
+            logger.info(f"📊 VOLUME SPIKE detected - ratio: {spike_ratio:.1f}x, bonus: {volume_bonus:.1f}")
+        
         # MACD sinyali
         macd = kwargs["macd"]
         if macd.get("signal") == "BUY":
@@ -283,8 +318,8 @@ class GramAltinAnalyzer:
         elif trend == TrendType.BEARISH and sell_signals > buy_signals:
             sell_signals += 1
         
-        # Sinyal kararı (altın için daha hassas)
-        if buy_signals > sell_signals and buy_signals >= total_weight * 0.25:  # %25 eşik - orta hassasiyet
+        # Sinyal kararı (altın için daha hassas - %30'a çıkarıldı)
+        if buy_signals > sell_signals and buy_signals >= total_weight * 0.30:  # %30 eşik - daha yüksek hassasiyet
             signal = "BUY"
             # BUY/SELL için basit güven hesabı
             base_confidence = buy_signals / total_weight
@@ -292,7 +327,7 @@ class GramAltinAnalyzer:
             if trend == TrendType.BULLISH:
                 base_confidence = min(base_confidence * 1.2, 1.0)
             confidence = base_confidence
-        elif sell_signals > buy_signals and sell_signals >= total_weight * 0.25:  # %25 eşik - orta hassasiyet
+        elif sell_signals > buy_signals and sell_signals >= total_weight * 0.30:  # %30 eşik - daha yüksek hassasiyet
             signal = "SELL"
             # BUY/SELL için basit güven hesabı
             base_confidence = sell_signals / total_weight
@@ -554,3 +589,131 @@ class GramAltinAnalyzer:
             "take_profit": None,
             "analysis_details": {"error": "Yetersiz veri"}
         }
+    
+    def _detect_rsi_divergence(self, candles: List[GramAltinCandle], prices: np.ndarray) -> Dict[str, Any]:
+        """RSI Divergence tespiti - dip/tepe yakalama için kritik"""
+        try:
+            if len(candles) < 20:
+                return {"detected": False, "type": None, "strength": 0}
+            
+            # Son 20 mumun RSI değerlerini hesapla
+            lookback = min(20, len(prices))
+            recent_prices = prices[-lookback:]
+            
+            # RSI hesapla
+            rsi_values = []
+            for i in range(14, len(recent_prices)):
+                price_slice = recent_prices[i-13:i+1]
+                gains = []
+                losses = []
+                
+                for j in range(1, len(price_slice)):
+                    change = price_slice[j] - price_slice[j-1]
+                    if change > 0:
+                        gains.append(change)
+                        losses.append(0)
+                    else:
+                        gains.append(0)
+                        losses.append(abs(change))
+                
+                avg_gain = np.mean(gains) if gains else 0
+                avg_loss = np.mean(losses) if losses else 0
+                
+                if avg_loss == 0:
+                    rsi = 100
+                else:
+                    rs = avg_gain / avg_loss
+                    rsi = 100 - (100 / (1 + rs))
+                
+                rsi_values.append(rsi)
+            
+            if len(rsi_values) < 6:
+                return {"detected": False, "type": None, "strength": 0}
+            
+            # Son 6 periyotta divergence ara
+            recent_rsi = rsi_values[-6:]
+            recent_prices_for_div = recent_prices[-6:]
+            
+            # Fiyat düşer ama RSI yükselirse = Bullish Divergence (dip sinyali)
+            price_trend = recent_prices_for_div[-1] - recent_prices_for_div[0]
+            rsi_trend = recent_rsi[-1] - recent_rsi[0]
+            
+            divergence_strength = 0
+            divergence_type = None
+            
+            # Bullish Divergence (DIP SINYALI)
+            if price_trend < 0 and rsi_trend > 0:
+                divergence_type = "bullish"
+                # Güç hesapla: RSI ne kadar fazla yükselmiş, fiyat ne kadar düşmüş
+                price_decline_pct = abs(price_trend) / recent_prices_for_div[0] * 100
+                rsi_increase = rsi_trend
+                
+                if price_decline_pct > 0.5 and rsi_increase > 5:  # Belirgin divergence
+                    divergence_strength = min(0.8, (price_decline_pct + rsi_increase/10) / 2)
+                else:
+                    divergence_strength = 0.3
+            
+            # Bearish Divergence (TEPE SINYALI)  
+            elif price_trend > 0 and rsi_trend < 0:
+                divergence_type = "bearish"
+                price_increase_pct = price_trend / recent_prices_for_div[0] * 100
+                rsi_decrease = abs(rsi_trend)
+                
+                if price_increase_pct > 0.5 and rsi_decrease > 5:
+                    divergence_strength = min(0.8, (price_increase_pct + rsi_decrease/10) / 2)
+                else:
+                    divergence_strength = 0.3
+            
+            return {
+                "detected": divergence_type is not None,
+                "type": divergence_type,
+                "strength": divergence_strength,
+                "price_trend": price_trend,
+                "rsi_trend": rsi_trend
+            }
+            
+        except Exception as e:
+            logger.error(f"RSI divergence tespiti hatası: {e}")
+            return {"detected": False, "type": None, "strength": 0}
+    
+    def _detect_volume_spike(self, candles: List[GramAltinCandle]) -> Dict[str, Any]:
+        """Volume spike tespiti - güçlü hareket onayı için"""
+        try:
+            if len(candles) < 20:
+                return {"detected": False, "spike_ratio": 0}
+            
+            # Volume değerlerini topla
+            volumes = []
+            for candle in candles:
+                volume = getattr(candle, 'volume', 0) or 0
+                volumes.append(float(volume))
+            
+            # Volume değeri yoksa varsayılan analiz
+            if all(v == 0 for v in volumes):
+                return {"detected": False, "spike_ratio": 0, "note": "Volume data not available"}
+            
+            # Son 20 mumun ortalama volume'ü
+            lookback = min(20, len(volumes))
+            recent_volumes = volumes[-lookback:]
+            avg_volume = np.mean(recent_volumes[:-1])  # Son mum hariç
+            current_volume = recent_volumes[-1]
+            
+            if avg_volume == 0:
+                return {"detected": False, "spike_ratio": 0}
+            
+            spike_ratio = current_volume / avg_volume
+            
+            # 1.5x ve üzeri volume spike sayılır
+            spike_detected = spike_ratio >= 1.5
+            
+            return {
+                "detected": spike_detected,
+                "spike_ratio": spike_ratio,
+                "current_volume": current_volume,
+                "average_volume": avg_volume,
+                "threshold": 1.5
+            }
+            
+        except Exception as e:
+            logger.error(f"Volume spike tespiti hatası: {e}")
+            return {"detected": False, "spike_ratio": 0}
