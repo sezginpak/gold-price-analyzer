@@ -1,20 +1,21 @@
 """
-WebSocket bağlantı yönetimi
+WebSocket bağlantı yönetimi - Optimize edilmiş
 """
-from typing import List
-from fastapi import WebSocket
+from typing import List, Dict, Any
+from fastapi import WebSocket, WebSocketDisconnect
 import asyncio
 import logging
 from datetime import timedelta
+import time
+from websockets.exceptions import ConnectionClosed
 from storage.sqlite_storage import SQLiteStorage
 from utils import timezone
-from indicators.market_regime import calculate_market_regime_analysis
-import pandas as pd
+from web.utils import cache
 
 logger = logging.getLogger(__name__)
 
 class WebSocketManager:
-    """WebSocket bağlantılarını yönet"""
+    """WebSocket bağlantılarını yönet - Optimize edilmiş"""
     
     def __init__(self, storage: SQLiteStorage):
         """
@@ -25,473 +26,201 @@ class WebSocketManager:
         """
         self.active_connections: List[WebSocket] = []
         self.storage = storage
+        self.last_broadcast_time = 0
+        self.connection_stats = {"total_connections": 0, "failed_connections": 0}
     
     async def connect(self, websocket: WebSocket):
         """Yeni bağlantı kabul et"""
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        logger.info(f"WebSocket bağlantısı kabul edildi. Toplam: {len(self.active_connections)}")
+        try:
+            await websocket.accept()
+            self.active_connections.append(websocket)
+            self.connection_stats["total_connections"] += 1
+            logger.info(f"WebSocket bağlantısı kabul edildi. Toplam: {len(self.active_connections)}")
+        except Exception as e:
+            logger.error(f"WebSocket connect hatası: {e}")
+            self.connection_stats["failed_connections"] += 1
     
     def disconnect(self, websocket: WebSocket):
         """Bağlantıyı kapat"""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-            logger.info(f"WebSocket bağlantısı kapatıldı. Toplam: {len(self.active_connections)}")
+            logger.debug(f"WebSocket bağlantısı kapatıldı. Toplam: {len(self.active_connections)}")
     
     async def send_price_update(self, websocket: WebSocket):
-        """Fiyat güncellemesi gönder"""
-        latest_price = self.storage.get_latest_price()
-        if latest_price:
-            # Günlük değişim hesapla
-            daily_change_pct = self._calculate_daily_change_percentage(latest_price)
+        """Fiyat güncellemesi gönder - Optimize edilmiş"""
+        try:
+            # Cache'den fiyat bilgisini al
+            cached_price = cache.get("ws_current_price")
+            if not cached_price:
+                latest_price = self.storage.get_latest_price()
+                if latest_price:
+                    cached_price = {
+                        "timestamp": latest_price.timestamp.isoformat(),
+                        "gram_altin": float(latest_price.gram_altin) if latest_price.gram_altin else None,
+                        "ons_usd": float(latest_price.ons_usd),
+                        "usd_try": float(latest_price.usd_try),
+                        "ons_try": float(latest_price.ons_try)
+                    }
+                    # 10 saniye cache
+                    cache.set("ws_current_price", cached_price, ttl=10)
+                else:
+                    return
             
             data = {
                 "type": "price_update",
-                "data": {
-                    "timestamp": latest_price.timestamp.isoformat(),
-                    "ons_usd": float(latest_price.ons_usd),
-                    "usd_try": float(latest_price.usd_try),
-                    "ons_try": float(latest_price.ons_try),
-                    "gram_altin": float(latest_price.gram_altin) if latest_price.gram_altin else None,
-                    "daily_change_pct": daily_change_pct
-                }
+                "data": cached_price
             }
             await websocket.send_json(data)
+            
+        except WebSocketDisconnect:
+            self.disconnect(websocket)
+        except Exception as e:
+            logger.error(f"Price update hatası: {e}")
+            self.disconnect(websocket)
     
     async def send_performance_update(self, websocket: WebSocket):
-        """Performans güncellemesi gönder"""
+        """Basit performans güncellemesi gönder - Optimize edilmiş"""
         try:
-            with self.storage.get_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Son kapatılan pozisyon
-                cursor.execute("""
-                    SELECT 
-                        sp.timeframe,
-                        sp.signal_type,
-                        sp.net_profit_loss,
-                        sp.profit_loss_pct,
-                        sp.exit_time,
-                        sp.exit_reason
-                    FROM sim_positions sp
-                    WHERE sp.status = 'CLOSED'
-                    ORDER BY sp.exit_time DESC
-                    LIMIT 1
-                """)
-                
-                last_closed = cursor.fetchone()
-                
-                # Açık pozisyon sayısı
-                cursor.execute("""
-                    SELECT COUNT(*) as open_count,
-                           SUM(allocated_capital) as total_capital
-                    FROM sim_positions
-                    WHERE status = 'OPEN'
-                """)
-                
-                open_stats = cursor.fetchone()
-                
-                # Son 24 saat başarı oranı
-                yesterday = timezone.now() - timedelta(hours=24)
-                cursor.execute("""
-                    SELECT 
-                        COUNT(*) as total,
-                        SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as wins
-                    FROM sim_positions
-                    WHERE status = 'CLOSED' AND exit_time >= ?
-                """, (yesterday,))
-                
-                daily_stats = cursor.fetchone()
-                daily_win_rate = (daily_stats[1] / daily_stats[0] * 100) if daily_stats[0] > 0 else 0
-                
-                data = {
-                    "type": "performance_update",
-                    "data": {
-                        "last_closed_position": {
-                            "timeframe": last_closed[0],
-                            "signal": last_closed[1],
-                            "pnl": float(last_closed[2]),
-                            "pnl_pct": float(last_closed[3]),
-                            "exit_time": last_closed[4],
-                            "exit_reason": last_closed[5]
-                        } if last_closed else None,
-                        "open_positions": {
-                            "count": open_stats[0] or 0,
-                            "total_capital": float(open_stats[1] or 0)
-                        },
-                        "daily_performance": {
-                            "trades": daily_stats[0] or 0,
-                            "wins": daily_stats[1] or 0,
-                            "win_rate": daily_win_rate
-                        },
-                        "timestamp": timezone.now().isoformat()
+            # Cache'den performans bilgisini al
+            cached_performance = cache.get("ws_performance_summary")
+            if not cached_performance:
+                with self.storage.get_connection() as conn:
+                    cursor = conn.cursor()
+                    
+                    # Sadece temel istatistikler
+                    cursor.execute("""
+                        SELECT COUNT(*) as open_count,
+                               SUM(allocated_capital) as total_capital
+                        FROM sim_positions
+                        WHERE status = 'OPEN'
+                    """)
+                    open_stats = cursor.fetchone()
+                    
+                    # Son 24 saat basit istatistik
+                    yesterday = timezone.now() - timedelta(hours=24)
+                    cursor.execute("""
+                        SELECT COUNT(*) as total,
+                               SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as wins
+                        FROM sim_positions
+                        WHERE status = 'CLOSED' AND exit_time >= ?
+                    """, (yesterday,))
+                    daily_stats = cursor.fetchone()
+                    
+                    win_rate = (daily_stats[1] / daily_stats[0] * 100) if daily_stats[0] > 0 else 0
+                    
+                    cached_performance = {
+                        "open_positions": open_stats[0] or 0,
+                        "total_capital": round(float(open_stats[1] or 0), 2),
+                        "daily_trades": daily_stats[0] or 0,
+                        "daily_win_rate": round(win_rate, 1)
                     }
-                }
-                
-                await websocket.send_json(data)
-                
+                    # 30 saniye cache
+                    cache.set("ws_performance_summary", cached_performance, ttl=30)
+            
+            data = {
+                "type": "performance_update",
+                "data": cached_performance
+            }
+            await websocket.send_json(data)
+            
+        except WebSocketDisconnect:
+            self.disconnect(websocket)
         except Exception as e:
             logger.error(f"Performance update error: {e}")
+            self.disconnect(websocket)
     
-    async def send_market_regime_update(self, websocket: WebSocket):
-        """Market regime güncellemesi gönder"""
+    async def send_signals_update(self, websocket: WebSocket):
+        """Son sinyalleri gönder - Basitleştirilmiş"""
         try:
-            # Son 100 adet gram altın OHLC verisini al
-            candles = self.storage.generate_gram_candles(60, 100)  # 1 saatlik mumlar
-            
-            if not candles or len(candles) < 50:
-                return
-            
-            # DataFrame'e çevir
-            df_data = []
-            for candle in candles:
-                df_data.append({
-                    "timestamp": candle.timestamp,
-                    "open": float(candle.open),
-                    "high": float(candle.high),
-                    "low": float(candle.low),
-                    "close": float(candle.close)
-                })
-            
-            df = pd.DataFrame(df_data)
-            df.set_index('timestamp', inplace=True)
-            
-            # Market regime analizi yap
-            regime_analysis = calculate_market_regime_analysis(df)
-            
-            if regime_analysis.get('status') == 'success':
-                data = {
-                    "type": "market_regime_update",
-                    "data": {
-                        "volatility_regime": regime_analysis['volatility_regime'],
-                        "trend_regime": regime_analysis['trend_regime'],
-                        "momentum_regime": regime_analysis['momentum_regime'],
-                        "adaptive_parameters": regime_analysis['adaptive_parameters'],
-                        "regime_transition": regime_analysis['regime_transition'],
-                        "overall_assessment": regime_analysis['overall_assessment'],
-                        "recommendations": regime_analysis['recommendations'],
-                        "timestamp": timezone.now().isoformat()
-                    }
-                }
-                await websocket.send_json(data)
-                
-        except Exception as e:
-            logger.error(f"Market regime update error: {e}")
-    
-    async def send_divergence_update(self, websocket: WebSocket):
-        """Divergence analizi güncellemesi gönder"""
-        try:
-            from indicators.divergence_detector import calculate_divergence_analysis
-            
-            # Son 200 adet gram altın OHLC verisini al
-            candles = self.storage.generate_gram_candles(60, 200)  # 1 saatlik mumlar
-            
-            if not candles or len(candles) < 50:
-                return
-            
-            # DataFrame'e çevir
-            df_data = []
-            for candle in candles:
-                df_data.append({
-                    "open": float(candle.open),
-                    "high": float(candle.high),
-                    "low": float(candle.low),
-                    "close": float(candle.close)
-                })
-            
-            df = pd.DataFrame(df_data)
-            
-            # Divergence analizi yap
-            divergence_result = calculate_divergence_analysis(df)
-            
-            if divergence_result.get('status') == 'success':
-                # Aktif divergence'ları filtrele
-                active_divergences = []
-                
-                # Regular ve hidden divergences
-                all_divs = (divergence_result.get('regular_divergences', []) + 
-                           divergence_result.get('hidden_divergences', []))
-                
-                for div in all_divs:
-                    if not div.get('invalidated', False):
-                        active_divergences.append({
-                            "type": div['type'],
-                            "indicator": div['indicator'],
-                            "strength": div['strength'],
-                            "class_rating": div['class_rating'],
-                            "success_probability": div['success_probability'],
-                            "maturity_score": div.get('maturity_score', 0)
+            # Cache'den son sinyalleri al
+            cached_signals = cache.get("ws_recent_signals")
+            if not cached_signals:
+                with self.storage.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT timestamp, timeframe, signal, confidence, gram_price
+                        FROM hybrid_analysis
+                        WHERE signal IN ('BUY', 'SELL')
+                        ORDER BY timestamp DESC
+                        LIMIT 5
+                    """)
+                    
+                    signals = []
+                    for row in cursor.fetchall():
+                        signals.append({
+                            "timestamp": row[0],
+                            "timeframe": row[1], 
+                            "signal": row[2],
+                            "confidence": float(row[3]),
+                            "price": float(row[4])
                         })
-                
-                # İstatistikler
-                class_counts = {"A": 0, "B": 0, "C": 0}
-                for div in active_divergences:
-                    class_counts[div['class_rating']] += 1
-                
-                data = {
-                    "type": "divergence_update",
-                    "data": {
-                        "active_count": len(active_divergences),
-                        "class_counts": class_counts,
-                        "confluence_score": divergence_result.get('confluence_score', 0),
-                        "overall_signal": divergence_result.get('overall_signal', 'NEUTRAL'),
-                        "signal_strength": divergence_result.get('signal_strength', 0),
-                        "dominant_divergence": divergence_result.get('dominant_divergence'),
-                        "active_divergences": active_divergences[:5],  # En güçlü 5 tanesi
-                        "next_targets": divergence_result.get('next_targets', []),
-                        "invalidation_levels": divergence_result.get('invalidation_levels', []),
-                        "timestamp": timezone.now().isoformat()
-                    }
-                }
-                await websocket.send_json(data)
-                
+                    
+                    cached_signals = signals
+                    # 60 saniye cache
+                    cache.set("ws_recent_signals", cached_signals, ttl=60)
+            
+            data = {
+                "type": "signals_update",
+                "data": {"signals": cached_signals}
+            }
+            await websocket.send_json(data)
+            
+        except WebSocketDisconnect:
+            self.disconnect(websocket)
         except Exception as e:
-            logger.error(f"Divergence update error: {e}")
+            logger.error(f"Signals update error: {e}")
+            self.disconnect(websocket)
     
-    async def send_fibonacci_update(self, websocket: WebSocket):
-        """Fibonacci retracement güncellemesi gönder"""
-        try:
-            from indicators.fibonacci_retracement import calculate_fibonacci_analysis
+    async def broadcast_update(self, update_type: str, data: Dict[Any, Any]):
+        """Tüm bağlantılara güncelleme gönder - Optimize edilmiş"""
+        if not self.active_connections:
+            return
             
-            # Son 100 adet gram altın OHLC verisini al
-            candles = self.storage.generate_gram_candles(60, 100)  # 1 saatlik mumlar
-            
-            if not candles or len(candles) < 20:
-                return
-            
-            # DataFrame'e çevir
-            df_data = []
-            for candle in candles:
-                df_data.append({
-                    "open": float(candle.open),
-                    "high": float(candle.high),
-                    "low": float(candle.low),
-                    "close": float(candle.close)
-                })
-            
-            df = pd.DataFrame(df_data)
-            
-            # Fibonacci analizi yap
-            fibonacci_result = calculate_fibonacci_analysis(df)
-            
-            if fibonacci_result.get('status') == 'success':
-                # Fibonacci seviyelerini düzenle
-                levels = []
-                if fibonacci_result.get('fibonacci_levels'):
-                    for level_key, level_data in fibonacci_result['fibonacci_levels'].items():
-                        level_ratio = float(level_key)
-                        levels.append({
-                            "ratio": level_ratio,
-                            "price": level_data['price'],
-                            "strength": level_data['strength'],
-                            "description": level_data['description'],
-                            "distance_pct": level_data['distance_pct'],
-                            "level_type": "extension" if level_ratio > 1.0 else "retracement",
-                            "is_golden_ratio": level_ratio in [0.382, 0.618, 1.618]
-                        })
-                
-                # Mesafeye göre sırala
-                levels.sort(key=lambda x: x['distance_pct'])
-                
-                data = {
-                    "type": "fibonacci_update",
-                    "data": {
-                        "current_price": fibonacci_result.get('current_price', 0),
-                        "trend": fibonacci_result.get('trend', 'sideways'),
-                        "swing_high": fibonacci_result.get('swing_high'),
-                        "swing_low": fibonacci_result.get('swing_low'),
-                        "swing_range": fibonacci_result.get('range', 0),
-                        "bounce_potential": fibonacci_result.get('bounce_potential', 0),
-                        "nearest_level": fibonacci_result.get('nearest_level'),
-                        "levels": levels[:10],  # En yakın 10 seviye
-                        "signals": fibonacci_result.get('signals', {}),
-                        "timestamp": timezone.now().isoformat()
-                    }
-                }
-                await websocket.send_json(data)
-                
-        except Exception as e:
-            logger.error(f"Fibonacci update error: {e}")
-    
-    async def send_smc_update(self, websocket: WebSocket):
-        """Smart Money Concepts güncellemesi gönder"""
-        try:
-            from indicators.smart_money_concepts import calculate_smc_analysis
-            
-            # Son 150 adet gram altın OHLC verisini al
-            candles = self.storage.generate_gram_candles(60, 150)  # 1 saatlik mumlar
-            
-            if not candles or len(candles) < 50:
-                return
-            
-            # DataFrame'e çevir
-            df_data = []
-            for candle in candles:
-                df_data.append({
-                    "open": float(candle.open),
-                    "high": float(candle.high),
-                    "low": float(candle.low),
-                    "close": float(candle.close)
-                })
-            
-            df = pd.DataFrame(df_data)
-            
-            # SMC analizi yap
-            smc_result = calculate_smc_analysis(df)
-            
-            if smc_result.get('status') == 'success':
-                current_price = smc_result.get('current_price', 0)
-                
-                # Order blocks'ları mesafeye göre sırala
-                order_blocks = smc_result.get('order_blocks', [])
-                for ob in order_blocks:
-                    ob['distance_from_price'] = abs(current_price - ob['mid_point']) / current_price * 100
-                    ob['is_near'] = ob['distance_from_price'] < 1.0
-                
-                order_blocks.sort(key=lambda x: x['distance_from_price'])
-                
-                # FVG'leri boyuta göre sırala
-                fair_value_gaps = smc_result.get('fair_value_gaps', [])
-                for fvg in fair_value_gaps:
-                    fvg['price_in_gap'] = fvg['low'] <= current_price <= fvg['high']
-                
-                fair_value_gaps.sort(key=lambda x: x['size_pct'], reverse=True)
-                
-                # İstatistikler
-                statistics = {
-                    "order_blocks": {
-                        "total_count": len(order_blocks),
-                        "bullish_count": len([ob for ob in order_blocks if ob['type'] == 'bullish']),
-                        "bearish_count": len([ob for ob in order_blocks if ob['type'] == 'bearish']),
-                        "touched_count": len([ob for ob in order_blocks if ob['touched']])
-                    },
-                    "fair_value_gaps": {
-                        "total_count": len(fair_value_gaps),
-                        "bullish_count": len([fvg for fvg in fair_value_gaps if fvg['type'] == 'bullish']),
-                        "bearish_count": len([fvg for fvg in fair_value_gaps if fvg['type'] == 'bearish']),
-                        "filled_count": len([fvg for fvg in fair_value_gaps if fvg['filled']])
-                    }
-                }
-                
-                data = {
-                    "type": "smc_update",
-                    "data": {
-                        "current_price": current_price,
-                        "market_structure": smc_result.get('market_structure', {}),
-                        "order_blocks": order_blocks[:5],  # En yakın 5 order block
-                        "fair_value_gaps": fair_value_gaps[:5],  # En büyük 5 FVG
-                        "liquidity_zones": smc_result.get('liquidity_zones', [])[:5],  # En güçlü 5 likidite bölgesi
-                        "signals": smc_result.get('signals', {}),
-                        "statistics": statistics,
-                        "timestamp": timezone.now().isoformat()
-                    }
-                }
-                await websocket.send_json(data)
-                
-        except Exception as e:
-            logger.error(f"SMC update error: {e}")
-    
-    async def broadcast_price_update(self):
-        """Tüm bağlantılara fiyat güncellemesi gönder"""
-        disconnected = []
-        
-        for connection in self.active_connections:
-            try:
-                await self.send_price_update(connection)
-            except Exception as e:
-                logger.error(f"WebSocket broadcast error: {e}")
-                disconnected.append(connection)
-        
-        # Bağlantısı kopan WebSocket'leri listeden çıkar
-        for ws in disconnected:
-            self.disconnect(ws)
-    
-    async def broadcast_performance_update(self):
-        """Tüm bağlantılara performans güncellemesi gönder"""
-        disconnected = []
-        
-        for connection in self.active_connections:
-            try:
-                await self.send_performance_update(connection)
-            except Exception as e:
-                logger.error(f"WebSocket performance broadcast error: {e}")
-                disconnected.append(connection)
-        
-        # Bağlantısı kopan WebSocket'leri listeden çıkar
-        for ws in disconnected:
-            self.disconnect(ws)
-    
-    async def broadcast_market_regime_update(self):
-        """Tüm bağlantılara market regime güncellemesi gönder"""
-        disconnected = []
-        
-        for connection in self.active_connections:
-            try:
-                await self.send_market_regime_update(connection)
-            except Exception as e:
-                logger.error(f"WebSocket market regime broadcast error: {e}")
-                disconnected.append(connection)
-        
-        # Bağlantısı kopan WebSocket'leri listeden çıkar
-        for ws in disconnected:
-            self.disconnect(ws)
-    
-    async def send_signal_update(self, signal_data: dict):
-        """Yeni sinyal bildirimi gönder"""
-        data = {
-            "type": "new_signal",
-            "data": signal_data
+        message = {
+            "type": update_type,
+            "data": data,
+            "timestamp": timezone.now().isoformat()
         }
         
         disconnected = []
         for connection in self.active_connections:
             try:
-                await connection.send_json(data)
+                await connection.send_json(message)
+            except (WebSocketDisconnect, ConnectionClosed):
+                disconnected.append(connection)
             except Exception as e:
-                logger.error(f"WebSocket signal broadcast error: {e}")
+                logger.warning(f"WebSocket broadcast error: {e}")
                 disconnected.append(connection)
         
+        # Kopan bağlantıları temizle
         for ws in disconnected:
             self.disconnect(ws)
     
     async def handle_connection(self, websocket: WebSocket):
-        """WebSocket bağlantısını yönet"""
+        """WebSocket bağlantısını yönet - Basitleştirilmiş"""
         await self.connect(websocket)
         
         try:
-            # İlk bağlantıda mevcut verileri gönder
+            # İlk bağlantıda temel verileri gönder
             await self.send_price_update(websocket)
             await self.send_performance_update(websocket)
-            await self.send_market_regime_update(websocket)
-            await self.send_divergence_update(websocket)
-            await self.send_fibonacci_update(websocket)
-            await self.send_smc_update(websocket)
+            await self.send_signals_update(websocket)
             
+            # Ana döngü - sadece fiyat güncellemeleri
             while True:
-                # Her 5 saniyede bir fiyat güncellemesi
-                await asyncio.sleep(5)
+                await asyncio.sleep(10)  # 10 saniye aralık
+                
+                # Fiyat güncellemesi
                 await self.send_price_update(websocket)
                 
-                # Her 30 saniyede bir performans güncellemesi
-                if int(asyncio.get_event_loop().time()) % 30 == 0:
+                # Her 60 saniyede bir performans ve sinyaller
+                current_time = int(time.time())
+                if current_time % 60 == 0:
                     await self.send_performance_update(websocket)
+                    await self.send_signals_update(websocket)
                 
-                # Her 2 dakikada bir market regime güncellemesi
-                if int(asyncio.get_event_loop().time()) % 120 == 0:
-                    await self.send_market_regime_update(websocket)
-                
-                # Her 3 dakikada bir divergence güncellemesi
-                if int(asyncio.get_event_loop().time()) % 180 == 0:
-                    await self.send_divergence_update(websocket)
-                
-                # Her 3 dakikada bir fibonacci güncellemesi
-                if int(asyncio.get_event_loop().time()) % 180 == 0:
-                    await self.send_fibonacci_update(websocket)
-                
-                # Her 4 dakikada bir SMC güncellemesi
-                if int(asyncio.get_event_loop().time()) % 240 == 0:
-                    await self.send_smc_update(websocket)
-                
+        except WebSocketDisconnect:
+            logger.info("WebSocket bağlantısı normal şekilde kesildi")
         except Exception as e:
             logger.error(f"WebSocket error: {e}")
         finally:
@@ -501,41 +230,9 @@ class WebSocketManager:
         """Aktif bağlantı sayısını döndür"""
         return len(self.active_connections)
     
-    def _calculate_daily_change_percentage(self, latest_price) -> float:
-        """
-        Günlük değişim yüzdesini hesapla
-        API endpoint'indeki mantığı kullanır
-        """
-        try:
-            if not latest_price or not latest_price.gram_altin:
-                return 0.0
-            
-            # 24 saat önceki fiyatı al
-            now = timezone.now()
-            yesterday = now - timedelta(hours=24)
-            
-            with self.storage.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT gram_altin FROM price_data 
-                    WHERE timestamp >= ? 
-                    ORDER BY timestamp ASC 
-                    LIMIT 1
-                """, (yesterday,))
-                
-                yesterday_price = cursor.fetchone()
-                
-                if yesterday_price and yesterday_price[0]:
-                    old_price = float(yesterday_price[0])
-                    new_price = float(latest_price.gram_altin)
-                    
-                    if old_price > 0:
-                        daily_change = new_price - old_price
-                        daily_change_pct = (daily_change / old_price) * 100
-                        return round(daily_change_pct, 2)
-                
-                return 0.0
-                
-        except Exception as e:
-            logger.error(f"Günlük değişim yüzdesi hesaplama hatası: {e}")
-            return 0.0
+    def get_connection_stats(self) -> dict:
+        """Bağlantı istatistiklerini döndür"""
+        return {
+            "active_connections": len(self.active_connections),
+            **self.connection_stats
+        }
