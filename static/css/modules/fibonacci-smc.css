@@ -1,0 +1,691 @@
+/* Fibonacci & Smart Money Concepts Styles */
+
+/* Fibonacci Widget */
+.fibonacci-widget {
+    background: rgba(55, 65, 81, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(75, 85, 99, 0.5);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.fibonacci-widget:hover {
+    background: rgba(64, 73, 82, 0.7);
+    border-color: rgba(255, 215, 0, 0.3);
+    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.fibonacci-widget-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+.fibonacci-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #ffd700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.fibonacci-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fibonacci-status.active {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.fibonacci-status.inactive {
+    background: rgba(75, 85, 99, 0.2);
+    color: #9ca3af;
+    border: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+/* Fibonacci Levels */
+.fibonacci-levels {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.fib-level {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.fib-level::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.fib-level.very-strong {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.fib-level.very-strong::before {
+    background: #ef4444;
+}
+
+.fib-level.strong {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.fib-level.strong::before {
+    background: #f59e0b;
+}
+
+.fib-level.medium {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.fib-level.medium::before {
+    background: #3b82f6;
+}
+
+.fib-level.weak {
+    background: rgba(107, 114, 128, 0.1);
+    border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.fib-level.weak::before {
+    background: #6b7280;
+}
+
+.fib-level:hover {
+    transform: translateX(5px);
+}
+
+.fib-level-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.fib-level-ratio {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #f3f4f6;
+    margin-bottom: 0.125rem;
+}
+
+.fib-level-description {
+    font-size: 0.7rem;
+    color: #9ca3af;
+}
+
+.fib-level-price {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #ffd700;
+    text-align: right;
+}
+
+.fib-level-distance {
+    font-size: 0.65rem;
+    color: #6b7280;
+    text-align: right;
+    margin-top: 0.125rem;
+}
+
+/* Current Level Highlight */
+.fib-level.current {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: rgba(255, 215, 0, 0.4);
+    animation: pulse-gold 2s infinite;
+}
+
+.fib-level.current::before {
+    background: #ffd700;
+    width: 5px;
+}
+
+@keyframes pulse-gold {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+    }
+    50% { 
+        box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+    }
+}
+
+/* Smart Money Concepts Widget */
+.smc-widget {
+    background: rgba(55, 65, 81, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(75, 85, 99, 0.5);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.smc-widget:hover {
+    background: rgba(64, 73, 82, 0.7);
+    border-color: rgba(139, 92, 246, 0.3);
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
+    transform: translateY(-2px);
+}
+
+.smc-widget-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+.smc-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #8b5cf6;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.smc-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.smc-stat {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 6px;
+    background: rgba(31, 41, 55, 0.3);
+}
+
+.smc-stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #8b5cf6;
+    margin-bottom: 0.25rem;
+}
+
+.smc-stat-label {
+    font-size: 0.7rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Order Blocks */
+.order-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.order-block {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.order-block::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.order-block.bullish {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.order-block.bullish::before {
+    background: #10b981;
+}
+
+.order-block.bearish {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.order-block.bearish::before {
+    background: #ef4444;
+}
+
+.order-block.touched {
+    opacity: 0.7;
+    border-style: dashed;
+}
+
+.order-block:hover {
+    transform: translateX(3px);
+}
+
+.order-block-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.order-block-type {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.125rem;
+}
+
+.order-block-type.bullish {
+    color: #10b981;
+}
+
+.order-block-type.bearish {
+    color: #ef4444;
+}
+
+.order-block-range {
+    font-size: 0.7rem;
+    color: #9ca3af;
+}
+
+.order-block-strength {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #ffd700;
+    text-align: right;
+}
+
+/* Fair Value Gaps */
+.fvg-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.fvg-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.fvg-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.fvg-item.bullish {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.fvg-item.bullish::before {
+    background: #22c55e;
+}
+
+.fvg-item.bearish {
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.fvg-item.bearish::before {
+    background: #f87171;
+}
+
+.fvg-item.filled {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+.fvg-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.fvg-type {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.125rem;
+}
+
+.fvg-type.bullish {
+    color: #22c55e;
+}
+
+.fvg-type.bearish {
+    color: #f87171;
+}
+
+.fvg-range {
+    font-size: 0.7rem;
+    color: #9ca3af;
+}
+
+.fvg-size {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #ffd700;
+    text-align: right;
+}
+
+/* Market Structure */
+.market-structure {
+    padding: 1rem;
+    border-radius: 8px;
+    background: rgba(31, 41, 55, 0.3);
+    margin-bottom: 1rem;
+}
+
+.structure-trend {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.structure-trend-label {
+    font-size: 0.7rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.structure-trend-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.structure-trend-value.bullish {
+    color: #10b981;
+}
+
+.structure-trend-value.bearish {
+    color: #ef4444;
+}
+
+.structure-trend-value.ranging {
+    color: #f59e0b;
+}
+
+.structure-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.structure-metric {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background: rgba(55, 65, 81, 0.3);
+}
+
+.structure-metric-label {
+    font-size: 0.65rem;
+    color: #9ca3af;
+    margin-bottom: 0.25rem;
+}
+
+.structure-metric-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #f3f4f6;
+}
+
+/* Liquidity Zones */
+.liquidity-zones {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.liquidity-zone {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.liquidity-zone:hover {
+    background: rgba(168, 85, 247, 0.15);
+    transform: translateX(3px);
+}
+
+.liquidity-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.liquidity-type {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #a855f7;
+    margin-bottom: 0.125rem;
+}
+
+.liquidity-description {
+    font-size: 0.7rem;
+    color: #9ca3af;
+}
+
+.liquidity-strength {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #ffd700;
+    text-align: right;
+}
+
+/* Badges */
+.fib-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0.125rem;
+}
+
+.fib-badge.retracement {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.fib-badge.extension {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.fib-badge.golden-ratio {
+    background: rgba(255, 215, 0, 0.2);
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.smc-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0.125rem;
+}
+
+.smc-badge.bullish {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.smc-badge.bearish {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.smc-badge.neutral {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+    border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .fibonacci-widget,
+    .smc-widget {
+        padding: 0.75rem;
+    }
+    
+    .fibonacci-title,
+    .smc-title {
+        font-size: 1rem;
+    }
+    
+    .smc-stats {
+        grid-template-columns: repeat(1, 1fr);
+    }
+    
+    .structure-metrics {
+        grid-template-columns: repeat(1, 1fr);
+    }
+    
+    .fib-level,
+    .order-block,
+    .fvg-item,
+    .liquidity-zone {
+        padding: 0.4rem 0.6rem;
+    }
+}
+
+/* Loading Animation */
+.fib-smc-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.fib-smc-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(255, 215, 0, 0.2);
+    border-top: 2px solid #ffd700;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Chart Integration */
+.fib-smc-chart-overlay {
+    position: relative;
+}
+
+.fib-level-line {
+    stroke: #ffd700;
+    stroke-width: 1;
+    stroke-dasharray: 5,5;
+    opacity: 0.7;
+}
+
+.fib-level-line.strong {
+    stroke-width: 2;
+    opacity: 1;
+}
+
+.fib-level-text {
+    fill: #ffd700;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.order-block-zone {
+    fill-opacity: 0.2;
+    stroke-width: 1;
+}
+
+.order-block-zone.bullish {
+    fill: #10b981;
+    stroke: #10b981;
+}
+
+.order-block-zone.bearish {
+    fill: #ef4444;
+    stroke: #ef4444;
+}
+
+.fvg-zone {
+    fill-opacity: 0.3;
+    stroke-width: 1;
+}
+
+.fvg-zone.bullish {
+    fill: #22c55e;
+    stroke: #22c55e;
+}
+
+.fvg-zone.bearish {
+    fill: #f87171;
+    stroke: #f87171;
+}

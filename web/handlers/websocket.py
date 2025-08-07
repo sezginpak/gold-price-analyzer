@@ -248,6 +248,149 @@ class WebSocketManager:
         except Exception as e:
             logger.error(f"Divergence update error: {e}")
     
+    async def send_fibonacci_update(self, websocket: WebSocket):
+        """Fibonacci retracement güncellemesi gönder"""
+        try:
+            from indicators.fibonacci_retracement import calculate_fibonacci_analysis
+            
+            # Son 100 adet gram altın OHLC verisini al
+            candles = self.storage.generate_gram_candles(60, 100)  # 1 saatlik mumlar
+            
+            if not candles or len(candles) < 20:
+                return
+            
+            # DataFrame'e çevir
+            df_data = []
+            for candle in candles:
+                df_data.append({
+                    "open": float(candle.open),
+                    "high": float(candle.high),
+                    "low": float(candle.low),
+                    "close": float(candle.close)
+                })
+            
+            df = pd.DataFrame(df_data)
+            
+            # Fibonacci analizi yap
+            fibonacci_result = calculate_fibonacci_analysis(df)
+            
+            if fibonacci_result.get('status') == 'success':
+                # Fibonacci seviyelerini düzenle
+                levels = []
+                if fibonacci_result.get('fibonacci_levels'):
+                    for level_key, level_data in fibonacci_result['fibonacci_levels'].items():
+                        level_ratio = float(level_key)
+                        levels.append({
+                            "ratio": level_ratio,
+                            "price": level_data['price'],
+                            "strength": level_data['strength'],
+                            "description": level_data['description'],
+                            "distance_pct": level_data['distance_pct'],
+                            "level_type": "extension" if level_ratio > 1.0 else "retracement",
+                            "is_golden_ratio": level_ratio in [0.382, 0.618, 1.618]
+                        })
+                
+                # Mesafeye göre sırala
+                levels.sort(key=lambda x: x['distance_pct'])
+                
+                data = {
+                    "type": "fibonacci_update",
+                    "data": {
+                        "current_price": fibonacci_result.get('current_price', 0),
+                        "trend": fibonacci_result.get('trend', 'sideways'),
+                        "swing_high": fibonacci_result.get('swing_high'),
+                        "swing_low": fibonacci_result.get('swing_low'),
+                        "swing_range": fibonacci_result.get('range', 0),
+                        "bounce_potential": fibonacci_result.get('bounce_potential', 0),
+                        "nearest_level": fibonacci_result.get('nearest_level'),
+                        "levels": levels[:10],  # En yakın 10 seviye
+                        "signals": fibonacci_result.get('signals', {}),
+                        "timestamp": timezone.now().isoformat()
+                    }
+                }
+                await websocket.send_json(data)
+                
+        except Exception as e:
+            logger.error(f"Fibonacci update error: {e}")
+    
+    async def send_smc_update(self, websocket: WebSocket):
+        """Smart Money Concepts güncellemesi gönder"""
+        try:
+            from indicators.smart_money_concepts import calculate_smc_analysis
+            
+            # Son 150 adet gram altın OHLC verisini al
+            candles = self.storage.generate_gram_candles(60, 150)  # 1 saatlik mumlar
+            
+            if not candles or len(candles) < 50:
+                return
+            
+            # DataFrame'e çevir
+            df_data = []
+            for candle in candles:
+                df_data.append({
+                    "open": float(candle.open),
+                    "high": float(candle.high),
+                    "low": float(candle.low),
+                    "close": float(candle.close)
+                })
+            
+            df = pd.DataFrame(df_data)
+            
+            # SMC analizi yap
+            smc_result = calculate_smc_analysis(df)
+            
+            if smc_result.get('status') == 'success':
+                current_price = smc_result.get('current_price', 0)
+                
+                # Order blocks'ları mesafeye göre sırala
+                order_blocks = smc_result.get('order_blocks', [])
+                for ob in order_blocks:
+                    ob['distance_from_price'] = abs(current_price - ob['mid_point']) / current_price * 100
+                    ob['is_near'] = ob['distance_from_price'] < 1.0
+                
+                order_blocks.sort(key=lambda x: x['distance_from_price'])
+                
+                # FVG'leri boyuta göre sırala
+                fair_value_gaps = smc_result.get('fair_value_gaps', [])
+                for fvg in fair_value_gaps:
+                    fvg['price_in_gap'] = fvg['low'] <= current_price <= fvg['high']
+                
+                fair_value_gaps.sort(key=lambda x: x['size_pct'], reverse=True)
+                
+                # İstatistikler
+                statistics = {
+                    "order_blocks": {
+                        "total_count": len(order_blocks),
+                        "bullish_count": len([ob for ob in order_blocks if ob['type'] == 'bullish']),
+                        "bearish_count": len([ob for ob in order_blocks if ob['type'] == 'bearish']),
+                        "touched_count": len([ob for ob in order_blocks if ob['touched']])
+                    },
+                    "fair_value_gaps": {
+                        "total_count": len(fair_value_gaps),
+                        "bullish_count": len([fvg for fvg in fair_value_gaps if fvg['type'] == 'bullish']),
+                        "bearish_count": len([fvg for fvg in fair_value_gaps if fvg['type'] == 'bearish']),
+                        "filled_count": len([fvg for fvg in fair_value_gaps if fvg['filled']])
+                    }
+                }
+                
+                data = {
+                    "type": "smc_update",
+                    "data": {
+                        "current_price": current_price,
+                        "market_structure": smc_result.get('market_structure', {}),
+                        "order_blocks": order_blocks[:5],  # En yakın 5 order block
+                        "fair_value_gaps": fair_value_gaps[:5],  # En büyük 5 FVG
+                        "liquidity_zones": smc_result.get('liquidity_zones', [])[:5],  # En güçlü 5 likidite bölgesi
+                        "signals": smc_result.get('signals', {}),
+                        "statistics": statistics,
+                        "timestamp": timezone.now().isoformat()
+                    }
+                }
+                await websocket.send_json(data)
+                
+        except Exception as e:
+            logger.error(f"SMC update error: {e}")
+    
     async def broadcast_price_update(self):
         """Tüm bağlantılara fiyat güncellemesi gönder"""
         disconnected = []
@@ -321,6 +464,8 @@ class WebSocketManager:
             await self.send_performance_update(websocket)
             await self.send_market_regime_update(websocket)
             await self.send_divergence_update(websocket)
+            await self.send_fibonacci_update(websocket)
+            await self.send_smc_update(websocket)
             
             while True:
                 # Her 5 saniyede bir fiyat güncellemesi
@@ -338,6 +483,14 @@ class WebSocketManager:
                 # Her 3 dakikada bir divergence güncellemesi
                 if int(asyncio.get_event_loop().time()) % 180 == 0:
                     await self.send_divergence_update(websocket)
+                
+                # Her 3 dakikada bir fibonacci güncellemesi
+                if int(asyncio.get_event_loop().time()) % 180 == 0:
+                    await self.send_fibonacci_update(websocket)
+                
+                # Her 4 dakikada bir SMC güncellemesi
+                if int(asyncio.get_event_loop().time()) % 240 == 0:
+                    await self.send_smc_update(websocket)
                 
         except Exception as e:
             logger.error(f"WebSocket error: {e}")

@@ -5,9 +5,11 @@
 {% block extra_head %}
     <link rel="stylesheet" href="/static/css/modules/market-regime.css">
     <link rel="stylesheet" href="/static/css/modules/divergence.css">
+    <link rel="stylesheet" href="/static/css/modules/fibonacci-smc.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/js/market-regime.js"></script>
     <script src="/static/js/divergence.js"></script>
+    <script src="/static/js/fibonacci-smc.js"></script>
     <style>
         .indicator-box {
             background: rgba(55, 65, 81, 0.5);
@@ -494,6 +496,246 @@
                     <div id="analysis-warnings-opportunities" class="text-xs text-gray-300 bg-slate-800/30 rounded p-2">
                         Yükleniyor...
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fibonacci Retracement Analysis -->
+        <div id="fibonacci" class="fibonacci-widget mb-8">
+            <div class="fibonacci-widget-header">
+                <h2 class="text-xl font-bold">
+                    <i class="fas fa-chart-line text-yellow-400"></i>
+                    Fibonacci Retracement Analizi
+                </h2>
+                <button id="refresh-detailed-fibonacci" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                    <i class="fas fa-sync-alt mr-1"></i>
+                    Yenile
+                </button>
+            </div>
+            
+            <!-- Fibonacci Overview -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                    <div class="text-2xl font-bold text-yellow-400 mb-2" id="analysis-fibonacci-bounce">0%</div>
+                    <div class="text-sm text-gray-400">Bounce Potansiyeli</div>
+                </div>
+                <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                    <div class="text-xl font-bold mb-2" id="analysis-fibonacci-trend">-</div>
+                    <div class="text-sm text-gray-400">Trend Yönü</div>
+                </div>
+                <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                    <div class="text-xl font-bold text-green-400 mb-2" id="analysis-swing-range">-</div>
+                    <div class="text-sm text-gray-400">Swing Range</div>
+                </div>
+            </div>
+            
+            <!-- Current Position -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3 text-yellow-400">
+                    <i class="fas fa-crosshairs mr-2"></i>
+                    Mevcut Pozisyon
+                </h3>
+                <div id="current-fibonacci-position" class="bg-slate-800/30 rounded-lg p-4">
+                    <div class="text-gray-400 text-sm text-center py-4">Yükleniyor...</div>
+                </div>
+            </div>
+            
+            <!-- Fibonacci Levels Table -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3 text-blue-400">
+                    <i class="fas fa-layer-group mr-2"></i>
+                    Fibonacci Seviyeleri
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-600">
+                                <th class="text-left py-2">Seviye</th>
+                                <th class="text-left py-2">Fiyat</th>
+                                <th class="text-left py-2">Mesafe</th>
+                                <th class="text-left py-2">Güç</th>
+                                <th class="text-left py-2">Açıklama</th>
+                                <th class="text-left py-2">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fibonacci-levels-table">
+                            <tr>
+                                <td colspan="6" class="text-center py-8 text-gray-400">
+                                    <div class="fib-smc-loading">
+                                        <div class="fib-smc-spinner"></div>
+                                        Yükleniyor...
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Fibonacci Chart -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3 text-purple-400">
+                    <i class="fas fa-chart-area mr-2"></i>
+                    Fibonacci Grafik Overlay
+                </h3>
+                <div class="fib-smc-chart-overlay bg-slate-800/30 rounded-lg" style="height: 300px;">
+                    <canvas id="fibonacci-overlay-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Trading Signals -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3 text-green-400">
+                    <i class="fas fa-signal mr-2"></i>
+                    Trading Sinyalleri
+                </h3>
+                <div id="fibonacci-signals" class="space-y-3">
+                    <div class="text-gray-400 text-sm text-center py-4">Yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Smart Money Concepts Analysis -->
+        <div id="smc" class="smc-widget mb-8">
+            <div class="smc-widget-header">
+                <h2 class="text-xl font-bold">
+                    <i class="fas fa-brain text-purple-400"></i>
+                    Smart Money Concepts Analizi
+                </h2>
+                <button id="refresh-detailed-smc" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                    <i class="fas fa-sync-alt mr-1"></i>
+                    Yenile
+                </button>
+            </div>
+            
+            <!-- SMC Overview -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+                <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                    <div class="text-2xl font-bold text-purple-400 mb-2" id="analysis-smc-order-blocks">0</div>
+                    <div class="text-sm text-gray-400">Order Blocks</div>
+                </div>
+                <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                    <div class="text-2xl font-bold text-green-400 mb-2" id="analysis-smc-fvgs">0</div>
+                    <div class="text-sm text-gray-400">Fair Value Gaps</div>
+                </div>
+                <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                    <div class="text-xl font-bold mb-2" id="analysis-smc-structure">-</div>
+                    <div class="text-sm text-gray-400">Market Structure</div>
+                </div>
+                <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                    <div class="text-2xl font-bold text-orange-400 mb-2" id="analysis-smc-liquidity">0</div>
+                    <div class="text-sm text-gray-400">Liquidity Zones</div>
+                </div>
+            </div>
+            
+            <!-- Market Structure Detail -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="market-structure">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-400">
+                        <i class="fas fa-sitemap mr-2"></i>
+                        Market Structure
+                    </h3>
+                    <div class="structure-trend mb-4">
+                        <div class="structure-trend-label">Mevcut Trend</div>
+                        <div class="structure-trend-value" id="analysis-market-structure-trend">-</div>
+                    </div>
+                    <div class="structure-metrics">
+                        <div class="structure-metric">
+                            <div class="structure-metric-label">Higher Highs</div>
+                            <div class="structure-metric-value" id="analysis-higher-highs">-</div>
+                        </div>
+                        <div class="structure-metric">
+                            <div class="structure-metric-label">Higher Lows</div>
+                            <div class="structure-metric-value" id="analysis-higher-lows">-</div>
+                        </div>
+                        <div class="structure-metric">
+                            <div class="structure-metric-label">Lower Highs</div>
+                            <div class="structure-metric-value" id="analysis-lower-highs">-</div>
+                        </div>
+                        <div class="structure-metric">
+                            <div class="structure-metric-label">Lower Lows</div>
+                            <div class="structure-metric-value" id="analysis-lower-lows">-</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- BOS & CHoCH Levels -->
+                <div class="bg-slate-800/30 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-3 text-red-400">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        Kritik Seviyeler
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center py-2 border-b border-gray-700">
+                            <span class="text-sm text-gray-400">BOS Level</span>
+                            <span class="font-semibold" id="analysis-bos-level">-</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-gray-700">
+                            <span class="text-sm text-gray-400">BOS Status</span>
+                            <span class="font-semibold" id="analysis-bos-status">-</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-gray-700">
+                            <span class="text-sm text-gray-400">CHoCH Level</span>
+                            <span class="font-semibold" id="analysis-choch-level">-</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2">
+                            <span class="text-sm text-gray-400">CHoCH Status</span>
+                            <span class="font-semibold" id="analysis-choch-status">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Order Blocks -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3 text-cyan-400">
+                    <i class="fas fa-cube mr-2"></i>
+                    Order Blocks
+                </h3>
+                <div id="analysis-order-blocks" class="order-blocks">
+                    <div class="fib-smc-loading">
+                        <div class="fib-smc-spinner"></div>
+                        Yükleniyor...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fair Value Gaps -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3 text-emerald-400">
+                    <i class="fas fa-gap mr-2"></i>
+                    Fair Value Gaps
+                </h3>
+                <div id="analysis-fair-value-gaps" class="fvg-list">
+                    <div class="fib-smc-loading">
+                        <div class="fib-smc-spinner"></div>
+                        Yükleniyor...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Liquidity Zones -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3 text-amber-400">
+                    <i class="fas fa-water mr-2"></i>
+                    Liquidity Zones
+                </h3>
+                <div id="analysis-liquidity-zones" class="liquidity-zones">
+                    <div class="fib-smc-loading">
+                        <div class="fib-smc-spinner"></div>
+                        Yükleniyor...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SMC Signals -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3 text-green-400">
+                    <i class="fas fa-brain mr-2"></i>
+                    Smart Money Sinyalleri
+                </h3>
+                <div id="smc-signals" class="bg-slate-800/30 rounded-lg p-4">
+                    <div class="text-gray-400 text-sm text-center py-4">Yükleniyor...</div>
                 </div>
             </div>
         </div>

@@ -1676,3 +1676,325 @@ async def get_divergence_alerts():
             "alerts": [],
             "message": str(e)
         }
+
+@router.get("/fibonacci")
+async def get_fibonacci_analysis():
+    """Fibonacci Retracement analizi"""
+    cache_key = "fibonacci_analysis"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    
+    try:
+        from indicators.fibonacci_retracement import calculate_fibonacci_analysis
+        import pandas as pd
+        
+        # Son 100 adet gram altın OHLC verisini al
+        candles = storage.generate_gram_candles(60, 100)  # 1 saatlik mumlar
+        
+        if not candles or len(candles) < 20:
+            return {
+                "status": "insufficient_data",
+                "message": "Fibonacci analizi için yetersiz veri",
+                "error": "En az 20 mum verisi gerekli"
+            }
+        
+        # DataFrame'e çevir
+        df_data = []
+        for candle in candles:
+            df_data.append({
+                "open": float(candle.open),
+                "high": float(candle.high),
+                "low": float(candle.low),
+                "close": float(candle.close)
+            })
+        
+        df = pd.DataFrame(df_data)
+        
+        # Fibonacci analizi yap
+        fibonacci_result = calculate_fibonacci_analysis(df)
+        
+        if fibonacci_result.get('status') == 'error':
+            return fibonacci_result
+        
+        # Cache'e kaydet (3 dakika)
+        cache.set(cache_key, fibonacci_result, ttl=180)
+        
+        return fibonacci_result
+        
+    except Exception as e:
+        logger.error(f"Fibonacci analiz hatası: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "status": "error",
+            "message": str(e),
+            "error_type": "analysis_error"
+        }
+
+@router.get("/fibonacci/levels")
+async def get_fibonacci_levels():
+    """Aktif Fibonacci seviyelerini getir"""
+    try:
+        # Ana Fibonacci analizini al
+        fibonacci_result = await get_fibonacci_analysis()
+        
+        if fibonacci_result.get('status') != 'success':
+            return fibonacci_result
+        
+        levels = fibonacci_result.get('fibonacci_levels', {})
+        current_price = fibonacci_result.get('current_price', 0)
+        nearest_level = fibonacci_result.get('nearest_level')
+        
+        # Seviyeleri düzenle ve sırala
+        level_list = []
+        for level_key, level_data in levels.items():
+            level_ratio = float(level_key)
+            
+            level_list.append({
+                "ratio": level_ratio,
+                "price": level_data['price'],
+                "strength": level_data['strength'],
+                "description": level_data['description'],
+                "distance_pct": level_data['distance_pct'],
+                "is_nearest": nearest_level and abs(level_ratio - nearest_level['level']) < 0.001,
+                "level_type": "extension" if level_ratio > 1.0 else "retracement",
+                "is_golden_ratio": level_ratio in [0.382, 0.618, 1.618]
+            })
+        
+        # Fiyata göre sırala (yakından uzağa)
+        level_list.sort(key=lambda x: x['distance_pct'])
+        
+        return {
+            "status": "success",
+            "current_price": current_price,
+            "levels": level_list,
+            "nearest_level": nearest_level,
+            "bounce_potential": fibonacci_result.get('bounce_potential', 0),
+            "trend": fibonacci_result.get('trend', 'sideways'),
+            "swing_range": fibonacci_result.get('range', 0),
+            "timestamp": timezone.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Fibonacci levels hatası: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "levels": []
+        }
+
+@router.get("/smc")
+async def get_smc_analysis():
+    """Smart Money Concepts analizi"""
+    cache_key = "smc_analysis"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    
+    try:
+        from indicators.smart_money_concepts import calculate_smc_analysis
+        import pandas as pd
+        
+        # Son 150 adet gram altın OHLC verisini al
+        candles = storage.generate_gram_candles(60, 150)  # 1 saatlik mumlar
+        
+        if not candles or len(candles) < 50:
+            return {
+                "status": "insufficient_data",
+                "message": "SMC analizi için yetersiz veri",
+                "error": "En az 50 mum verisi gerekli"
+            }
+        
+        # DataFrame'e çevir
+        df_data = []
+        for candle in candles:
+            df_data.append({
+                "open": float(candle.open),
+                "high": float(candle.high),
+                "low": float(candle.low),
+                "close": float(candle.close)
+            })
+        
+        df = pd.DataFrame(df_data)
+        
+        # SMC analizi yap
+        smc_result = calculate_smc_analysis(df)
+        
+        if smc_result.get('status') == 'error':
+            return smc_result
+        
+        # Cache'e kaydet (3 dakika)
+        cache.set(cache_key, smc_result, ttl=180)
+        
+        return smc_result
+        
+    except Exception as e:
+        logger.error(f"SMC analiz hatası: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "status": "error",
+            "message": str(e),
+            "error_type": "analysis_error"
+        }
+
+@router.get("/smc/order-blocks")
+async def get_order_blocks():
+    """Aktif Order Block'ları getir"""
+    try:
+        # Ana SMC analizini al
+        smc_result = await get_smc_analysis()
+        
+        if smc_result.get('status') != 'success':
+            return smc_result
+        
+        order_blocks = smc_result.get('order_blocks', [])
+        current_price = smc_result.get('current_price', 0)
+        
+        # Order block'ları fiyata yakınlığa göre sırala
+        for ob in order_blocks:
+            ob['distance_from_price'] = abs(current_price - ob['mid_point']) / current_price * 100
+            ob['is_near'] = ob['distance_from_price'] < 1.0  # %1'den yakın
+        
+        order_blocks.sort(key=lambda x: x['distance_from_price'])
+        
+        # İstatistikler
+        bullish_count = len([ob for ob in order_blocks if ob['type'] == 'bullish'])
+        bearish_count = len([ob for ob in order_blocks if ob['type'] == 'bearish'])
+        touched_count = len([ob for ob in order_blocks if ob['touched']])
+        
+        return {
+            "status": "success",
+            "current_price": current_price,
+            "order_blocks": order_blocks,
+            "statistics": {
+                "total_count": len(order_blocks),
+                "bullish_count": bullish_count,
+                "bearish_count": bearish_count,
+                "touched_count": touched_count,
+                "untouched_count": len(order_blocks) - touched_count
+            },
+            "timestamp": timezone.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Order blocks hatası: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "order_blocks": []
+        }
+
+@router.get("/smc/fair-value-gaps")
+async def get_fair_value_gaps():
+    """Fair Value Gap'leri getir"""
+    try:
+        # Ana SMC analizini al
+        smc_result = await get_smc_analysis()
+        
+        if smc_result.get('status') != 'success':
+            return smc_result
+        
+        fvg_list = smc_result.get('fair_value_gaps', [])
+        current_price = smc_result.get('current_price', 0)
+        
+        # FVG'leri boyuta göre sırala (büyükten küçüğe)
+        for fvg in fvg_list:
+            fvg['distance_from_price'] = min(
+                abs(current_price - fvg['high']),
+                abs(current_price - fvg['low'])
+            ) / current_price * 100
+            fvg['price_in_gap'] = fvg['low'] <= current_price <= fvg['high']
+        
+        fvg_list.sort(key=lambda x: x['size_pct'], reverse=True)
+        
+        # İstatistikler
+        bullish_count = len([fvg for fvg in fvg_list if fvg['type'] == 'bullish'])
+        bearish_count = len([fvg for fvg in fvg_list if fvg['type'] == 'bearish'])
+        filled_count = len([fvg for fvg in fvg_list if fvg['filled']])
+        
+        return {
+            "status": "success",
+            "current_price": current_price,
+            "fair_value_gaps": fvg_list,
+            "statistics": {
+                "total_count": len(fvg_list),
+                "bullish_count": bullish_count,
+                "bearish_count": bearish_count,
+                "filled_count": filled_count,
+                "unfilled_count": len(fvg_list) - filled_count
+            },
+            "timestamp": timezone.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Fair Value Gaps hatası: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "fair_value_gaps": []
+        }
+
+@router.get("/smc/market-structure")
+async def get_market_structure():
+    """Market Structure bilgilerini getir"""
+    try:
+        # Ana SMC analizini al
+        smc_result = await get_smc_analysis()
+        
+        if smc_result.get('status') != 'success':
+            return smc_result
+        
+        market_structure = smc_result.get('market_structure', {})
+        current_price = smc_result.get('current_price', 0)
+        
+        # BOS/CHoCH seviye kontrolü
+        bos_status = None
+        choch_status = None
+        
+        if market_structure.get('bos_level'):
+            bos_distance = abs(current_price - market_structure['bos_level']) / current_price * 100
+            if market_structure['trend'] == 'bullish':
+                bos_status = "risk" if current_price < market_structure['bos_level'] else "safe"
+            elif market_structure['trend'] == 'bearish':
+                bos_status = "risk" if current_price > market_structure['bos_level'] else "safe"
+            else:
+                bos_status = "neutral"
+        
+        if market_structure.get('choch_level'):
+            choch_distance = abs(current_price - market_structure['choch_level']) / current_price * 100
+            if choch_distance < 1.0:  # %1'den yakın
+                choch_status = "near"
+            elif choch_distance < 3.0:  # %3'ten yakın
+                choch_status = "approaching"
+            else:
+                choch_status = "distant"
+        
+        return {
+            "status": "success",
+            "current_price": current_price,
+            "market_structure": market_structure,
+            "levels": {
+                "bos_level": market_structure.get('bos_level'),
+                "choch_level": market_structure.get('choch_level'),
+                "bos_status": bos_status,
+                "choch_status": choch_status
+            },
+            "structure_summary": {
+                "trend_strength": "strong" if (
+                    market_structure.get('higher_highs', 0) > 2 or 
+                    market_structure.get('lower_lows', 0) > 2
+                ) else "weak",
+                "trend_consistency": market_structure.get('trend') != 'ranging'
+            },
+            "timestamp": timezone.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Market structure hatası: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "market_structure": {}
+        }
