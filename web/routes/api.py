@@ -13,6 +13,7 @@ from utils import timezone
 from utils.log_manager import LogManager
 from web.utils import cache, stats
 from web.utils.formatters import parse_log_line
+from indicators.market_regime import calculate_market_regime_analysis
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
@@ -691,10 +692,37 @@ async def get_market_overview():
                 "currency_risk": analysis.get("currency_risk", {}).get("level")
             }
         
+        # Günlük en yüksek/en düşük
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT MIN(gram_altin), MAX(gram_altin)
+                FROM price_data
+                WHERE timestamp >= ?
+            """, (today_start,))
+            daily_range = cursor.fetchone()
+        
+        daily_range_data = {}
+        if daily_range and daily_range[0] and daily_range[1]:
+            daily_range_data = {
+                "low": float(daily_range[0]),
+                "high": float(daily_range[1])
+            }
+        
+        # Fiyatları direkt olarak da ekle (widget için)
+        prices_data = {
+            "gram_altin": float(latest.gram_altin) if latest.gram_altin else 0,
+            "ons_usd": float(latest.ons_usd) if latest.ons_usd else 0,
+            "usd_try": float(latest.usd_try) if latest.usd_try else 0
+        }
+        
         return {
             "timestamp": latest.timestamp.isoformat(),
-            "prices": changes,
+            "prices": prices_data,
+            "changes": changes,
             "analysis": trend_info,
+            "daily_range": daily_range_data,
             "last_update": timezone.format_for_display(latest.timestamp)
         }
         
@@ -1105,4 +1133,212 @@ async def get_realtime_performance():
             "open_positions": [],
             "recent_closed": [],
             "recent_signals": []
+        }
+
+@router.get("/market-regime")
+async def get_market_regime():
+    """Market Regime Detection analizi"""
+    cache_key = "market_regime"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    
+    try:
+        # Son 100 adet gram altın OHLC verisini al
+        candles = storage.generate_gram_candles(60, 100)  # 1 saatlik mumlar
+        
+        if not candles or len(candles) < 50:
+            return {
+                "status": "insufficient_data",
+                "message": "Market regime analizi için yetersiz veri",
+                "error": "En az 50 mum verisi gerekli"
+            }
+        
+        # DataFrame'e çevir
+        import pandas as pd
+        df_data = []
+        for candle in candles:
+            df_data.append({
+                "timestamp": candle.timestamp,
+                "open": float(candle.open),
+                "high": float(candle.high),
+                "low": float(candle.low),
+                "close": float(candle.close)
+            })
+        
+        df = pd.DataFrame(df_data)
+        df.set_index('timestamp', inplace=True)
+        
+        # Market regime analizi yap
+        regime_analysis = calculate_market_regime_analysis(df)
+        
+        if regime_analysis.get('status') == 'error':
+            return regime_analysis
+        
+        # Cache'e kaydet (2 dakika)
+        cache.set(cache_key, regime_analysis, ttl=120)
+        
+        return regime_analysis
+        
+    except Exception as e:
+        logger.error(f"Market regime analiz hatası: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "status": "error",
+            "message": str(e),
+            "error_type": "analysis_error"
+        }
+
+@router.get("/market-regime/history")
+async def get_market_regime_history(hours: int = 24):
+    """Market regime geçmişi (saatlik data)"""
+    try:
+        if hours > 168:  # Max 1 hafta
+            hours = 168
+            
+        regime_history = []
+        now = timezone.now()
+        
+        # Her saat için market regime hesapla (cache olmadan)
+        for i in range(hours):
+            hour_start = now - timedelta(hours=i+1)
+            hour_end = now - timedelta(hours=i)
+            
+            # O saatteki mumları al
+            with storage.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT open, high, low, close, timestamp
+                    FROM gram_altin_candles
+                    WHERE timestamp BETWEEN ? AND ?
+                    ORDER BY timestamp ASC
+                """, (hour_start.isoformat(), hour_end.isoformat()))
+                
+                hour_data = cursor.fetchall()
+                
+            if len(hour_data) >= 20:  # Minimum veri kontrolü
+                try:
+                    import pandas as pd
+                    df_data = []
+                    for row in hour_data:
+                        df_data.append({
+                            "open": float(row[0]),
+                            "high": float(row[1]),
+                            "low": float(row[2]),
+                            "close": float(row[3]),
+                            "timestamp": row[4]
+                        })
+                    
+                    df = pd.DataFrame(df_data)
+                    regime_result = calculate_market_regime_analysis(df)
+                    
+                    if regime_result.get('status') == 'success':
+                        regime_history.append({
+                            "timestamp": hour_end.isoformat(),
+                            "volatility_level": regime_result['volatility_regime']['level'],
+                            "trend_type": regime_result['trend_regime']['type'],
+                            "momentum_state": regime_result['momentum_regime']['state'],
+                            "overall_score": regime_result['overall_assessment']['overall_score'],
+                            "risk_level": regime_result['overall_assessment']['risk_level']
+                        })
+                except Exception as inner_e:
+                    logger.warning(f"Saat {i} için regime analizi hatası: {inner_e}")
+                    continue
+        
+        return {
+            "status": "success",
+            "history": regime_history,
+            "count": len(regime_history),
+            "period_hours": hours
+        }
+        
+    except Exception as e:
+        logger.error(f"Market regime history hatası: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "history": []
+        }
+
+@router.get("/market-regime/alerts")
+async def get_regime_alerts():
+    """Market regime uyarıları"""
+    try:
+        # Mevcut regime'i al
+        regime_response = await get_market_regime()
+        
+        if regime_response.get('status') != 'success':
+            return {"alerts": [], "status": "error"}
+        
+        alerts = []
+        regime = regime_response
+        
+        # Volatilite uyarıları
+        vol_regime = regime['volatility_regime']
+        if vol_regime['squeeze_potential']:
+            alerts.append({
+                "type": "VOLATILITY_SQUEEZE",
+                "level": "HIGH",
+                "message": "Volatilite sıkışması tespit edildi - Breakout bekleniyor",
+                "recommendation": "Pozisyon boyutunu azalt, breakout yönünü bekle"
+            })
+        elif vol_regime['level'] == 'extreme':
+            alerts.append({
+                "type": "EXTREME_VOLATILITY",
+                "level": "HIGH", 
+                "message": "Ekstrem volatilite seviyesi",
+                "recommendation": "Risk yönetimini sıkılaştır, stop loss'ları daralt"
+            })
+        
+        # Trend uyarıları
+        trend_regime = regime['trend_regime']
+        if trend_regime['breakout_potential']:
+            alerts.append({
+                "type": "BREAKOUT_POTENTIAL",
+                "level": "MEDIUM",
+                "message": "Breakout potansiyeli yüksek",
+                "recommendation": "Trend takip stratejisine hazır ol"
+            })
+        
+        # Momentum uyarıları
+        momentum_regime = regime['momentum_regime']
+        if momentum_regime['state'] == 'exhausted':
+            alerts.append({
+                "type": "MOMENTUM_EXHAUSTION",
+                "level": "HIGH",
+                "message": "Momentum tükenmesi - Reversal riski",
+                "recommendation": "Pozisyonları azalt, reversal sinyallerini izle"
+            })
+        elif momentum_regime['reversal_potential'] > 70:
+            alerts.append({
+                "type": "REVERSAL_WARNING",
+                "level": "MEDIUM",
+                "message": "Yüksek reversal potansiyeli",
+                "recommendation": "Counter-trend fırsatlarını değerlendir"
+            })
+        
+        # Regime transition uyarıları
+        transition = regime['regime_transition']
+        if transition['early_warning']:
+            alerts.append({
+                "type": "REGIME_TRANSITION",
+                "level": "MEDIUM",
+                "message": f"Regime değişimi yaklaşıyor: {transition['next_regime']}",
+                "recommendation": "Strateji parametrelerini gözden geçir"
+            })
+        
+        return {
+            "status": "success",
+            "alerts": alerts,
+            "count": len(alerts),
+            "timestamp": timezone.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Regime alerts hatası: {e}")
+        return {
+            "status": "error", 
+            "alerts": [],
+            "message": str(e)
         }

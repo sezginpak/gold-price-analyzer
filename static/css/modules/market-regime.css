@@ -1,0 +1,379 @@
+/* Market Regime Detection Styles */
+
+/* Market Regime Widget */
+.market-regime-widget {
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(75, 85, 99, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.regime-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.regime-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--gold-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.regime-status {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.regime-status.active {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.regime-status.warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.regime-status.alert {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* Regime Indicators Grid */
+.regime-indicators {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.regime-indicator {
+    background: rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(75, 85, 99, 0.4);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.regime-indicator:hover {
+    background: rgba(64, 73, 82, 0.8);
+    transform: translateY(-2px);
+}
+
+.regime-indicator-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.8;
+}
+
+.regime-indicator-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.regime-indicator-value {
+    font-size: 1.125rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.regime-indicator-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+}
+
+/* Volatility Levels */
+.volatility-very-low { color: #06b6d4; }
+.volatility-low { color: #10b981; }
+.volatility-medium { color: #f59e0b; }
+.volatility-high { color: #f97316; }
+.volatility-extreme { color: #ef4444; }
+
+/* Trend Types */
+.trend-trending { color: #10b981; }
+.trend-ranging { color: #f59e0b; }
+.trend-transitioning { color: #8b5cf6; }
+
+/* Momentum States */
+.momentum-accelerating { color: #10b981; }
+.momentum-stable { color: #06b6d4; }
+.momentum-decelerating { color: #f59e0b; }
+.momentum-exhausted { color: #ef4444; }
+
+/* Gauge Charts */
+.regime-gauge {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 1rem;
+}
+
+.gauge-bg {
+    stroke: rgba(75, 85, 99, 0.3);
+    fill: none;
+    stroke-width: 8;
+}
+
+.gauge-fill {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.5s ease, stroke 0.3s ease;
+}
+
+.gauge-text {
+    text-anchor: middle;
+    dominant-baseline: central;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+/* Adaptive Parameters Table */
+.adaptive-params {
+    background: rgba(51, 65, 85, 0.4);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.adaptive-params h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gold-primary);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.params-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.param-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(75, 85, 99, 0.2);
+}
+
+.param-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.param-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Regime Transition Alerts */
+.transition-alert {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.transition-alert::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b);
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.transition-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.transition-icon {
+    font-size: 1.25rem;
+    color: #f59e0b;
+}
+
+.transition-text {
+    flex: 1;
+}
+
+.transition-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #f59e0b;
+    margin-bottom: 0.25rem;
+}
+
+.transition-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Regime History Chart */
+.regime-history-container {
+    background: rgba(51, 65, 85, 0.4);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.regime-history-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.regime-history-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.regime-history-btn {
+    padding: 0.25rem 0.75rem;
+    border: 1px solid rgba(75, 85, 99, 0.5);
+    background: rgba(30, 41, 59, 0.6);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.regime-history-btn:hover {
+    background: rgba(51, 65, 85, 0.8);
+}
+
+.regime-history-btn.active {
+    background: var(--gold-primary);
+    color: #1e293b;
+    border-color: var(--gold-primary);
+}
+
+/* Alert Badges */
+.regime-alerts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.regime-alert-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.regime-alert-badge.high {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.regime-alert-badge.medium {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.regime-alert-badge.low {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .regime-indicators {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .regime-indicator {
+        padding: 0.75rem;
+    }
+    
+    .regime-gauge {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .params-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .regime-history-controls {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .market-regime-widget {
+        padding: 1rem;
+    }
+    
+    .regime-indicators {
+        grid-template-columns: 1fr;
+    }
+    
+    .regime-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+
+/* Animation for regime changes */
+.regime-change-animation {
+    animation: regimeChange 0.5s ease-in-out;
+}
+
+@keyframes regimeChange {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Pulse effect for active alerts */
+.regime-alert-pulse {
+    animation: alertPulse 2s ease-in-out infinite;
+}
+
+@keyframes alertPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}

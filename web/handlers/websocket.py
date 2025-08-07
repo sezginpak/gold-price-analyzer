@@ -8,6 +8,8 @@ import logging
 from datetime import timedelta
 from storage.sqlite_storage import SQLiteStorage
 from utils import timezone
+from indicators.market_regime import calculate_market_regime_analysis
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +133,51 @@ class WebSocketManager:
         except Exception as e:
             logger.error(f"Performance update error: {e}")
     
+    async def send_market_regime_update(self, websocket: WebSocket):
+        """Market regime güncellemesi gönder"""
+        try:
+            # Son 100 adet gram altın OHLC verisini al
+            candles = self.storage.generate_gram_candles(60, 100)  # 1 saatlik mumlar
+            
+            if not candles or len(candles) < 50:
+                return
+            
+            # DataFrame'e çevir
+            df_data = []
+            for candle in candles:
+                df_data.append({
+                    "timestamp": candle.timestamp,
+                    "open": float(candle.open),
+                    "high": float(candle.high),
+                    "low": float(candle.low),
+                    "close": float(candle.close)
+                })
+            
+            df = pd.DataFrame(df_data)
+            df.set_index('timestamp', inplace=True)
+            
+            # Market regime analizi yap
+            regime_analysis = calculate_market_regime_analysis(df)
+            
+            if regime_analysis.get('status') == 'success':
+                data = {
+                    "type": "market_regime_update",
+                    "data": {
+                        "volatility_regime": regime_analysis['volatility_regime'],
+                        "trend_regime": regime_analysis['trend_regime'],
+                        "momentum_regime": regime_analysis['momentum_regime'],
+                        "adaptive_parameters": regime_analysis['adaptive_parameters'],
+                        "regime_transition": regime_analysis['regime_transition'],
+                        "overall_assessment": regime_analysis['overall_assessment'],
+                        "recommendations": regime_analysis['recommendations'],
+                        "timestamp": timezone.now().isoformat()
+                    }
+                }
+                await websocket.send_json(data)
+                
+        except Exception as e:
+            logger.error(f"Market regime update error: {e}")
+    
     async def broadcast_price_update(self):
         """Tüm bağlantılara fiyat güncellemesi gönder"""
         disconnected = []
@@ -155,6 +202,21 @@ class WebSocketManager:
                 await self.send_performance_update(connection)
             except Exception as e:
                 logger.error(f"WebSocket performance broadcast error: {e}")
+                disconnected.append(connection)
+        
+        # Bağlantısı kopan WebSocket'leri listeden çıkar
+        for ws in disconnected:
+            self.disconnect(ws)
+    
+    async def broadcast_market_regime_update(self):
+        """Tüm bağlantılara market regime güncellemesi gönder"""
+        disconnected = []
+        
+        for connection in self.active_connections:
+            try:
+                await self.send_market_regime_update(connection)
+            except Exception as e:
+                logger.error(f"WebSocket market regime broadcast error: {e}")
                 disconnected.append(connection)
         
         # Bağlantısı kopan WebSocket'leri listeden çıkar
@@ -187,6 +249,7 @@ class WebSocketManager:
             # İlk bağlantıda mevcut verileri gönder
             await self.send_price_update(websocket)
             await self.send_performance_update(websocket)
+            await self.send_market_regime_update(websocket)
             
             while True:
                 # Her 5 saniyede bir fiyat güncellemesi
@@ -196,6 +259,10 @@ class WebSocketManager:
                 # Her 30 saniyede bir performans güncellemesi
                 if int(asyncio.get_event_loop().time()) % 30 == 0:
                     await self.send_performance_update(websocket)
+                
+                # Her 2 dakikada bir market regime güncellemesi
+                if int(asyncio.get_event_loop().time()) % 120 == 0:
+                    await self.send_market_regime_update(websocket)
                 
         except Exception as e:
             logger.error(f"WebSocket error: {e}")

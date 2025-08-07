@@ -5,6 +5,10 @@
 {% block extra_head %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="/static/js/dashboard-fixes.js"></script>
+    <script src="/static/js/performance-optimizations.js"></script>
+    <script src="/static/js/market-regime.js"></script>
+    <link rel="stylesheet" href="/static/css/modules/market-regime.css">
 {% endblock %}
 
 {% block content %}
@@ -121,6 +125,76 @@
                         <span class="text-xs text-gray-400">Kur Riski:</span>
                         <span class="ml-2 font-semibold" id="mo-risk">-</span>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Regime Detection Widget -->
+    <div id="market-regime-widget" class="market-regime-widget" style="display: none;">
+        <div class="regime-header">
+            <h2 class="regime-title">
+                <i class="fas fa-brain text-purple-400"></i>
+                Market Rejim Analizi
+            </h2>
+            <div class="regime-status active" id="regime-status">Yükleniyor...</div>
+        </div>
+        
+        <!-- Transition Alert -->
+        <div id="transition-alert" class="transition-alert" style="display: none;"></div>
+        
+        <!-- Main Indicators -->
+        <div class="regime-indicators">
+            <!-- Volatilite Göstergesi -->
+            <div id="volatility-indicator" class="regime-indicator">
+                <div class="regime-indicator-icon">
+                    <i class="fas fa-wave-square text-cyan-400"></i>
+                </div>
+                <div class="regime-indicator-label">Volatilite</div>
+                <div class="regime-indicator-value">-</div>
+                <div class="regime-indicator-desc">Yükleniyor...</div>
+                <svg class="regime-gauge" id="volatility-gauge" width="120" height="120" style="display: none;">
+                </svg>
+            </div>
+            
+            <!-- Trend Göstergesi -->
+            <div id="trend-indicator" class="regime-indicator">
+                <div class="regime-indicator-icon">
+                    <i class="fas fa-chart-line text-green-400"></i>
+                </div>
+                <div class="regime-indicator-label">Trend Tipi</div>
+                <div class="regime-indicator-value">-</div>
+                <div class="regime-indicator-desc">Yükleniyor...</div>
+                <svg class="regime-gauge" id="trend-gauge" width="120" height="120" style="display: none;">
+                </svg>
+            </div>
+            
+            <!-- Momentum Göstergesi -->
+            <div id="momentum-indicator" class="regime-indicator">
+                <div class="regime-indicator-icon">
+                    <i class="fas fa-tachometer-alt text-orange-400"></i>
+                </div>
+                <div class="regime-indicator-label">Momentum</div>
+                <div class="regime-indicator-value">-</div>
+                <div class="regime-indicator-desc">Yükleniyor...</div>
+                <svg class="regime-gauge" id="momentum-gauge" width="120" height="120" style="display: none;">
+                </svg>
+            </div>
+        </div>
+        
+        <!-- Regime Alerts -->
+        <div id="regime-alerts" class="regime-alerts" style="display: none;"></div>
+        
+        <!-- Adaptive Parameters -->
+        <div class="adaptive-params">
+            <h4>
+                <i class="fas fa-cogs mr-2"></i>
+                Adaptive Parametreler
+            </h4>
+            <div id="adaptive-params-grid" class="params-grid">
+                <div class="param-item">
+                    <span class="param-label">Yükleniyor...</span>
+                    <span class="param-value">-</span>
                 </div>
             </div>
         </div>

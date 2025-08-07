@@ -3,6 +3,8 @@
 {% block title %}Hibrit Analiz Detayları - Dezy - Gold Price Analyzer{% endblock %}
 
 {% block extra_head %}
+    <link rel="stylesheet" href="/static/css/modules/market-regime.css">
+    <script src="/static/js/market-regime.js"></script>
     <style>
         .indicator-box {
             background: rgba(55, 65, 81, 0.5);
@@ -337,6 +339,158 @@
                 <div class="bg-slate-800/50 rounded-lg p-3 text-center">
                     <p class="text-gray-400 text-xs lg:text-sm">Volatilite %</p>
                     <p class="text-base lg:text-xl font-bold" id="market-volatility">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Regime Detection -->
+        <div class="market-regime-widget mb-6">
+            <div class="regime-header">
+                <h2 class="regime-title">
+                    <i class="fas fa-brain text-purple-400"></i>
+                    Market Rejim Analizi
+                </h2>
+                <div class="regime-status active" id="analysis-regime-status">Yükleniyor...</div>
+            </div>
+            
+            <!-- Transition Alert -->
+            <div id="analysis-transition-alert" class="transition-alert" style="display: none;"></div>
+            
+            <!-- Detailed Regime Analysis -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                <!-- Volatilite Detay -->
+                <div class="regime-indicator">
+                    <div class="regime-indicator-icon">
+                        <i class="fas fa-wave-square text-cyan-400"></i>
+                    </div>
+                    <div class="regime-indicator-label">Volatilite Rejimi</div>
+                    <div class="regime-indicator-value" id="analysis-volatility-level">-</div>
+                    <div class="regime-indicator-desc" id="analysis-volatility-desc">Yükleniyor...</div>
+                    <svg class="regime-gauge" id="analysis-volatility-gauge" width="120" height="120">
+                    </svg>
+                </div>
+                
+                <!-- Trend Detay -->
+                <div class="regime-indicator">
+                    <div class="regime-indicator-icon">
+                        <i class="fas fa-chart-line text-green-400"></i>
+                    </div>
+                    <div class="regime-indicator-label">Trend Rejimi</div>
+                    <div class="regime-indicator-value" id="analysis-trend-type">-</div>
+                    <div class="regime-indicator-desc" id="analysis-trend-desc">Yükleniyor...</div>
+                    <svg class="regime-gauge" id="analysis-trend-gauge" width="120" height="120">
+                    </svg>
+                </div>
+                
+                <!-- Momentum Detay -->
+                <div class="regime-indicator">
+                    <div class="regime-indicator-icon">
+                        <i class="fas fa-tachometer-alt text-orange-400"></i>
+                    </div>
+                    <div class="regime-indicator-label">Momentum Rejimi</div>
+                    <div class="regime-indicator-value" id="analysis-momentum-state">-</div>
+                    <div class="regime-indicator-desc" id="analysis-momentum-desc">Yükleniyor...</div>
+                    <svg class="regime-gauge" id="analysis-momentum-gauge" width="120" height="120">
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Regime Alerts -->
+            <div id="analysis-regime-alerts" class="regime-alerts" style="display: none;"></div>
+            
+            <!-- Regime History Chart -->
+            <div class="regime-history-container">
+                <div class="regime-history-header">
+                    <h4 class="text-sm font-semibold text-yellow-400 mb-2">
+                        <i class="fas fa-history mr-2"></i>
+                        Rejim Geçmişi
+                    </h4>
+                    <div class="regime-history-controls">
+                        <button class="regime-history-btn active" data-period="6">6 Saat</button>
+                        <button class="regime-history-btn" data-period="12">12 Saat</button>
+                        <button class="regime-history-btn" data-period="24">24 Saat</button>
+                        <button class="regime-history-btn" data-period="48">48 Saat</button>
+                    </div>
+                </div>
+                <div style="position: relative; height: 200px;">
+                    <canvas id="analysis-regime-history-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Detailed Adaptive Parameters -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                <div class="adaptive-params">
+                    <h4>
+                        <i class="fas fa-cogs mr-2"></i>
+                        RSI Adaptive Parametreler
+                    </h4>
+                    <div id="analysis-rsi-params" class="params-grid">
+                        <div class="param-item">
+                            <span class="param-label">Aşırı Alım</span>
+                            <span class="param-value" id="analysis-rsi-overbought">-</span>
+                        </div>
+                        <div class="param-item">
+                            <span class="param-label">Aşırı Satım</span>
+                            <span class="param-value" id="analysis-rsi-oversold">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="adaptive-params">
+                    <h4>
+                        <i class="fas fa-sliders-h mr-2"></i>
+                        Risk Yönetimi Parametreleri
+                    </h4>
+                    <div id="analysis-risk-params" class="params-grid">
+                        <div class="param-item">
+                            <span class="param-label">Stop Loss Çarpan</span>
+                            <span class="param-value" id="analysis-stop-multiplier">-</span>
+                        </div>
+                        <div class="param-item">
+                            <span class="param-label">Take Profit Çarpan</span>
+                            <span class="param-value" id="analysis-tp-multiplier">-</span>
+                        </div>
+                        <div class="param-item">
+                            <span class="param-label">Pozisyon Ayarı</span>
+                            <span class="param-value" id="analysis-position-adjustment">-</span>
+                        </div>
+                        <div class="param-item">
+                            <span class="param-label">Sinyal Eşiği</span>
+                            <span class="param-value" id="analysis-signal-threshold">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Regime Recommendations -->
+            <div class="mt-4 pt-4 border-t border-gray-600">
+                <h4 class="font-semibold mb-2 text-sm lg:text-base flex items-center">
+                    <i class="fas fa-lightbulb mr-2 text-yellow-400"></i>
+                    Rejim Bazlı Öneriler
+                </h4>
+                <div id="analysis-regime-recommendations" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <div class="text-xs text-gray-400 mb-1">Strateji</div>
+                        <div class="text-sm font-semibold" id="analysis-strategy-recommendation">Yükleniyor...</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <div class="text-xs text-gray-400 mb-1">Pozisyon Boyutu</div>
+                        <div class="text-sm font-semibold" id="analysis-position-recommendation">Yükleniyor...</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <div class="text-xs text-gray-400 mb-1">Zaman Ufku</div>
+                        <div class="text-sm font-semibold" id="analysis-timeframe-recommendation">Yükleniyor...</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-3">
+                        <div class="text-xs text-gray-400 mb-1">Piyasa Fazı</div>
+                        <div class="text-sm font-semibold" id="analysis-phase-recommendation">Yükleniyor...</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="text-xs text-gray-400 mb-1">Uyarılar ve Fırsatlar</div>
+                    <div id="analysis-warnings-opportunities" class="text-xs text-gray-300 bg-slate-800/30 rounded p-2">
+                        Yükleniyor...
+                    </div>
                 </div>
             </div>
         </div>
