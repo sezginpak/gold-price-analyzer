@@ -8,7 +8,9 @@
     <script src="/static/js/dashboard-fixes.js"></script>
     <script src="/static/js/performance-optimizations.js"></script>
     <script src="/static/js/market-regime.js"></script>
+    <script src="/static/js/divergence.js"></script>
     <link rel="stylesheet" href="/static/css/modules/market-regime.css">
+    <link rel="stylesheet" href="/static/css/modules/divergence.css">
 {% endblock %}
 
 {% block content %}
@@ -247,6 +249,87 @@
             <div class="market-overview__item">
                 <span class="market-overview__label">Stochastic</span>
                 <span class="market-overview__value" id="stoch-value">-</span>
+            </div>
+        </div>
+
+        <!-- Divergence Detection Widget -->
+        <div id="divergence-widget" class="divergence-widget mb-6">
+            <div class="divergence-widget-header">
+                <h2 class="divergence-widget-title">
+                    <i class="fas fa-wave-square"></i>
+                    Divergence Analizi
+                </h2>
+                <div id="divergence-status" class="divergence-status inactive">Yükleniyor...</div>
+            </div>
+            
+            <!-- Divergence Summary -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-yellow-400" id="divergence-active-count">0</div>
+                    <div class="text-xs text-gray-400">Aktif Divergence</div>
+                </div>
+                <div class="confluence-score">
+                    <div class="confluence-value" id="confluence-score">0</div>
+                    <div class="confluence-label">Confluence</div>
+                </div>
+            </div>
+            
+            <!-- Class Badges -->
+            <div class="flex justify-center gap-2 mb-4">
+                <div class="divergence-class class-a">
+                    A <span id="class-a-count">0</span>
+                </div>
+                <div class="divergence-class class-b">
+                    B <span id="class-b-count">0</span>
+                </div>
+                <div class="divergence-class class-c">
+                    C <span id="class-c-count">0</span>
+                </div>
+            </div>
+            
+            <!-- Confluence Gauge -->
+            <div class="confluence-gauge" id="confluence-gauge" style="height: 120px; margin: 1rem 0;">
+                <!-- Canvas element will be added by JavaScript -->
+            </div>
+            
+            <!-- Dominant Divergence -->
+            <div class="mb-4">
+                <h4 class="text-sm font-semibold text-gray-300 mb-2">
+                    <i class="fas fa-crown text-yellow-400 mr-1"></i>
+                    Dominant Divergence
+                </h4>
+                <div id="dominant-divergence" class="text-center">
+                    <div class="text-gray-400 text-sm">Yükleniyor...</div>
+                </div>
+            </div>
+            
+            <!-- Mini Divergence List -->
+            <div class="mb-4">
+                <h4 class="text-sm font-semibold text-gray-300 mb-2">
+                    <i class="fas fa-list text-blue-400 mr-1"></i>
+                    En Güçlü Divergence'lar
+                </h4>
+                <div id="mini-divergence-list" class="divergence-loading">
+                    <div class="loading-spinner"></div>
+                    Yükleniyor...
+                </div>
+            </div>
+            
+            <!-- Divergence Actions -->
+            <div class="flex gap-2 mt-4">
+                <button id="refresh-divergence" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition">
+                    <i class="fas fa-sync-alt mr-1"></i>
+                    Yenile
+                </button>
+                <a href="/analysis#divergence" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm transition text-center">
+                    <i class="fas fa-chart-line mr-1"></i>
+                    Detay
+                </a>
+            </div>
+            
+            <!-- Divergence Alerts Container -->
+            <div id="divergence-alerts" class="mt-4">
+                <!-- Dynamic alerts will be added here -->
             </div>
         </div>
 

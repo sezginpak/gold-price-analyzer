@@ -178,6 +178,76 @@ class WebSocketManager:
         except Exception as e:
             logger.error(f"Market regime update error: {e}")
     
+    async def send_divergence_update(self, websocket: WebSocket):
+        """Divergence analizi güncellemesi gönder"""
+        try:
+            from indicators.divergence_detector import calculate_divergence_analysis
+            
+            # Son 200 adet gram altın OHLC verisini al
+            candles = self.storage.generate_gram_candles(60, 200)  # 1 saatlik mumlar
+            
+            if not candles or len(candles) < 50:
+                return
+            
+            # DataFrame'e çevir
+            df_data = []
+            for candle in candles:
+                df_data.append({
+                    "open": float(candle.open),
+                    "high": float(candle.high),
+                    "low": float(candle.low),
+                    "close": float(candle.close)
+                })
+            
+            df = pd.DataFrame(df_data)
+            
+            # Divergence analizi yap
+            divergence_result = calculate_divergence_analysis(df)
+            
+            if divergence_result.get('status') == 'success':
+                # Aktif divergence'ları filtrele
+                active_divergences = []
+                
+                # Regular ve hidden divergences
+                all_divs = (divergence_result.get('regular_divergences', []) + 
+                           divergence_result.get('hidden_divergences', []))
+                
+                for div in all_divs:
+                    if not div.get('invalidated', False):
+                        active_divergences.append({
+                            "type": div['type'],
+                            "indicator": div['indicator'],
+                            "strength": div['strength'],
+                            "class_rating": div['class_rating'],
+                            "success_probability": div['success_probability'],
+                            "maturity_score": div.get('maturity_score', 0)
+                        })
+                
+                # İstatistikler
+                class_counts = {"A": 0, "B": 0, "C": 0}
+                for div in active_divergences:
+                    class_counts[div['class_rating']] += 1
+                
+                data = {
+                    "type": "divergence_update",
+                    "data": {
+                        "active_count": len(active_divergences),
+                        "class_counts": class_counts,
+                        "confluence_score": divergence_result.get('confluence_score', 0),
+                        "overall_signal": divergence_result.get('overall_signal', 'NEUTRAL'),
+                        "signal_strength": divergence_result.get('signal_strength', 0),
+                        "dominant_divergence": divergence_result.get('dominant_divergence'),
+                        "active_divergences": active_divergences[:5],  # En güçlü 5 tanesi
+                        "next_targets": divergence_result.get('next_targets', []),
+                        "invalidation_levels": divergence_result.get('invalidation_levels', []),
+                        "timestamp": timezone.now().isoformat()
+                    }
+                }
+                await websocket.send_json(data)
+                
+        except Exception as e:
+            logger.error(f"Divergence update error: {e}")
+    
     async def broadcast_price_update(self):
         """Tüm bağlantılara fiyat güncellemesi gönder"""
         disconnected = []
@@ -250,6 +320,7 @@ class WebSocketManager:
             await self.send_price_update(websocket)
             await self.send_performance_update(websocket)
             await self.send_market_regime_update(websocket)
+            await self.send_divergence_update(websocket)
             
             while True:
                 # Her 5 saniyede bir fiyat güncellemesi
@@ -263,6 +334,10 @@ class WebSocketManager:
                 # Her 2 dakikada bir market regime güncellemesi
                 if int(asyncio.get_event_loop().time()) % 120 == 0:
                     await self.send_market_regime_update(websocket)
+                
+                # Her 3 dakikada bir divergence güncellemesi
+                if int(asyncio.get_event_loop().time()) % 180 == 0:
+                    await self.send_divergence_update(websocket)
                 
         except Exception as e:
             logger.error(f"WebSocket error: {e}")

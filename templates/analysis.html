@@ -4,7 +4,10 @@
 
 {% block extra_head %}
     <link rel="stylesheet" href="/static/css/modules/market-regime.css">
+    <link rel="stylesheet" href="/static/css/modules/divergence.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/js/market-regime.js"></script>
+    <script src="/static/js/divergence.js"></script>
     <style>
         .indicator-box {
             background: rgba(55, 65, 81, 0.5);
@@ -1214,4 +1217,203 @@
         // Her 30 saniyede bir güncelle
         setInterval(loadHybridAnalysisData, 30000);
     </script>
+    
+    <!-- Advanced Divergence Detection Section -->
+    <div id="divergence" class="mt-12 px-4 sm:px-6 lg:px-8">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold mb-2">
+                <i class="fas fa-wave-square text-purple-400 mr-3"></i>
+                Advanced Divergence Detection
+            </h1>
+            <p class="text-gray-400">Çoklu gösterge tabanlı divergence analizi ve confluence scoring sistemi</p>
+        </div>
+
+        <!-- Divergence Overview Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <!-- Active Divergences Card -->
+            <div class="divergence-widget">
+                <div class="divergence-widget-header">
+                    <h3 class="text-lg font-semibold">
+                        <i class="fas fa-signal text-green-400"></i>
+                        Aktif Divergence
+                    </h3>
+                    <div id="analysis-divergence-status" class="divergence-status inactive">Yükleniyor</div>
+                </div>
+                <div class="text-center mt-4">
+                    <div class="text-4xl font-bold text-yellow-400 mb-2" id="analysis-active-count">0</div>
+                    <div class="text-sm text-gray-400">Toplam Aktif</div>
+                </div>
+            </div>
+
+            <!-- Class Distribution -->
+            <div class="divergence-widget">
+                <div class="divergence-widget-header">
+                    <h3 class="text-lg font-semibold">
+                        <i class="fas fa-layer-group text-blue-400"></i>
+                        Sınıf Dağılımı
+                    </h3>
+                </div>
+                <div class="flex justify-center gap-3 mt-4">
+                    <div class="text-center">
+                        <div class="divergence-class class-a text-lg">
+                            A <span id="analysis-class-a">0</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">Güçlü</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="divergence-class class-b text-lg">
+                            B <span id="analysis-class-b">0</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">Orta</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="divergence-class class-c text-lg">
+                            C <span id="analysis-class-c">0</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">Zayıf</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signal Strength -->
+            <div class="divergence-widget">
+                <div class="divergence-widget-header">
+                    <h3 class="text-lg font-semibold">
+                        <i class="fas fa-tachometer-alt text-orange-400"></i>
+                        Sinyal Gücü
+                    </h3>
+                </div>
+                <div class="mt-4">
+                    <div id="overall-strength-gauge" style="height: 120px;">
+                        <!-- Gauge will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confluence Score -->
+            <div class="divergence-widget">
+                <div class="divergence-widget-header">
+                    <h3 class="text-lg font-semibold">
+                        <i class="fas fa-crosshairs text-purple-400"></i>
+                        Confluence Score
+                    </h3>
+                </div>
+                <div class="mt-4">
+                    <div id="confluence-strength-gauge" style="height: 120px;">
+                        <!-- Gauge will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Divergence Table -->
+        <div class="divergence-widget mb-8">
+            <div class="divergence-widget-header">
+                <h2 class="text-xl font-bold">
+                    <i class="fas fa-table text-indigo-400"></i>
+                    Detaylı Divergence Tablosu
+                </h2>
+                <button id="refresh-detailed-divergence" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                    <i class="fas fa-sync-alt mr-1"></i>
+                    Yenile
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto mt-4">
+                <table id="detailed-divergence-table" class="divergence-table w-full">
+                    <thead>
+                        <tr class="border-b border-gray-600">
+                            <th class="text-left">#</th>
+                            <th class="text-left">Tür</th>
+                            <th class="text-left">Gösterge</th>
+                            <th class="text-left">Sınıf</th>
+                            <th class="text-left">Güç</th>
+                            <th class="text-left">Olgunluk</th>
+                            <th class="text-left">Başarı Oranı</th>
+                            <th class="text-left">Açı Farkı</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="8" class="text-center py-8 text-gray-400">
+                                <div class="divergence-loading">
+                                    <div class="loading-spinner"></div>
+                                    Yükleniyor...
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Target and Invalidation Levels -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Target Levels -->
+            <div class="divergence-widget">
+                <div class="divergence-widget-header">
+                    <h3 class="text-lg font-semibold target-levels">
+                        <i class="fas fa-bullseye text-green-400"></i>
+                        Hedef Seviyeleri
+                    </h3>
+                </div>
+                <div class="price-level-group target-levels mt-4">
+                    <div id="target-levels" class="space-y-2">
+                        <div class="text-gray-400 text-sm text-center py-4">Yükleniyor...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invalidation Levels -->
+            <div class="divergence-widget">
+                <div class="divergence-widget-header">
+                    <h3 class="text-lg font-semibold invalidation-levels">
+                        <i class="fas fa-times-circle text-red-400"></i>
+                        Geçersizleştirici Seviyeler
+                    </h3>
+                </div>
+                <div class="price-level-group invalidation-levels mt-4">
+                    <div id="invalidation-levels" class="space-y-2">
+                        <div class="text-gray-400 text-sm text-center py-4">Yükleniyor...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historical Success Rate Chart -->
+        <div class="divergence-widget mb-8">
+            <div class="divergence-widget-header">
+                <h2 class="text-xl font-bold">
+                    <i class="fas fa-chart-area text-cyan-400"></i>
+                    Tarihsel Performans
+                </h2>
+                <div class="flex gap-2">
+                    <select id="history-period" class="bg-gray-700 text-white px-3 py-1 rounded text-sm border border-gray-600">
+                        <option value="24">24 Saat</option>
+                        <option value="48">48 Saat</option>
+                        <option value="168">7 Gün</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="divergence-history-chart mt-4">
+                <canvas id="divergence-history-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Current Divergence Alerts -->
+        <div class="divergence-widget">
+            <div class="divergence-widget-header">
+                <h2 class="text-xl font-bold">
+                    <i class="fas fa-bell text-yellow-400"></i>
+                    Aktif Uyarılar
+                </h2>
+                <div id="alert-count-badge" class="bg-red-600 text-white px-2 py-1 rounded-full text-xs">0</div>
+            </div>
+            
+            <div id="analysis-divergence-alerts" class="mt-4 space-y-2">
+                <div class="text-gray-400 text-sm text-center py-4">Uyarı yükleniyor...</div>
+            </div>
+        </div>
+    </div>
 {% endblock %}

@@ -1342,3 +1342,337 @@ async def get_regime_alerts():
             "alerts": [],
             "message": str(e)
         }
+
+@router.get("/divergence")
+async def get_divergence_analysis():
+    """Advanced Divergence Detection analizi"""
+    cache_key = "divergence_analysis"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    
+    try:
+        from indicators.divergence_detector import calculate_divergence_analysis
+        import pandas as pd
+        
+        # Son 200 adet gram altın OHLC verisini al
+        candles = storage.generate_gram_candles(60, 200)  # 1 saatlik mumlar
+        
+        if not candles or len(candles) < 50:
+            return {
+                "status": "insufficient_data",
+                "message": "Divergence analizi için yetersiz veri",
+                "error": "En az 50 mum verisi gerekli"
+            }
+        
+        # DataFrame'e çevir
+        df_data = []
+        for candle in candles:
+            df_data.append({
+                "open": float(candle.open),
+                "high": float(candle.high),
+                "low": float(candle.low),
+                "close": float(candle.close)
+            })
+        
+        df = pd.DataFrame(df_data)
+        
+        # Divergence analizi yap
+        divergence_result = calculate_divergence_analysis(df)
+        
+        if divergence_result.get('status') == 'error':
+            return divergence_result
+        
+        # Veritabanına kaydet (isteğe bağlı)
+        try:
+            with storage.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO divergence_analysis 
+                    (timestamp, analysis_data, overall_signal, signal_strength, confluence_score)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    timezone.now().isoformat(),
+                    json.dumps(divergence_result),
+                    divergence_result.get('overall_signal', 'NEUTRAL'),
+                    divergence_result.get('signal_strength', 0),
+                    divergence_result.get('confluence_score', 0)
+                ))
+                conn.commit()
+        except Exception as db_error:
+            logger.warning(f"Divergence analizi veritabanına kaydedilemedi: {db_error}")
+        
+        # Cache'e kaydet (5 dakika)
+        cache.set(cache_key, divergence_result, ttl=300)
+        
+        return divergence_result
+        
+    except Exception as e:
+        logger.error(f"Divergence analiz hatası: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "status": "error",
+            "message": str(e),
+            "error_type": "analysis_error"
+        }
+
+@router.get("/divergence/active")
+async def get_active_divergences():
+    """Aktif divergence'ları getir"""
+    try:
+        # Ana divergence analizini al
+        divergence_result = await get_divergence_analysis()
+        
+        if divergence_result.get('status') != 'success':
+            return divergence_result
+        
+        # Aktif divergence'ları filtrele
+        active_divergences = []
+        
+        # Regular divergences
+        for div in divergence_result.get('regular_divergences', []):
+            if not div.get('invalidated', False):
+                active_divergences.append({
+                    "type": "regular",
+                    "direction": "bullish" if "bullish" in div['type'] else "bearish",
+                    "indicator": div['indicator'],
+                    "strength": div['strength'],
+                    "class_rating": div['class_rating'],
+                    "success_probability": div['success_probability'],
+                    "maturity_score": div.get('maturity_score', 0),
+                    "angle_difference": div['angle_difference'],
+                    "price_points": div['price_points'],
+                    "indicator_points": div['indicator_points']
+                })
+        
+        # Hidden divergences
+        for div in divergence_result.get('hidden_divergences', []):
+            if not div.get('invalidated', False):
+                active_divergences.append({
+                    "type": "hidden",
+                    "direction": "bullish" if "bullish" in div['type'] else "bearish",
+                    "indicator": div['indicator'],
+                    "strength": div['strength'],
+                    "class_rating": div['class_rating'],
+                    "success_probability": div['success_probability'],
+                    "maturity_score": div.get('maturity_score', 0),
+                    "angle_difference": div['angle_difference'],
+                    "price_points": div['price_points'],
+                    "indicator_points": div['indicator_points']
+                })
+        
+        # Sınıf ve güçe göre sırala
+        active_divergences.sort(key=lambda x: (
+            {"A": 3, "B": 2, "C": 1}.get(x['class_rating'], 0),
+            x['strength']
+        ), reverse=True)
+        
+        # İstatistikler
+        class_counts = {"A": 0, "B": 0, "C": 0}
+        direction_counts = {"bullish": 0, "bearish": 0}
+        
+        for div in active_divergences:
+            class_counts[div['class_rating']] += 1
+            direction_counts[div['direction']] += 1
+        
+        return {
+            "status": "success",
+            "active_divergences": active_divergences,
+            "statistics": {
+                "total_count": len(active_divergences),
+                "class_counts": class_counts,
+                "direction_counts": direction_counts,
+                "confluence_score": divergence_result.get('confluence_score', 0),
+                "dominant_divergence": divergence_result.get('dominant_divergence'),
+                "overall_signal": divergence_result.get('overall_signal', 'NEUTRAL'),
+                "signal_strength": divergence_result.get('signal_strength', 0)
+            },
+            "targets": divergence_result.get('next_targets', []),
+            "invalidation_levels": divergence_result.get('invalidation_levels', []),
+            "timestamp": timezone.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Aktif divergence hatası: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "active_divergences": [],
+            "statistics": {}
+        }
+
+@router.get("/divergence/history")
+async def get_divergence_history(hours: int = 24, limit: int = 100):
+    """Divergence geçmişi"""
+    try:
+        if hours > 168:  # Max 1 hafta
+            hours = 168
+        if limit > 500:  # Max 500 kayıt
+            limit = 500
+            
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Divergence analiz tablosu varsa oradan al
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='divergence_analysis'
+            """)
+            
+            if cursor.fetchone():
+                # Divergence tablosu var
+                since_time = timezone.now() - timedelta(hours=hours)
+                
+                cursor.execute("""
+                    SELECT timestamp, analysis_data, overall_signal, 
+                           signal_strength, confluence_score
+                    FROM divergence_analysis
+                    WHERE timestamp >= ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """, (since_time.isoformat(), limit))
+                
+                history = []
+                for row in cursor.fetchall():
+                    timestamp, analysis_data, signal, strength, confluence = row
+                    
+                    try:
+                        analysis = json.loads(analysis_data) if analysis_data else {}
+                        history.append({
+                            "timestamp": timestamp,
+                            "overall_signal": signal,
+                            "signal_strength": float(strength) if strength else 0,
+                            "confluence_score": float(confluence) if confluence else 0,
+                            "regular_count": len(analysis.get('regular_divergences', [])),
+                            "hidden_count": len(analysis.get('hidden_divergences', [])),
+                            "dominant_divergence": analysis.get('dominant_divergence')
+                        })
+                    except json.JSONDecodeError:
+                        continue
+                
+                return {
+                    "status": "success",
+                    "history": history,
+                    "count": len(history),
+                    "period_hours": hours
+                }
+            else:
+                # Divergence tablosu yok, boş döndür
+                return {
+                    "status": "success",
+                    "history": [],
+                    "count": 0,
+                    "period_hours": hours,
+                    "note": "Divergence geçmişi henüz mevcut değil"
+                }
+                
+    except Exception as e:
+        logger.error(f"Divergence history hatası: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "history": []
+        }
+
+@router.get("/divergence/alerts")
+async def get_divergence_alerts():
+    """Divergence tabanlı uyarılar"""
+    try:
+        # Aktif divergence'ları al
+        active_response = await get_active_divergences()
+        
+        if active_response.get('status') != 'success':
+            return {"alerts": [], "status": "error"}
+        
+        alerts = []
+        active_divergences = active_response['active_divergences']
+        statistics = active_response['statistics']
+        
+        # Class A divergence uyarıları
+        class_a_count = statistics['class_counts']['A']
+        if class_a_count > 0:
+            class_a_divs = [d for d in active_divergences if d['class_rating'] == 'A']
+            for div in class_a_divs:
+                alerts.append({
+                    "type": "CLASS_A_DIVERGENCE",
+                    "level": "HIGH",
+                    "message": f"Sınıf A {div['direction']} divergence tespit edildi ({div['indicator']})",
+                    "recommendation": f"Güçlü {div['direction']} sinyal - Başarı oranı: %{int(div['success_probability']*100)}",
+                    "strength": div['strength'],
+                    "indicator": div['indicator'],
+                    "success_rate": div['success_probability'],
+                    "timestamp": timezone.now().isoformat()
+                })
+        
+        # Yüksek confluence uyarıları
+        confluence_score = statistics['confluence_score']
+        if confluence_score > 70:
+            alerts.append({
+                "type": "HIGH_CONFLUENCE",
+                "level": "HIGH",
+                "message": f"Yüksek confluence skoru: {confluence_score:.0f}",
+                "recommendation": "Çoklu göstergede aynı yönde divergence - Güvenilirlik yüksek",
+                "confluence_score": confluence_score,
+                "timestamp": timezone.now().isoformat()
+            })
+        
+        # Güçlü dominant divergence
+        dominant = statistics.get('dominant_divergence')
+        if dominant and dominant.get('strength', 0) > 80:
+            alerts.append({
+                "type": "STRONG_DOMINANT",
+                "level": "MEDIUM",
+                "message": f"Güçlü dominant divergence: {dominant['indicator']} ({dominant['class_rating']})",
+                "recommendation": f"Ana divergence sinyali güçlü - Sınıf {dominant['class_rating']}",
+                "strength": dominant['strength'],
+                "timestamp": timezone.now().isoformat()
+            })
+        
+        # Invalidation yakın uyarıları
+        latest_price = storage.get_latest_price()
+        if latest_price and latest_price.gram_altin:
+            current_price = float(latest_price.gram_altin)
+            
+            for level in active_response.get('invalidation_levels', []):
+                distance_pct = abs(current_price - level) / current_price * 100
+                if distance_pct < 1:  # %1'den yakın
+                    alerts.append({
+                        "type": "INVALIDATION_NEAR",
+                        "level": "MEDIUM",
+                        "message": f"Geçersizleştirici seviye yakın: ₺{level:.2f}",
+                        "recommendation": "Divergence geçersiz olabilir, pozisyonları gözden geçir",
+                        "price_level": level,
+                        "distance_pct": distance_pct,
+                        "timestamp": timezone.now().isoformat()
+                    })
+        
+        # Zayıf maturity uyarıları
+        immature_count = len([d for d in active_divergences 
+                            if d.get('maturity_score', 0) < 30])
+        if immature_count > len(active_divergences) * 0.7:  # %70'den fazlası henüz olgunlaşmamış
+            alerts.append({
+                "type": "IMMATURE_DIVERGENCES",
+                "level": "LOW",
+                "message": "Çoğu divergence henüz olgunlaşmamış",
+                "recommendation": "Sinyallerin gelişmesini bekle, erken giriş riskli",
+                "immature_count": immature_count,
+                "total_count": len(active_divergences),
+                "timestamp": timezone.now().isoformat()
+            })
+        
+        return {
+            "status": "success",
+            "alerts": alerts,
+            "count": len(alerts),
+            "statistics": statistics,
+            "timestamp": timezone.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Divergence alerts hatası: {e}")
+        return {
+            "status": "error", 
+            "alerts": [],
+            "message": str(e)
+        }

@@ -1,18 +1,22 @@
 """
-Divergence Manager - Tüm göstergelerin divergence analizini yöneten modül
+Divergence Manager - Advanced Divergence Detection entegrasyonu ile
 """
 from typing import Dict, List, Any, Optional
 import logging
-import numpy as np
+import pandas as pd
+from indicators.divergence_detector import AdvancedDivergenceDetector
 
 logger = logging.getLogger(__name__)
 
 
 class DivergenceManager:
-    """Divergence Scoring System - Tüm göstergeleri birleştirir"""
+    """Advanced Divergence Detection entegrasyonu ile gelişmiş divergence analizi"""
     
     def __init__(self):
-        # Divergence skorlama ağırlıkları
+        # Advanced Divergence Detector
+        self.divergence_detector = AdvancedDivergenceDetector()
+        
+        # Legacy skorlama ağırlıkları (backward compatibility)
         self.divergence_weights = {
             'RSI': 2,
             'MACD': 3,
@@ -21,15 +25,28 @@ class DivergenceManager:
             'CCI': 1
         }
         
-        # Minimum swing gücü
-        self.min_swing_strength = 0.02  # %2
-        self.lookback_period = 5
+        # Advanced modül ağırlıkları
+        self.advanced_weights = {
+            'regular_bullish': 4.0,
+            'regular_bearish': 4.0,
+            'hidden_bullish': 2.5,
+            'hidden_bearish': 2.5
+        }
+        
+        # Sınıf ağırlıkları
+        self.class_weights = {
+            'A': 1.0,
+            'B': 0.8,
+            'C': 0.6
+        }
+        
+        self.lookback_period = 150  # Advanced analiz için daha fazla veri
         
     def analyze_divergences(self, 
                            candles: List,
                            indicators: Dict) -> Dict[str, Any]:
         """
-        Tüm göstergelerin divergence analizini yap ve skorla
+        Advanced Divergence Detection ile kapsamlı divergence analizi
         
         Returns:
             {
@@ -39,90 +56,225 @@ class DivergenceManager:
                 'strength': str (STRONG/MODERATE/WEAK),
                 'confidence': float (0-1),
                 'recommendation': str,
-                'details': Dict
+                'details': Dict,
+                'advanced_analysis': Dict  # Yeni gelişmiş analiz
             }
         """
-        divergences_found = {}
-        bullish_score = 0
-        bearish_score = 0
-        
-        # Fiyat verisi hazırla
-        if not candles or len(candles) < self.lookback_period * 2:
-            return self._empty_divergence_result()
+        try:
+            # Minimum veri kontrolü
+            if not candles or len(candles) < 50:
+                return self._empty_divergence_result()
             
-        prices = [float(c.close) for c in candles]
-        
-        # 1. RSI Divergence
-        rsi_result = self._check_rsi_divergence(prices, indicators)
-        if rsi_result['found']:
-            if rsi_result['type'] == 'bullish':
-                bullish_score += self.divergence_weights['RSI']
-            else:
-                bearish_score += self.divergence_weights['RSI']
-            divergences_found['RSI'] = rsi_result
-        
-        # 2. MACD Divergence
-        macd_result = self._check_macd_divergence(prices, indicators)
-        if macd_result['found']:
-            if macd_result['type'] == 'bullish':
-                bullish_score += self.divergence_weights['MACD']
-            else:
-                bearish_score += self.divergence_weights['MACD']
-            divergences_found['MACD'] = macd_result
-        
-        # 3. Stochastic Divergence
-        stoch_result = self._check_stochastic_divergence(prices, indicators)
-        if stoch_result['found']:
-            if stoch_result['type'] == 'bullish':
-                bullish_score += self.divergence_weights['Stochastic']
-            else:
-                bearish_score += self.divergence_weights['Stochastic']
-            divergences_found['Stochastic'] = stoch_result
-        
-        # 4. MFI Divergence (volume simülasyonu ile)
-        mfi_result = self._check_mfi_divergence(prices, indicators)
-        if mfi_result['found']:
-            if mfi_result['type'] == 'bullish':
-                bullish_score += self.divergence_weights['MFI']
-            else:
-                bearish_score += self.divergence_weights['MFI']
-            divergences_found['MFI'] = mfi_result
-        
-        # 5. CCI Divergence
-        cci_result = self._check_cci_divergence(prices, indicators)
-        if cci_result['found']:
-            if cci_result['type'] == 'bullish':
-                bullish_score += self.divergence_weights['CCI']
-            else:
-                bearish_score += self.divergence_weights['CCI']
-            divergences_found['CCI'] = cci_result
-        
-        # Toplam skor ve analiz
-        total_score = max(bullish_score, bearish_score)
-        divergence_type = self._determine_divergence_type(bullish_score, bearish_score)
-        strength = self._calculate_strength(total_score)
-        confidence = self._calculate_confidence(total_score)
-        recommendation = self._generate_recommendation(divergence_type, strength)
-        
-        return {
-            'total_score': total_score,
-            'divergence_type': divergence_type,
-            'divergences_found': divergences_found,
-            'strength': strength,
-            'confidence': confidence,
-            'recommendation': recommendation,
-            'bullish_score': bullish_score,
-            'bearish_score': bearish_score,
-            'details': {
-                'divergence_count': len(divergences_found),
-                'active_indicators': list(divergences_found.keys()),
-                'score_breakdown': {
-                    'bullish': bullish_score,
-                    'bearish': bearish_score,
-                    'max_possible': sum(self.divergence_weights.values())
+            # DataFrame oluştur
+            df = self._create_dataframe_from_candles(candles)
+            
+            # Advanced divergence analizi
+            advanced_analysis = self.divergence_detector.analyze(df, lookback=self.lookback_period)
+            
+            # Legacy analizi de yap (backward compatibility)
+            legacy_analysis = self._legacy_divergence_analysis(candles, indicators)
+            
+            # İki analizi birleştir
+            combined_analysis = self._combine_analyses(advanced_analysis, legacy_analysis)
+            
+            return combined_analysis
+            
+        except Exception as e:
+            logger.error(f"Divergence analiz hatası: {e}")
+            return self._empty_divergence_result()
+    
+    def _create_dataframe_from_candles(self, candles: List) -> pd.DataFrame:
+        """Candle listesinden pandas DataFrame oluştur"""
+        try:
+            data = []
+            for candle in candles:
+                data.append({
+                    'open': float(candle.open),
+                    'high': float(candle.high),
+                    'low': float(candle.low),
+                    'close': float(candle.close),
+                })
+            
+            return pd.DataFrame(data)
+            
+        except Exception as e:
+            logger.error(f"DataFrame oluşturma hatası: {e}")
+            return pd.DataFrame()
+    
+    def _legacy_divergence_analysis(self, candles: List, indicators: Dict) -> Dict:
+        """Eski divergence analiz sistemi (backward compatibility)"""
+        try:
+            divergences_found = {}
+            bullish_score = 0
+            bearish_score = 0
+            
+            prices = [float(c.close) for c in candles]
+            
+            # Legacy analizler
+            rsi_result = self._check_rsi_divergence(prices, indicators)
+            if rsi_result['found']:
+                if rsi_result['type'] == 'bullish':
+                    bullish_score += self.divergence_weights['RSI']
+                else:
+                    bearish_score += self.divergence_weights['RSI']
+                divergences_found['RSI'] = rsi_result
+            
+            macd_result = self._check_macd_divergence(prices, indicators)
+            if macd_result['found']:
+                if macd_result['type'] == 'bullish':
+                    bullish_score += self.divergence_weights['MACD']
+                else:
+                    bearish_score += self.divergence_weights['MACD']
+                divergences_found['MACD'] = macd_result
+            
+            return {
+                'legacy_divergences': divergences_found,
+                'legacy_bullish_score': bullish_score,
+                'legacy_bearish_score': bearish_score
+            }
+            
+        except Exception as e:
+            logger.error(f"Legacy analiz hatası: {e}")
+            return {
+                'legacy_divergences': {},
+                'legacy_bullish_score': 0,
+                'legacy_bearish_score': 0
+            }
+    
+    def _combine_analyses(self, advanced_analysis, legacy_analysis: Dict) -> Dict:
+        """Advanced ve legacy analizleri birleştir"""
+        try:
+            # Advanced scoring
+            advanced_score = 0
+            bullish_score = 0 
+            bearish_score = 0
+            
+            # Regular divergences scoring
+            for div in advanced_analysis.regular_divergences:
+                weight = self.advanced_weights.get(div.type, 0)
+                class_weight = self.class_weights.get(div.class_rating, 0.5)
+                score = (div.strength / 100) * weight * class_weight
+                
+                advanced_score += score
+                if 'bullish' in div.type:
+                    bullish_score += score
+                else:
+                    bearish_score += score
+            
+            # Hidden divergences scoring 
+            for div in advanced_analysis.hidden_divergences:
+                weight = self.advanced_weights.get(div.type, 0)
+                class_weight = self.class_weights.get(div.class_rating, 0.5)
+                score = (div.strength / 100) * weight * class_weight
+                
+                advanced_score += score
+                if 'bullish' in div.type:
+                    bullish_score += score
+                else:
+                    bearish_score += score
+            
+            # Confluence bonus
+            if advanced_analysis.confluence_score > 50:
+                confluence_bonus = advanced_analysis.confluence_score / 100 * 2
+                advanced_score += confluence_bonus
+                if bullish_score > bearish_score:
+                    bullish_score += confluence_bonus
+                else:
+                    bearish_score += confluence_bonus
+            
+            # Legacy scores ekle (düşük ağırlıkla)
+            legacy_bullish = legacy_analysis.get('legacy_bullish_score', 0) * 0.3
+            legacy_bearish = legacy_analysis.get('legacy_bearish_score', 0) * 0.3
+            
+            bullish_score += legacy_bullish
+            bearish_score += legacy_bearish
+            total_score = max(bullish_score, bearish_score)
+            
+            # Final analysis
+            divergence_type = self._determine_advanced_type(
+                bullish_score, 
+                bearish_score,
+                advanced_analysis.overall_signal
+            )
+            
+            strength = self._calculate_advanced_strength(
+                total_score, 
+                advanced_analysis.signal_strength
+            )
+            
+            confidence = self._calculate_advanced_confidence(
+                total_score,
+                advanced_analysis.confluence_score,
+                len(advanced_analysis.regular_divergences) + len(advanced_analysis.hidden_divergences)
+            )
+            
+            recommendation = self._generate_advanced_recommendation(
+                divergence_type, 
+                strength,
+                advanced_analysis.dominant_divergence
+            )
+            
+            # Combined divergences
+            all_divergences = {}
+            
+            # Advanced divergences
+            for div in advanced_analysis.regular_divergences + advanced_analysis.hidden_divergences:
+                all_divergences[f"{div.indicator}_{div.type}"] = {
+                    'found': True,
+                    'type': 'bullish' if 'bullish' in div.type else 'bearish',
+                    'strength': div.strength / 100,
+                    'class': div.class_rating,
+                    'success_probability': div.success_probability,
+                    'description': f"{div.type} {div.indicator} (Sınıf {div.class_rating})"
+                }
+            
+            # Legacy divergences ekle
+            for key, div in legacy_analysis.get('legacy_divergences', {}).items():
+                if key not in all_divergences:
+                    all_divergences[f"legacy_{key}"] = div
+            
+            return {
+                'total_score': min(total_score, 10.0),  # Max 10
+                'divergence_type': divergence_type,
+                'divergences_found': all_divergences,
+                'strength': strength,
+                'confidence': confidence,
+                'recommendation': recommendation,
+                'bullish_score': bullish_score,
+                'bearish_score': bearish_score,
+                'advanced_analysis': {
+                    'overall_signal': advanced_analysis.overall_signal,
+                    'signal_strength': advanced_analysis.signal_strength,
+                    'confluence_score': advanced_analysis.confluence_score,
+                    'regular_count': len(advanced_analysis.regular_divergences),
+                    'hidden_count': len(advanced_analysis.hidden_divergences),
+                    'dominant_divergence': {
+                        'type': advanced_analysis.dominant_divergence.type,
+                        'indicator': advanced_analysis.dominant_divergence.indicator,
+                        'strength': advanced_analysis.dominant_divergence.strength,
+                        'class': advanced_analysis.dominant_divergence.class_rating,
+                        'success_rate': advanced_analysis.dominant_divergence.success_probability
+                    } if advanced_analysis.dominant_divergence else None,
+                    'next_targets': advanced_analysis.next_targets,
+                    'invalidation_levels': advanced_analysis.invalidation_levels
+                },
+                'details': {
+                    'divergence_count': len(all_divergences),
+                    'active_indicators': list(all_divergences.keys()),
+                    'advanced_score': advanced_score,
+                    'legacy_contribution': legacy_bullish + legacy_bearish,
+                    'score_breakdown': {
+                        'bullish': bullish_score,
+                        'bearish': bearish_score,
+                        'advanced_contribution': advanced_score,
+                        'legacy_contribution': legacy_bullish + legacy_bearish
+                    }
                 }
             }
-        }
+            
+        except Exception as e:
+            logger.error(f"Analiz birleştirme hatası: {e}")
+            return self._empty_divergence_result()
     
     def _check_rsi_divergence(self, prices: List[float], 
                              indicators: Dict) -> Dict:
@@ -335,6 +487,80 @@ class DivergenceManager:
         else:
             return "BEKLE - Divergence sinyali zayıf veya yok"
     
+    def _determine_advanced_type(self, 
+                               bullish_score: float, 
+                               bearish_score: float,
+                               advanced_signal: str) -> str:
+        """Advanced analiz ile divergence tipini belirle"""
+        # Advanced signal'ı önceliklendir
+        if advanced_signal in ['BULLISH', 'BEARISH'] and abs(bullish_score - bearish_score) > 1:
+            return advanced_signal
+        
+        # Klasik skorlama
+        if bullish_score > bearish_score and bullish_score >= 2:
+            return 'BULLISH'
+        elif bearish_score > bullish_score and bearish_score >= 2:
+            return 'BEARISH'
+        else:
+            return 'NONE'
+    
+    def _calculate_advanced_strength(self, 
+                                   total_score: float, 
+                                   advanced_strength: float) -> str:
+        """Advanced analiz ile strength hesapla"""
+        # Advanced strength'i de dikkate al
+        composite_strength = (total_score * 10 + advanced_strength) / 2
+        
+        if composite_strength >= 70:
+            return 'STRONG'
+        elif composite_strength >= 50:
+            return 'MODERATE' 
+        elif composite_strength >= 30:
+            return 'WEAK'
+        else:
+            return 'NONE'
+    
+    def _calculate_advanced_confidence(self, 
+                                     total_score: float,
+                                     confluence_score: float, 
+                                     divergence_count: int) -> float:
+        """Advanced confidence hesaplama"""
+        # Base confidence
+        base_confidence = min(total_score / 10, 1.0)
+        
+        # Confluence bonus
+        confluence_bonus = confluence_score / 100 * 0.3
+        
+        # Divergence count bonus
+        count_bonus = min(divergence_count / 5, 0.2)
+        
+        total_confidence = base_confidence + confluence_bonus + count_bonus
+        return min(total_confidence, 1.0)
+    
+    def _generate_advanced_recommendation(self, 
+                                        divergence_type: str, 
+                                        strength: str,
+                                        dominant_div) -> str:
+        """Advanced recommendation üretme"""
+        base_rec = self._generate_recommendation(divergence_type, strength)
+        
+        if dominant_div:
+            success_rate = dominant_div.success_probability
+            class_rating = dominant_div.class_rating
+            
+            if class_rating == 'A' and success_rate > 0.7:
+                if divergence_type == 'BULLISH':
+                    return f"GÜÇLÜ ALIŞ - Sınıf A divergence (Başarı: {success_rate:.0%})"
+                elif divergence_type == 'BEARISH':
+                    return f"GÜÇLÜ SATIŞ - Sınıf A divergence (Başarı: {success_rate:.0%})"
+            elif class_rating == 'B' and success_rate > 0.6:
+                if divergence_type == 'BULLISH':
+                    return f"ALIŞ - Sınıf B divergence (Başarı: {success_rate:.0%})"
+                elif divergence_type == 'BEARISH':
+                    return f"SATIŞ - Sınıf B divergence (Başarı: {success_rate:.0%})"
+        
+        return base_rec
+    
     def _empty_divergence_result(self) -> Dict:
         """Boş divergence sonucu"""
         return {
@@ -346,13 +572,26 @@ class DivergenceManager:
             'recommendation': 'BEKLE - Yetersiz veri',
             'bullish_score': 0,
             'bearish_score': 0,
+            'advanced_analysis': {
+                'overall_signal': 'NEUTRAL',
+                'signal_strength': 0,
+                'confluence_score': 0,
+                'regular_count': 0,
+                'hidden_count': 0,
+                'dominant_divergence': None,
+                'next_targets': [],
+                'invalidation_levels': []
+            },
             'details': {
                 'divergence_count': 0,
                 'active_indicators': [],
+                'advanced_score': 0,
+                'legacy_contribution': 0,
                 'score_breakdown': {
                     'bullish': 0,
                     'bearish': 0,
-                    'max_possible': sum(self.divergence_weights.values())
+                    'advanced_contribution': 0,
+                    'legacy_contribution': 0
                 }
             }
         }
