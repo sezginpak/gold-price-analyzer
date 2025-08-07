@@ -340,7 +340,7 @@ class FibonacciRetracement:
                 'fibonacci_levels': {
                     f"{k:.3f}": {
                         'price': float(v.price),
-                        'strength': float(v.strength),
+                        'strength': str(v.strength),  # strength bir string olarak tanımlanmış
                         'description': str(v.description),
                         'distance_pct': float(abs(current_price - v.price) / current_price * 100)
                     }
@@ -349,7 +349,7 @@ class FibonacciRetracement:
                 'nearest_level': {
                     'level': float(nearest_level.level) if nearest_level else None,
                     'price': float(nearest_level.price) if nearest_level else None,
-                    'strength': float(nearest_level.strength) if nearest_level else None,
+                    'strength': str(nearest_level.strength) if nearest_level else None,  # strength bir string
                     'description': str(nearest_level.description) if nearest_level else None
                 } if nearest_level else None,
                 'bounce_potential': float(bounce_potential),
