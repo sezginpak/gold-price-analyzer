@@ -257,12 +257,12 @@ class MarketRegimeDetector:
                 
                 if older_atr > 0:
                     atr_change = (recent_atr - older_atr) / older_atr
-                    expanding = atr_change > 0.15  # %15'ten fazla artış
-                    contracting = atr_change < -0.15  # %15'ten fazla azalış
+                    expanding = bool(atr_change > 0.15)  # %15'ten fazla artış
+                    contracting = bool(atr_change < -0.15)  # %15'ten fazla azalış
                 
                 # Squeeze potential: düşük volatilite + contracting
-                squeeze_potential = (level in ["very_low", "low"] and 
-                                   contracting and atr_percentile < 20)
+                squeeze_potential = bool(level in ["very_low", "low"] and 
+                                       contracting and atr_percentile < 20)
             
             return VolatilityRegime(
                 level=level,
@@ -341,9 +341,9 @@ class MarketRegimeDetector:
             breakout_potential = False
             if len(adx_data['adx']) >= 10:
                 recent_adx_trend = np.mean(adx_data['adx'][-5:]) - np.mean(adx_data['adx'][-10:-5])
-                breakout_potential = (trend_type == "ranging" and 
-                                    recent_adx_trend > 2.0 and 
-                                    current_adx > 15)
+                breakout_potential = bool(trend_type == "ranging" and 
+                                        recent_adx_trend > 2.0 and 
+                                        current_adx > 15)
             
             return TrendRegime(
                 type=trend_type,
@@ -468,7 +468,7 @@ class MarketRegimeDetector:
                 macd_momentum in ["bearish"]
             ])
             
-            momentum_alignment = bullish_signals >= 2 or bearish_signals >= 2
+            momentum_alignment = bool(bullish_signals >= 2 or bearish_signals >= 2)
             
             # State belirleme
             if len(histogram) >= 10:
@@ -811,41 +811,41 @@ class MarketRegimeDetector:
                 'timestamp': pd.Timestamp.now().isoformat(),
                 'current_price': float(df['close'].iloc[-1]),
                 'volatility_regime': {
-                    'level': volatility_regime.level,
-                    'atr_value': volatility_regime.atr_value,
-                    'atr_percentile': volatility_regime.atr_percentile,
-                    'expanding': volatility_regime.expanding,
-                    'contracting': volatility_regime.contracting,
-                    'squeeze_potential': volatility_regime.squeeze_potential
+                    'level': str(volatility_regime.level),
+                    'atr_value': float(volatility_regime.atr_value),
+                    'atr_percentile': float(volatility_regime.atr_percentile),
+                    'expanding': bool(volatility_regime.expanding),
+                    'contracting': bool(volatility_regime.contracting),
+                    'squeeze_potential': bool(volatility_regime.squeeze_potential)
                 },
                 'trend_regime': {
-                    'type': trend_regime.type,
-                    'direction': trend_regime.direction,
-                    'adx_value': trend_regime.adx_value,
-                    'trend_strength': trend_regime.trend_strength,
-                    'breakout_potential': trend_regime.breakout_potential
+                    'type': str(trend_regime.type),
+                    'direction': str(trend_regime.direction),
+                    'adx_value': float(trend_regime.adx_value),
+                    'trend_strength': float(trend_regime.trend_strength),
+                    'breakout_potential': bool(trend_regime.breakout_potential)
                 },
                 'momentum_regime': {
-                    'state': momentum_regime.state,
-                    'rsi_momentum': momentum_regime.rsi_momentum,
-                    'macd_momentum': momentum_regime.macd_momentum,
-                    'momentum_alignment': momentum_regime.momentum_alignment,
-                    'reversal_potential': momentum_regime.reversal_potential
+                    'state': str(momentum_regime.state),
+                    'rsi_momentum': str(momentum_regime.rsi_momentum),
+                    'macd_momentum': str(momentum_regime.macd_momentum),
+                    'momentum_alignment': bool(momentum_regime.momentum_alignment),
+                    'reversal_potential': float(momentum_regime.reversal_potential)
                 },
                 'adaptive_parameters': {
-                    'rsi_overbought': adaptive_params.rsi_overbought,
-                    'rsi_oversold': adaptive_params.rsi_oversold,
-                    'signal_threshold': adaptive_params.signal_threshold,
-                    'stop_loss_multiplier': adaptive_params.stop_loss_multiplier,
-                    'take_profit_multiplier': adaptive_params.take_profit_multiplier,
-                    'position_size_adjustment': adaptive_params.position_size_adjustment
+                    'rsi_overbought': float(adaptive_params.rsi_overbought),
+                    'rsi_oversold': float(adaptive_params.rsi_oversold),
+                    'signal_threshold': float(adaptive_params.signal_threshold),
+                    'stop_loss_multiplier': float(adaptive_params.stop_loss_multiplier),
+                    'take_profit_multiplier': float(adaptive_params.take_profit_multiplier),
+                    'position_size_adjustment': float(adaptive_params.position_size_adjustment)
                 },
                 'regime_transition': {
-                    'current_regime': transition.current_regime,
-                    'transition_probability': transition.transition_probability,
-                    'next_regime': transition.next_regime,
-                    'early_warning': transition.early_warning,
-                    'confidence': transition.confidence
+                    'current_regime': str(transition.current_regime),
+                    'transition_probability': float(transition.transition_probability),
+                    'next_regime': str(transition.next_regime),
+                    'early_warning': bool(transition.early_warning),
+                    'confidence': float(transition.confidence)
                 },
                 'overall_assessment': overall_regime,
                 'recommendations': recommendations
@@ -918,12 +918,12 @@ class MarketRegimeDetector:
                 phase = "transition"
             
             return {
-                'risk_level': risk_level,
-                'risk_score': min(risk_score, 100),
-                'opportunity_level': opportunity_level,
-                'opportunity_score': min(opportunity_score, 100),
-                'market_phase': phase,
-                'overall_score': min(opportunity_score - risk_score + 50, 100)
+                'risk_level': str(risk_level),
+                'risk_score': int(min(risk_score, 100)),
+                'opportunity_level': str(opportunity_level),
+                'opportunity_score': int(min(opportunity_score, 100)),
+                'market_phase': str(phase),
+                'overall_score': int(min(opportunity_score - risk_score + 50, 100))
             }
             
         except Exception as e:

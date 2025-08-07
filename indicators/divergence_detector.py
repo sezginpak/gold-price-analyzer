@@ -898,59 +898,59 @@ def calculate_divergence_analysis(df: pd.DataFrame, **kwargs) -> Dict:
         detector = AdvancedDivergenceDetector()
         analysis = detector.analyze(df)
         
-        # Dict formatına çevir
+        # Dict formatına çevir - tüm numpy değerleri Python tiplerini çevir
         result = {
             'status': 'success',
-            'overall_signal': analysis.overall_signal,
-            'signal_strength': analysis.signal_strength,
-            'confluence_score': analysis.confluence_score,
+            'overall_signal': str(analysis.overall_signal),
+            'signal_strength': float(analysis.signal_strength),
+            'confluence_score': float(analysis.confluence_score),
             'regular_divergences': [
                 {
-                    'type': div.type,
-                    'indicator': div.indicator,
-                    'strength': div.strength,
-                    'maturity_score': div.maturity_score,
-                    'class_rating': div.class_rating,
-                    'success_probability': div.success_probability,
-                    'angle_difference': div.angle_difference,
-                    'invalidated': div.invalidated,
+                    'type': str(div.type),
+                    'indicator': str(div.indicator),
+                    'strength': float(div.strength),
+                    'maturity_score': float(div.maturity_score),
+                    'class_rating': str(div.class_rating),
+                    'success_probability': float(div.success_probability),
+                    'angle_difference': float(div.angle_difference),
+                    'invalidated': bool(div.invalidated),
                     'price_points': [
-                        {'index': p.index, 'price': p.price} for p in div.price_points
+                        {'index': int(p.index), 'price': float(p.price)} for p in div.price_points
                     ],
                     'indicator_points': [
-                        {'index': p.index, 'value': p.indicator_value} for p in div.indicator_points
+                        {'index': int(p.index), 'value': float(p.indicator_value)} for p in div.indicator_points
                     ]
                 }
                 for div in analysis.regular_divergences
             ],
             'hidden_divergences': [
                 {
-                    'type': div.type,
-                    'indicator': div.indicator,
-                    'strength': div.strength,
-                    'maturity_score': div.maturity_score,
-                    'class_rating': div.class_rating,
-                    'success_probability': div.success_probability,
-                    'angle_difference': div.angle_difference,
-                    'invalidated': div.invalidated,
+                    'type': str(div.type),
+                    'indicator': str(div.indicator),
+                    'strength': float(div.strength),
+                    'maturity_score': float(div.maturity_score),
+                    'class_rating': str(div.class_rating),
+                    'success_probability': float(div.success_probability),
+                    'angle_difference': float(div.angle_difference),
+                    'invalidated': bool(div.invalidated),
                     'price_points': [
-                        {'index': p.index, 'price': p.price} for p in div.price_points
+                        {'index': int(p.index), 'price': float(p.price)} for p in div.price_points
                     ],
                     'indicator_points': [
-                        {'index': p.index, 'value': p.indicator_value} for p in div.indicator_points
+                        {'index': int(p.index), 'value': float(p.indicator_value)} for p in div.indicator_points
                     ]
                 }
                 for div in analysis.hidden_divergences
             ],
             'dominant_divergence': {
-                'type': analysis.dominant_divergence.type,
-                'indicator': analysis.dominant_divergence.indicator,
-                'strength': analysis.dominant_divergence.strength,
-                'class_rating': analysis.dominant_divergence.class_rating,
-                'success_probability': analysis.dominant_divergence.success_probability
+                'type': str(analysis.dominant_divergence.type),
+                'indicator': str(analysis.dominant_divergence.indicator),
+                'strength': float(analysis.dominant_divergence.strength),
+                'class_rating': str(analysis.dominant_divergence.class_rating),
+                'success_probability': float(analysis.dominant_divergence.success_probability)
             } if analysis.dominant_divergence else None,
-            'next_targets': analysis.next_targets,
-            'invalidation_levels': analysis.invalidation_levels
+            'next_targets': [float(t) for t in analysis.next_targets],
+            'invalidation_levels': [float(l) for l in analysis.invalidation_levels]
         }
         
         return result

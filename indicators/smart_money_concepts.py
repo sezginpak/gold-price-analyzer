@@ -474,46 +474,56 @@ class SmartMoneyConcepts:
             # Trading sinyalleri üret
             signals = self._generate_smc_signals(current_price)
             
-            # Sonuçları hazırla
+            # Sonuçları hazırla - tüm numpy değerleri Python tiplerini çevir
             result = {
                 'status': 'success',
-                'current_price': current_price,
+                'current_price': float(current_price),
                 'market_structure': {
-                    'trend': self.market_structure.trend,
-                    'last_high': self.market_structure.last_high,
-                    'last_low': self.market_structure.last_low,
-                    'higher_highs': self.market_structure.higher_highs,
-                    'higher_lows': self.market_structure.higher_lows,
-                    'lower_highs': self.market_structure.lower_highs,
-                    'lower_lows': self.market_structure.lower_lows,
-                    'bos_level': self.market_structure.bos_level,
-                    'choch_level': self.market_structure.choch_level
+                    'trend': str(self.market_structure.trend),
+                    'last_high': float(self.market_structure.last_high) if self.market_structure.last_high is not None else None,
+                    'last_low': float(self.market_structure.last_low) if self.market_structure.last_low is not None else None,
+                    'higher_highs': int(self.market_structure.higher_highs),
+                    'higher_lows': int(self.market_structure.higher_lows),
+                    'lower_highs': int(self.market_structure.lower_highs),
+                    'lower_lows': int(self.market_structure.lower_lows),
+                    'bos_level': float(self.market_structure.bos_level) if self.market_structure.bos_level is not None else None,
+                    'choch_level': float(self.market_structure.choch_level) if self.market_structure.choch_level is not None else None
                 },
                 'order_blocks': [
                     {
-                        'type': ob.type,
-                        'high': ob.high,
-                        'low': ob.low,
-                        'mid_point': ob.mid_point,
-                        'strength': ob.strength,
-                        'touched': ob.touched,
-                        'broken': ob.broken
+                        'type': str(ob.type),
+                        'high': float(ob.high),
+                        'low': float(ob.low),
+                        'mid_point': float(ob.mid_point),
+                        'strength': float(ob.strength),
+                        'touched': bool(ob.touched),
+                        'broken': bool(ob.broken)
                     }
                     for ob in self.order_blocks if not ob.broken
                 ],
                 'fair_value_gaps': [
                     {
-                        'type': fvg.type,
-                        'high': fvg.high,
-                        'low': fvg.low,
-                        'size_pct': fvg.size,
-                        'filled': fvg.filled,
-                        'fill_percentage': fvg.fill_percentage
+                        'type': str(fvg.type),
+                        'high': float(fvg.high),
+                        'low': float(fvg.low),
+                        'size_pct': float(fvg.size),
+                        'filled': bool(fvg.filled),
+                        'fill_percentage': float(fvg.fill_percentage)
                     }
                     for fvg in self.fair_value_gaps if not fvg.filled
                 ],
-                'liquidity_zones': self.liquidity_zones[:5],  # Top 5
-                'signals': signals
+                'liquidity_zones': [
+                    {k: float(v) if isinstance(v, (int, float, np.number)) and not isinstance(v, bool) 
+                     else bool(v) if isinstance(v, (bool, np.bool_))
+                     else str(v) for k, v in zone.items()} if isinstance(zone, dict) else zone 
+                    for zone in self.liquidity_zones[:5]
+                ],  # Top 5
+                'signals': {
+                    k: float(v) if isinstance(v, (int, float, np.number)) and not isinstance(v, bool)
+                    else bool(v) if isinstance(v, (bool, np.bool_))
+                    else [float(x) if isinstance(x, (int, float, np.number)) and not isinstance(x, bool) else str(x) for x in v] if isinstance(v, list)
+                    else str(v) for k, v in signals.items()
+                }
             }
             
             return result

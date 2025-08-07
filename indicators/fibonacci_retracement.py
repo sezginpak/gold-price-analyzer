@@ -329,36 +329,41 @@ class FibonacciRetracement:
                 self.current_trend
             )
             
-            # Sonuçları hazırla
+            # Sonuçları hazırla - tüm numpy değerleri Python tiplerini çevir
             result = {
                 'status': 'success',
-                'trend': self.current_trend,
-                'swing_high': self.last_swing_high,
-                'swing_low': self.last_swing_low,
-                'range': self.last_swing_high - self.last_swing_low,
-                'current_price': current_price,
+                'trend': str(self.current_trend),
+                'swing_high': float(self.last_swing_high),
+                'swing_low': float(self.last_swing_low),
+                'range': float(self.last_swing_high - self.last_swing_low),
+                'current_price': float(current_price),
                 'fibonacci_levels': {
                     f"{k:.3f}": {
-                        'price': v.price,
-                        'strength': v.strength,
-                        'description': v.description,
-                        'distance_pct': abs(current_price - v.price) / current_price * 100
+                        'price': float(v.price),
+                        'strength': float(v.strength),
+                        'description': str(v.description),
+                        'distance_pct': float(abs(current_price - v.price) / current_price * 100)
                     }
                     for k, v in self.fib_levels.items()
                 },
                 'nearest_level': {
-                    'level': nearest_level.level if nearest_level else None,
-                    'price': nearest_level.price if nearest_level else None,
-                    'strength': nearest_level.strength if nearest_level else None,
-                    'description': nearest_level.description if nearest_level else None
+                    'level': float(nearest_level.level) if nearest_level else None,
+                    'price': float(nearest_level.price) if nearest_level else None,
+                    'strength': float(nearest_level.strength) if nearest_level else None,
+                    'description': str(nearest_level.description) if nearest_level else None
                 } if nearest_level else None,
-                'bounce_potential': bounce_potential,
-                'signals': self._generate_fibonacci_signals(
-                    current_price,
-                    nearest_level,
-                    bounce_potential,
-                    self.current_trend
-                )
+                'bounce_potential': float(bounce_potential),
+                'signals': {
+                    k: float(v) if isinstance(v, (int, float, np.number)) and not isinstance(v, bool)
+                    else bool(v) if isinstance(v, (bool, np.bool_))
+                    else [float(x) if isinstance(x, (int, float, np.number)) and not isinstance(x, bool) else str(x) for x in v] if isinstance(v, list)
+                    else str(v) for k, v in self._generate_fibonacci_signals(
+                        current_price,
+                        nearest_level,
+                        bounce_potential,
+                        self.current_trend
+                    ).items()
+                }
             }
             
             return result
