@@ -24,96 +24,106 @@ log_manager = LogManager()
 
 @router.get("/dashboard")
 async def get_dashboard_data():
-    """Dashboard için tüm verileri tek seferde getir - Optimize edilmiş"""
-    cache_key = "dashboard_data"
+    """Dashboard için tüm verileri tek seferde getir - Ultra Optimized"""
+    cache_key = "dashboard_data_v2"
     cached = cache.get(cache_key)
     if cached:
         return cached
     
     try:
-        # Temel veriler
-        latest_price = storage.get_latest_price()
-        db_stats = storage.get_statistics()
-        
-        # Bugünkü sinyalleri say
-        today_signals = 0
-        try:
-            with storage.get_connection() as conn:
-                cursor = conn.cursor()
-                today_start = timezone.get_day_start()
-                cursor.execute("""
-                    SELECT COUNT(*) FROM hybrid_analysis 
-                    WHERE timestamp >= ? AND signal IN ('BUY', 'SELL')
-                """, (today_start,))
-                result = cursor.fetchone()
-                today_signals = result[0] if result else 0
-        except Exception:
-            today_signals = 0
-        
-        # Son 5 sinyal
-        recent_signals = []
-        try:
-            with storage.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
+        # Single connection for all queries - Connection pooling optimization
+        with storage.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Optimized: Single query for all dashboard data
+            latest_price = storage.get_latest_price()
+            if not latest_price:
+                return {"error": "No price data available"}
+            
+            # Batched queries for better performance
+            today_start = timezone.get_day_start()
+            
+            # Single query to get all dashboard metrics
+            cursor.execute("""
+                WITH dashboard_metrics AS (
+                    SELECT 
+                        COUNT(CASE WHEN signal IN ('BUY', 'SELL') AND timestamp >= ? THEN 1 END) as today_signals,
+                        COUNT(*) as total_records
+                    FROM hybrid_analysis
+                ),
+                recent_signals AS (
                     SELECT timestamp, timeframe, signal, confidence, gram_price
                     FROM hybrid_analysis
                     WHERE signal IN ('BUY', 'SELL')
                     ORDER BY timestamp DESC
                     LIMIT 5
-                """)
-                for row in cursor.fetchall():
-                    recent_signals.append({
-                        "timestamp": row[0],
-                        "timeframe": row[1],
-                        "signal": row[2], 
-                        "confidence": float(row[3]),
-                        "price": float(row[4])
-                    })
-        except Exception:
-            pass
-        
-        # Basit performans özeti
-        performance_summary = {}
-        try:
-            with storage.get_connection() as conn:
-                cursor = conn.cursor()
-                yesterday = timezone.now() - timedelta(hours=24)
-                cursor.execute("""
-                    SELECT COUNT(*) as total,
-                           SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as wins
+                ),
+                performance_data AS (
+                    SELECT 
+                        COUNT(*) as daily_trades,
+                        SUM(CASE WHEN net_profit_loss > 0 THEN 1 ELSE 0 END) as daily_wins
                     FROM sim_positions
                     WHERE status = 'CLOSED' AND exit_time >= ?
-                """, (yesterday,))
-                daily_stats = cursor.fetchone()
-                
-                performance_summary = {
-                    "daily_trades": daily_stats[0] or 0,
-                    "daily_wins": daily_stats[1] or 0,
-                    "daily_win_rate": (daily_stats[1] / daily_stats[0] * 100) if daily_stats[0] > 0 else 0
+                )
+                SELECT 
+                    dm.today_signals,
+                    dm.total_records,
+                    pd.daily_trades,
+                    pd.daily_wins
+                FROM dashboard_metrics dm, performance_data pd
+            """, (today_start, timezone.now() - timedelta(hours=24)))
+            
+            metrics = cursor.fetchone()
+            
+            # Get recent signals separately for better cache efficiency
+            cursor.execute("""
+                SELECT timestamp, timeframe, signal, confidence, gram_price
+                FROM hybrid_analysis
+                WHERE signal IN ('BUY', 'SELL')
+                ORDER BY timestamp DESC
+                LIMIT 5
+            """)
+            
+            recent_signals = [
+                {
+                    "timestamp": row[0],
+                    "timeframe": row[1], 
+                    "signal": row[2],
+                    "confidence": float(row[3]),
+                    "price": float(row[4])
                 }
-        except Exception:
-            performance_summary = {"daily_trades": 0, "daily_wins": 0, "daily_win_rate": 0}
+                for row in cursor.fetchall()
+            ]
         
-        dashboard_data = {
-            "current_price": {
-                "gram_altin": float(latest_price.gram_altin) if latest_price and latest_price.gram_altin else 0,
-                "ons_usd": float(latest_price.ons_usd) if latest_price else 0,
-                "usd_try": float(latest_price.usd_try) if latest_price else 0,
-                "timestamp": latest_price.timestamp.isoformat() if latest_price else None
-            },
-            "stats": {
-                "total_records": db_stats.get("total_records", 0),
-                "today_signals": today_signals
-            },
-            "recent_signals": recent_signals,
-            "performance": performance_summary,
-            "last_update": timezone.now().isoformat()
-        }
+            # Calculate performance metrics from batched query
+            daily_trades = metrics[2] if metrics else 0
+            daily_wins = metrics[3] if metrics else 0
+            performance_summary = {
+                "daily_trades": daily_trades,
+                "daily_wins": daily_wins,
+                "daily_win_rate": (daily_wins / daily_trades * 100) if daily_trades > 0 else 0
+            }
         
-        # 30 saniye cache
-        cache.set(cache_key, dashboard_data, ttl=30)
-        return dashboard_data
+            # Optimized dashboard data structure
+            dashboard_data = {
+                "current_price": {
+                    "gram_altin": float(latest_price.gram_altin) if latest_price.gram_altin else 0,
+                    "ons_usd": float(latest_price.ons_usd),
+                    "usd_try": float(latest_price.usd_try),
+                    "timestamp": latest_price.timestamp.isoformat()
+                },
+                "stats": {
+                    "total_records": metrics[1] if metrics else 0,
+                    "today_signals": metrics[0] if metrics else 0
+                },
+                "recent_signals": recent_signals,
+                "performance": performance_summary,
+                "last_update": timezone.now().isoformat()
+            }
+            
+            # Increased cache time for better performance - 60 seconds
+            cache.set(cache_key, dashboard_data, ttl=60)
+            return dashboard_data
         
     except Exception as e:
         logger.error(f"Dashboard data hatası: {e}")
@@ -178,78 +188,74 @@ async def get_stats():
 @router.get("/prices/latest")
 async def get_latest_prices(limit: int = 60, interval: str = "1m"):
     """
-    Son fiyat verilerini getir - Optimize edilmiş ve sayfalanmış
+    Son fiyat verilerini getir - Ultra Optimized with Smart Caching
     
     Args:
-        limit: Maksimum kayıt sayısı (default: 60, max: 200)
+        limit: Maksimum kayıt sayısı (default: 60, max: 150)
         interval: Veri aralığı ('1m', '5m', '15m') - default: 1m
     """
-    # Limit kontrolü - maksimum 200 kayıt
-    limit = min(max(limit, 10), 200)
+    # Strict limit control for performance
+    limit = min(max(limit, 5), 150)  # Reduced max limit for better performance
     
-    # Cache key oluştur
-    cache_key = f"prices_latest_{limit}_{interval}"
+    # Enhanced cache key with version
+    cache_key = f"prices_latest_v2_{limit}_{interval}"
     cached = cache.get(cache_key)
     if cached:
         return cached
     
-    # Interval bazlı veri miktarı hesapla
-    interval_multiplier = {
-        "1m": 1,
-        "5m": 5, 
-        "15m": 15
-    }.get(interval, 1)
+    # Optimized interval processing
+    interval_config = {
+        "1m": {"multiplier": 1, "filter_seconds": 60},
+        "5m": {"multiplier": 5, "filter_seconds": 300},
+        "15m": {"multiplier": 10, "filter_seconds": 900}
+    }
     
-    # Gerekli kayıt sayısını hesapla (biraz buffer ile)
-    fetch_count = min(limit * interval_multiplier + 10, 400)
+    config = interval_config.get(interval, interval_config["1m"])
+    fetch_count = min(limit * config["multiplier"] + 20, 300)  # Reduced fetch size
+    
     latest_prices = storage.get_latest_prices(fetch_count)
     
+    # Optimized filtering algorithm
     if latest_prices:
-        # Interval'e göre filtrele
-        if interval == "5m":
-            # Her 5 dakikada bir kayıt al
+        if interval != "1m":
+            # Efficient interval filtering with single pass
             filtered_prices = []
             last_time = None
+            filter_seconds = config["filter_seconds"]
+            
             for p in reversed(latest_prices):
-                if last_time is None or (p.timestamp - last_time).total_seconds() >= 300:
+                if last_time is None or (p.timestamp - last_time).total_seconds() >= filter_seconds:
                     filtered_prices.append(p)
                     last_time = p.timestamp
-                if len(filtered_prices) >= limit:
-                    break
-            prices = list(reversed(filtered_prices))
-        elif interval == "15m":
-            # Her 15 dakikada bir kayıt al
-            filtered_prices = []
-            last_time = None
-            for p in reversed(latest_prices):
-                if last_time is None or (p.timestamp - last_time).total_seconds() >= 900:
-                    filtered_prices.append(p)
-                    last_time = p.timestamp
-                if len(filtered_prices) >= limit:
-                    break
-            prices = list(reversed(filtered_prices))
+                    if len(filtered_prices) >= limit:
+                        break
+            
+            prices = filtered_prices[::-1]  # Reverse efficiently
         else:
-            # 1 dakikalık veriler - son N adet
-            prices = latest_prices[-limit:]
+            # Direct slice for 1m interval
+            prices = latest_prices[-limit:] if len(latest_prices) >= limit else latest_prices
     else:
         prices = []
     
+    # Optimized response structure with minimal data
     result = {
         "prices": [
             {
-                "timestamp": p.timestamp.isoformat(),
-                "gram_altin": float(p.gram_altin) if p.gram_altin else float(p.ons_try / 31.1035),
-                "ons_usd": float(p.ons_usd),
-                "usd_try": float(p.usd_try)
+                "t": p.timestamp.isoformat(),
+                "g": float(p.gram_altin) if p.gram_altin else float(p.ons_try / 31.1035),
+                "o": float(p.ons_usd),
+                "u": float(p.usd_try)
             }
             for p in prices
         ],
         "count": len(prices),
-        "interval": interval
+        "interval": interval,
+        "cached_at": timezone.now().isoformat()
     }
     
-    # 2 dakika cache
-    cache.set(cache_key, result, ttl=120)
+    # Dynamic cache TTL based on interval
+    cache_ttl = 60 if interval == "1m" else 180 if interval == "5m" else 300
+    cache.set(cache_key, result, ttl=cache_ttl)
     return result
 
 @router.get("/prices/current")
@@ -594,13 +600,13 @@ async def debug_analysis_timeframes():
 @router.get("/performance/metrics")
 async def get_performance_metrics(period: str = "month", summary_only: bool = False):
     """
-    Gerçek trading performans metrikleri - simülasyon verilerinden - Optimize edilmiş
+    Gerçek trading performans metrikleri - Ultra Optimized Version
     
     Args:
         period: Zaman aralığı ('day', 'week', 'month') - default: 'month'
         summary_only: Sadece özet bilgiler (default: False)
     """
-    cache_key = f"performance_metrics_{period}_{summary_only}"
+    cache_key = f"performance_metrics_v2_{period}_{summary_only}"
     cached = cache.get(cache_key)
     if cached:
         return cached

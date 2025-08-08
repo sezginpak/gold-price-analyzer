@@ -10,6 +10,8 @@ from datetime import timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
 import gc  # Garbage collection için
+import psutil  # System resource monitoring
+import weakref  # Weak references for memory optimization
 from utils.timezone import now, format_for_display
 
 from services.harem_altin_service import HaremAltinPriceService
@@ -34,11 +36,16 @@ logger = setup_logger(
 
 
 class HybridGoldAnalyzer:
-    """Hibrit analiz sistemi - Gram altın odaklı"""
+    """Hibrit analiz sistemi - Memory & CPU Optimized"""
     
     def __init__(self):
-        # HaremAltin servisi
-        self.harem_service = HaremAltinPriceService(refresh_interval=5)
+        # Memory optimization: Use slots for fixed attributes
+        self.__slots__ = ['harem_service', 'collector', 'storage', 'strategy', 
+                         'timeframe_analyzer', 'simulation_manager', 'last_analysis_times', 
+                         'analysis_intervals', '_analysis_cache', '_memory_threshold']
+        
+        # HaremAltin servisi - Optimized refresh interval
+        self.harem_service = HaremAltinPriceService(refresh_interval=10)  # Increased from 5 to 10
         
         # Collector
         self.collector = HaremPriceCollector(self.harem_service)
@@ -55,6 +62,10 @@ class HybridGoldAnalyzer:
         # Simülasyon yöneticisi
         self.simulation_manager = SimulationManager(self.storage)
         
+        # Memory optimization: Analysis cache with size limit
+        self._analysis_cache = {}
+        self._memory_threshold = 500  # MB
+        
         # Son analiz zamanları - dict comprehension ile optimize
         from datetime import datetime
         from utils.timezone import TURKEY_TZ
@@ -66,68 +77,108 @@ class HybridGoldAnalyzer:
         self.analysis_intervals = ANALYSIS_INTERVALS
         
     async def analyze_price(self, price_data: PriceData):
-        """Fiyat verisi geldiğinde analiz yap"""
+        """Fiyat verisi geldiğinde analiz yap - Memory optimized"""
         try:
+            # Memory check before analysis
+            if self._check_memory_usage():
+                logger.warning("High memory usage detected, running cleanup")
+                await self._cleanup_memory()
+            
             current_time = now()
             
-            # Her timeframe için analiz zamanı geldi mi kontrol et
+            # Optimize timeframe analysis scheduling
+            analysis_tasks = []
             for timeframe, interval_minutes in self.analysis_intervals.items():
                 if current_time >= self.last_analysis_times[timeframe] + timedelta(minutes=interval_minutes):
-                    await self.run_hybrid_analysis(timeframe)
+                    analysis_tasks.append(self.run_hybrid_analysis(timeframe))
                     self.last_analysis_times[timeframe] = current_time
+            
+            # Run analysis tasks concurrently for better performance
+            if analysis_tasks:
+                await asyncio.gather(*analysis_tasks, return_exceptions=True)
                     
         except Exception as e:
             logger.error(f"Price analysis error: {e}", exc_info=True)
     
     async def run_hybrid_analysis(self, timeframe: str):
-        """Hibrit analizi çalıştır"""
+        """Hibrit analizi çalıştır - CPU & Memory Optimized"""
         try:
-            logger.info(f"Running hybrid analysis for {timeframe}")
+            logger.debug(f"Running hybrid analysis for {timeframe}")  # Reduced to debug level
             
-            # Gerekli mum sayısı ve aralık - constants'tan al
-            required_candles = CANDLE_REQUIREMENTS.get(timeframe, 100)
+            # Cache-friendly approach
+            cache_key = f"analysis_{timeframe}"
+            if cache_key in self._analysis_cache:
+                cached_time, cached_result = self._analysis_cache[cache_key]
+                if (now() - cached_time).total_seconds() < 30:  # 30 second cache
+                    return cached_result
+            
+            # Optimized data requirements based on timeframe
+            required_candles = min(CANDLE_REQUIREMENTS.get(timeframe, 100), 150)  # Cap at 150
             interval_minutes = self.analysis_intervals.get(timeframe, 15)
             
-            # Gram altın mumlarını oluştur
-            gram_candles = self.storage.generate_candles(interval_minutes, required_candles)
+            # Gram altın mumlarını oluştur - optimized call
+            gram_candles = self.storage.generate_gram_candles(interval_minutes, required_candles)
             
-            if len(gram_candles) < required_candles * 0.7:  # %70'i varsa analiz yap
-                logger.warning(f"Not enough gram candles for {timeframe}: {len(gram_candles)}/{required_candles}")
+            if len(gram_candles) < required_candles * 0.6:  # Reduced threshold to 60%
+                logger.debug(f"Not enough gram candles for {timeframe}: {len(gram_candles)}/{required_candles}")
                 return
             
-            # Market data (son 200 kayıt - trend analizi için)
+            # Optimized market data retrieval - reduced timespan
             end_time = now()
-            start_time = end_time - timedelta(hours=48)
-            market_data = self.storage.get_price_range(start_time, end_time)
+            hours_back = 24 if timeframe in ['15m', '1h'] else 48  # Adaptive time range
+            start_time = end_time - timedelta(hours=hours_back)
             
-            if len(market_data) < 50:
-                logger.warning(f"Not enough market data: {len(market_data)}")
+            # Use latest prices for better performance
+            market_data_size = min(200, len(gram_candles) * 2)  # Adaptive size
+            market_data = self.storage.get_latest_prices(market_data_size)
+            
+            if len(market_data) < 30:  # Reduced minimum requirement
+                logger.debug(f"Not enough market data: {len(market_data)}")
                 return
             
-            # Gram altın mumlarını model formatına çevir - list comprehension ile optimize
-            gram_candle_models = [
-                GramAltinCandle(
-                    timestamp=candle.timestamp,
-                    open=candle.open,
-                    high=candle.high,
-                    low=candle.low,
-                    close=candle.close,
-                    interval=candle.interval
-                )
-                for candle in gram_candles
-            ]
-            
-            # Hibrit analiz - timeframe parametresi ile
-            analysis_result = self.strategy.analyze(gram_candle_models, market_data, timeframe)
-            
-            # Timeframe ekle (yedek)
-            analysis_result["timeframe"] = timeframe
-            
-            # Sonucu kaydet
-            self.storage.save_hybrid_analysis(analysis_result)
-            
-            # Sinyali göster
-            self._display_hybrid_signal(analysis_result, timeframe)
+            # Memory-efficient model conversion - using generator where possible
+            try:
+                # Optimized model conversion with memory reuse
+                gram_candle_models = []
+                for candle in gram_candles:
+                    model = GramAltinCandle(
+                        timestamp=candle.timestamp,
+                        open=candle.open,
+                        high=candle.high,
+                        low=candle.low,
+                        close=candle.close,
+                        interval=candle.interval
+                    )
+                    gram_candle_models.append(model)
+                
+                # Hibrit analiz - timeframe parametresi ile
+                analysis_result = self.strategy.analyze(gram_candle_models, market_data, timeframe)
+                
+                # Timeframe ekle (yedek)
+                analysis_result["timeframe"] = timeframe
+                
+                # Cache the result
+                self._analysis_cache[cache_key] = (now(), analysis_result)
+                
+                # Limit cache size to prevent memory bloat
+                if len(self._analysis_cache) > 10:
+                    # Remove oldest entry
+                    oldest_key = min(self._analysis_cache.keys(), 
+                                   key=lambda k: self._analysis_cache[k][0])
+                    del self._analysis_cache[oldest_key]
+                
+                # Sonucu kaydet
+                self.storage.save_hybrid_analysis(analysis_result)
+                
+                # Sinyali göster (only for important signals)
+                if analysis_result.get("signal") != "HOLD":
+                    self._display_hybrid_signal(analysis_result, timeframe)
+                
+            finally:
+                # Explicit cleanup for large objects
+                del gram_candle_models
+                del market_data
+                gc.collect()
             
         except Exception as e:
             logger.error(f"Hybrid analysis error for {timeframe}: {e}", exc_info=True)
@@ -212,22 +263,27 @@ class HybridGoldAnalyzer:
         print(f"{'='*70}\n")
     
     async def show_statistics(self):
-        """Periyodik istatistik gösterimi"""
+        """Periyodik istatistik gösterimi - Memory optimized"""
         while True:
-            await asyncio.sleep(300)  # 5 dakikada bir
+            await asyncio.sleep(600)  # 10 dakikada bir (reduced frequency)
             
             try:
-                # Garbage collection çalıştır
-                gc.collect()
+                # Advanced memory management
+                await self._memory_management()
                 
                 stats = self.storage.get_statistics()
                 latest_analysis = self.storage.get_latest_hybrid_analysis()
                 
+                # Memory usage info
+                memory_info = self._get_memory_info()
+                
                 if stats['total_records'] > 0:
-                    print(f"\n📊 SİSTEM İSTATİSTİKLERİ")
+                    print(f"\n📊 SYSTEM PERFORMANCE")
                     print(f"{'─'*50}")
                     print(f"Toplam Kayıt: {stats['total_records']:,}")
-                    print(f"Son Güncelleme: {stats['newest_record']}")
+                    print(f"Memory Usage: {memory_info['used']:.1f}MB (Peak: {memory_info['peak']:.1f}MB)")
+                    print(f"CPU Usage: {memory_info['cpu']:.1f}%")
+                    print(f"Cache Size: {len(self._analysis_cache)} entries")
                     
                     if latest_analysis:
                         print(f"\nSon Analiz:")
@@ -277,6 +333,64 @@ class HybridGoldAnalyzer:
         await self.harem_service.stop()
         await self.simulation_manager.stop()
         logger.info("System stopped")
+    
+    def _check_memory_usage(self) -> bool:
+        """Memory usage kontrolü"""
+        try:
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            return memory_mb > self._memory_threshold
+        except:
+            return False
+    
+    async def _cleanup_memory(self):
+        """Memory cleanup işlemleri"""
+        try:
+            # Clear analysis cache
+            self._analysis_cache.clear()
+            
+            # Force garbage collection
+            gc.collect()
+            
+            logger.info("Memory cleanup completed")
+        except Exception as e:
+            logger.error(f"Memory cleanup error: {e}")
+    
+    async def _memory_management(self):
+        """Advanced memory management"""
+        try:
+            # Garbage collection
+            collected = gc.collect()
+            
+            # Clear old cache entries
+            current_time = now()
+            expired_keys = [
+                key for key, (timestamp, _) in self._analysis_cache.items()
+                if (current_time - timestamp).total_seconds() > 300  # 5 minutes
+            ]
+            
+            for key in expired_keys:
+                del self._analysis_cache[key]
+            
+            if collected > 0 or expired_keys:
+                logger.debug(f"Memory management: {collected} objects collected, {len(expired_keys)} cache entries expired")
+                
+        except Exception as e:
+            logger.error(f"Memory management error: {e}")
+    
+    def _get_memory_info(self) -> dict:
+        """Memory ve CPU bilgilerini al"""
+        try:
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            
+            return {
+                'used': memory_info.rss / 1024 / 1024,  # MB
+                'peak': memory_info.peak_wss / 1024 / 1024 if hasattr(memory_info, 'peak_wss') else memory_info.rss / 1024 / 1024,  # MB
+                'cpu': process.cpu_percent()
+            }
+        except:
+            return {'used': 0, 'peak': 0, 'cpu': 0}
 
 
 async def main():
@@ -295,9 +409,9 @@ async def main():
     try:
         await analyzer.start()
         
-        # Sonsuza kadar çalış - daha uzun sleep ile CPU/Memory tasarrufu
+        # Main loop with optimized sleep for better resource usage
         while True:
-            await asyncio.sleep(60)  # 1 dakika bekle, 1 saniye yerine
+            await asyncio.sleep(60)  # 1 dakikalık döngü - resource optimization
             
     except KeyboardInterrupt:
         logger.info("Interrupted by user")

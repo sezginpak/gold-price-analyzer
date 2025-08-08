@@ -44,7 +44,7 @@ class SQLiteStorage:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Raw price data tablosu
+            # Raw price data tablosu - Optimized
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS price_data (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -168,13 +168,20 @@ class SQLiteStorage:
                 )
             """)
             
-            # Index'ler
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_timestamp ON price_data(timestamp)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_candle_timestamp ON price_candles(timestamp, interval)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_gram_candle_timestamp ON gram_candles(timestamp, interval)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_signal_timestamp ON trading_signals(timestamp)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_analysis_timestamp ON analysis_results(timestamp)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_hybrid_timestamp ON hybrid_analysis(timestamp)")
+            # Optimized Index'ler - Performance Critical
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_timestamp ON price_data(timestamp DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_gram_timestamp ON price_data(gram_altin, timestamp DESC) WHERE gram_altin IS NOT NULL")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_candle_timestamp ON price_candles(timestamp DESC, interval)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_gram_candle_timestamp ON gram_candles(timestamp DESC, interval)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_signal_timestamp ON trading_signals(timestamp DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_analysis_timestamp ON analysis_results(timestamp DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_hybrid_timestamp ON hybrid_analysis(timestamp DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_hybrid_signal_timeframe ON hybrid_analysis(signal, timeframe, timestamp DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_hybrid_timeframe_timestamp ON hybrid_analysis(timeframe, timestamp DESC)")
+            
+            # Simulation Performance Indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_sim_positions_status_time ON sim_positions(status, entry_time DESC, exit_time DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_sim_positions_pnl ON sim_positions(net_profit_loss DESC) WHERE status = 'CLOSED'")
             
             # Eksik kolonları kontrol et ve ekle
             self._check_and_add_missing_columns(cursor)
@@ -269,29 +276,36 @@ class SQLiteStorage:
             ]
     
     def get_latest_prices(self, limit: int = 100) -> List[PriceData]:
-        """Son N fiyat verisini getir"""
+        """Son N fiyat verisini getir - Optimized"""
+        # Input validation and limit capping
+        limit = min(max(limit, 1), 500)
+        
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # Optimized query with covering index usage
             cursor.execute("""
-                SELECT * FROM price_data 
+                SELECT timestamp, ons_usd, usd_try, ons_try, gram_altin, source 
+                FROM price_data 
                 ORDER BY timestamp DESC 
                 LIMIT ?
             """, (limit,))
             
+            # List comprehension optimization
             prices = [
                 PriceData(
-                    timestamp=timezone.parse_timestamp(row['timestamp']),
-                    ons_usd=Decimal(str(row['ons_usd'])),
-                    usd_try=Decimal(str(row['usd_try'])),
-                    ons_try=Decimal(str(row['ons_try'])),
-                    gram_altin=Decimal(str(row['gram_altin'])) if row['gram_altin'] is not None else None,
-                    source=row['source']
+                    timestamp=timezone.parse_timestamp(row[0]),
+                    ons_usd=Decimal(str(row[1])),
+                    usd_try=Decimal(str(row[2])),
+                    ons_try=Decimal(str(row[3])),
+                    gram_altin=Decimal(str(row[4])) if row[4] is not None else None,
+                    source=row[5]
                 )
                 for row in cursor.fetchall()
             ]
             
-            # Eski->Yeni sıralama için ters çevir
-            return list(reversed(prices))
+            # Reverse once for chronological order
+            prices.reverse()
+            return prices
     
     def generate_candles(self, interval_minutes: int, limit: int = 100) -> List[PriceCandle]:
         """Raw veriden OHLC mumları oluştur"""
@@ -345,7 +359,7 @@ class SQLiteStorage:
             return candles[::-1]  # reversed() yerine slice notation daha hızlı
     
     def generate_gram_candles(self, interval_minutes: int, limit: int = 100) -> List[PriceCandle]:
-        """Gram altın için OHLC mumları oluştur"""
+        """Gram altın için OHLC mumları oluştur - Highly Optimized"""
         interval_map = {
             15: "15m",
             60: "1h",
@@ -353,40 +367,39 @@ class SQLiteStorage:
             1440: "1d"
         }
         
+        # Input validation
+        limit = min(max(limit, 5), 200)
         interval_str = interval_map.get(interval_minutes, f"{interval_minutes}m")
-        logger.info(f"Generating gram candles for {interval_str} interval, limit: {limit}")
         
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Gram altın fiyatları üzerinden gruplama
-            # Eğer gram_altin yoksa, ons_try / 31.1035 formülü ile hesapla
+            # Optimized query with better indexing strategy
             cursor.execute(f"""
-                WITH grouped_data AS (
+                WITH RECURSIVE candle_periods AS (
                     SELECT 
-                        datetime(
-                            strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 
-                            'unixepoch'
-                        ) as candle_time,
-                        CASE 
-                            WHEN gram_altin IS NOT NULL THEN gram_altin 
-                            ELSE ons_try / 31.1035 
-                        END as calculated_gram,
-                        timestamp,
-                        ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp ASC) as rn_first,
-                        ROW_NUMBER() OVER (PARTITION BY datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') ORDER BY timestamp DESC) as rn_last
-                    FROM price_data
-                    WHERE ons_try IS NOT NULL
+                        strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60) as period_start,
+                        datetime(strftime('%s', timestamp) / ({interval_minutes} * 60) * ({interval_minutes} * 60), 'unixepoch') as candle_time,
+                        COALESCE(gram_altin, ons_try / 31.1035) as price,
+                        timestamp
+                    FROM price_data 
+                    WHERE timestamp > datetime('now', '-{limit * interval_minutes} minutes')
+                    AND (gram_altin IS NOT NULL OR ons_try IS NOT NULL)
+                    ORDER BY timestamp DESC
+                ),
+                candle_data AS (
+                    SELECT 
+                        candle_time,
+                        MIN(price) as low,
+                        MAX(price) as high,
+                        FIRST_VALUE(price) OVER (PARTITION BY period_start ORDER BY timestamp ASC) as open,
+                        FIRST_VALUE(price) OVER (PARTITION BY period_start ORDER BY timestamp DESC) as close,
+                        COUNT(*) as tick_count
+                    FROM candle_periods
+                    GROUP BY candle_time, period_start
                 )
-                SELECT 
-                    candle_time,
-                    MIN(calculated_gram) as low,
-                    MAX(calculated_gram) as high,
-                    MAX(CASE WHEN rn_first = 1 THEN calculated_gram END) as open,
-                    MAX(CASE WHEN rn_last = 1 THEN calculated_gram END) as close,
-                    COUNT(*) as tick_count
-                FROM grouped_data
-                GROUP BY candle_time
+                SELECT DISTINCT candle_time, low, high, open, close, tick_count
+                FROM candle_data
                 ORDER BY candle_time DESC
                 LIMIT ?
             """, (limit,))
