@@ -48,8 +48,8 @@ class FibonacciRetracement:
     def find_swing_points(
         self, 
         df: pd.DataFrame, 
-        window: int = 10,
-        min_swing_strength: float = 0.001
+        window: int = 5,
+        min_swing_strength: float = 0.0001
     ) -> Dict[str, List[Tuple[int, float]]]:
         """
         Swing high ve low noktalarını bul
@@ -80,17 +80,20 @@ class FibonacciRetracement:
                     continue
                     
                 # Swing strength hesapla (daha basit yaklaşım)
-                left_max = np.max(highs[idx-window:idx])
-                right_max = np.max(highs[idx+1:idx+window+1])
+                left_max = np.max(highs[max(0, idx-window):idx]) if idx > 0 else 0
+                right_max = np.max(highs[idx+1:min(len(highs), idx+window+1)]) if idx < len(highs)-1 else 0
                 current_high = highs[idx]
                 
-                # Current high, çevre değerlerden yüksekse swing high
-                if current_high > left_max and current_high > right_max:
+                # Current high, çevre değerlerden yüksek veya eşitse swing high
+                if current_high >= left_max and current_high >= right_max:
                     # Strength hesapla
-                    strength = min(
-                        (current_high - left_max) / current_high,
-                        (current_high - right_max) / current_high
-                    )
+                    if current_high > 0:
+                        strength = min(
+                            abs(current_high - left_max) / current_high if left_max > 0 else 0.01,
+                            abs(current_high - right_max) / current_high if right_max > 0 else 0.01
+                        )
+                    else:
+                        strength = 0.01
                     
                     if strength >= min_swing_strength:
                         swing_highs.append((idx, current_high))
@@ -101,17 +104,20 @@ class FibonacciRetracement:
                     continue
                     
                 # Swing strength hesapla (daha basit yaklaşım)
-                left_min = np.min(lows[idx-window:idx])
-                right_min = np.min(lows[idx+1:idx+window+1])
+                left_min = np.min(lows[max(0, idx-window):idx]) if idx > 0 else float('inf')
+                right_min = np.min(lows[idx+1:min(len(lows), idx+window+1)]) if idx < len(lows)-1 else float('inf')
                 current_low = lows[idx]
                 
-                # Current low, çevre değerlerden düşükse swing low
-                if current_low < left_min and current_low < right_min:
+                # Current low, çevre değerlerden düşük veya eşitse swing low
+                if current_low <= left_min and current_low <= right_min:
                     # Strength hesapla
-                    strength = min(
-                        (left_min - current_low) / current_low,
-                        (right_min - current_low) / current_low
-                    )
+                    if current_low > 0:
+                        strength = min(
+                            abs(left_min - current_low) / current_low if left_min != float('inf') else 0.01,
+                            abs(right_min - current_low) / current_low if right_min != float('inf') else 0.01
+                        )
+                    else:
+                        strength = 0.01
                     
                     if strength >= min_swing_strength:
                         swing_lows.append((idx, current_low))
@@ -286,11 +292,26 @@ class FibonacciRetracement:
             # Swing points bul
             swings = self.find_swing_points(df)
             
+            # Eğer swing point bulunamazsa, basit high/low kullan
             if not swings['highs'] or not swings['lows']:
-                return {
-                    'status': 'no_swings',
-                    'message': 'Swing point bulunamadı'
-                }
+                # Son 20 mum içinde en yüksek ve en düşük noktaları bul
+                recent_window = min(20, len(df))
+                recent_df = df.tail(recent_window)
+                
+                # Basit high/low yaklaşımı
+                highest_idx = recent_df['high'].idxmax()
+                lowest_idx = recent_df['low'].idxmin()
+                
+                if highest_idx is not None and lowest_idx is not None:
+                    swings = {
+                        'highs': [(highest_idx, recent_df.loc[highest_idx, 'high'])],
+                        'lows': [(lowest_idx, recent_df.loc[lowest_idx, 'low'])]
+                    }
+                else:
+                    return {
+                        'status': 'no_swings',
+                        'message': 'Fibonacci analizi için yetersiz veri'
+                    }
             
             # Son swing high ve low
             last_high_idx, last_high_price = swings['highs'][-1]
