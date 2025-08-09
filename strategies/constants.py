@@ -2,12 +2,12 @@
 Trading Strategy Constants - Dip/Tepe yakalama için optimize edilmiş sabitler
 """
 
-# Minimum güven eşikleri (timeframe bazında) - daha düşük eşikler
+# Minimum güven eşikleri (timeframe bazında) - makul sinyal üretimi için optimize edildi
 MIN_CONFIDENCE_THRESHOLDS = {
-    "15m": 0.65,  # 0.70'ten düşürüldü
-    "1h": 0.60,   # 0.65'ten düşürüldü
-    "4h": 0.55,   # 0.60'tan düşürüldü
-    "1d": 0.50    # 0.55'ten düşürüldü
+    "15m": 0.45,  # Kısa vadeli işlemler için daha esnek
+    "1h": 0.50,   # Saatlik analizler için dengeli
+    "4h": 0.55,   # 4 saatlik için orta seviye
+    "1d": 0.60    # Günlük için daha güvenli
 }
 
 # RSI seviyeleri - erken sinyal tespiti için

@@ -68,13 +68,13 @@ class HybridStrategy:
         self.market_regime_detector = MarketRegimeDetector()
         self.divergence_detector = AdvancedDivergenceDetector()
         
-        # Modül ağırlıkları (toplamı 1.0 olmalı)
+        # Modül ağırlıkları (toplamı 1.0 olmalı) - gram_analysis ağırlığı artırıldı
         self.module_weights = {
-            'gram_analysis': 0.25,
-            'market_regime': 0.20,
-            'divergence': 0.20,
-            'smc': 0.20,
-            'fibonacci': 0.15
+            'gram_analysis': 0.50,  # Ana analiz modülü - ağırlığı artırıldı
+            'market_regime': 0.20,  # Market rejimi analizi
+            'divergence': 0.15,     # Divergence tespiti - ağırlığı azaltıldı
+            'smc': 0.10,            # Smart Money Concepts - ağırlığı azaltıldı
+            'fibonacci': 0.05       # Fibonacci seviyeleri - ağırlığı azaltıldı
         }
         
         # Storage referansı
@@ -1489,8 +1489,8 @@ class HybridStrategy:
             if signal == 'HOLD':
                 return signal_result
             
-            # Minimum kar hedefi = işlem maliyeti * 2 (giriş + çıkış)
-            min_profit_target = TRANSACTION_COST_PERCENTAGE * 2  # %0.9
+            # Minimum kar hedefi = işlem maliyeti * 1.5 (daha esnek)
+            min_profit_target = TRANSACTION_COST_PERCENTAGE * 1.5  # %0.675
             
             # Volatilite bazlı beklenen hareket
             expected_move = market_volatility * 0.5  # Konservatif tahmin
